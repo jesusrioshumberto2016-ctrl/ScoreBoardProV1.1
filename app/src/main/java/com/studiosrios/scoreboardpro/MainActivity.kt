@@ -36,6 +36,8 @@ class MainActivity : ComponentActivity() {
     }
 }
 
+
+
 @Composable
 fun ScoreBoardNavigation(
     listaJ: SnapshotStateList<JogadorExemplo>,
@@ -47,6 +49,7 @@ fun ScoreBoardNavigation(
     var equipeSelecionada by remember { mutableStateOf<EquipeExemplo?>(null) }
     var modeloCampeonatoEscolhido by remember { mutableStateOf("") }
     var idCampeonatoAtual by remember { mutableIntStateOf(-1) }
+    var configuracaoFinalGrupos by remember { mutableStateOf<List<ConfigGrupo>>(emptyList()) }
 
     val listaPartidasCampeonato = remember { mutableStateListOf<Partida>() }
     val equipesNoCampeonato = remember { mutableStateListOf<EquipeExemplo>() }
@@ -55,10 +58,13 @@ fun ScoreBoardNavigation(
     // Intercepta o botão físico de voltar para voltar exatamente "uma casa"
     BackHandler(enabled = telaAtual != "menu") {
         telaAtual = when (telaAtual) {
-            // Fluxo de Campeonato
             "gerenciar_campeonato" -> "menu"
             "cadastrar_campeonato" -> "menu"
-            "selecao_equipes_campeonato" -> "cadastrar_campeonato"
+            "selecao_grupos" -> "cadastrar_campeonato" // Adicionado aqui!
+            "selecao_equipes_campeonato" -> {
+                if (modeloCampeonatoEscolhido == "Libertadores") "selecao_grupos"
+                else "cadastrar_campeonato"
+            }
             "painel_campeonato" -> "gerenciar_campeonato"
 
             // Fluxo de Jogadores
@@ -98,27 +104,54 @@ fun ScoreBoardNavigation(
             onVoltar = { telaAtual = "menu" },
             onSelecionarModelo = { modelo ->
                 modeloCampeonatoEscolhido = modelo
-                if (modelo == "Brasileirão Série A") {
-                    idCampeonatoAtual = -1
-                    configsCampeonatoAtual = ConfiguracoesCampeonato()
+                idCampeonatoAtual = -1
+                configsCampeonatoAtual = ConfiguracoesCampeonato()
+
+                // Verificamos se a palavra "Libertadores" existe no nome do modelo escolhido
+                if (modelo.contains("Libertadores", ignoreCase = true)) {
+                    telaAtual = "selecao_grupos"
+                } else {
                     telaAtual = "selecao_equipes_campeonato"
                 }
             }
         )
+        "selecao_grupos" -> {
+            TelaSelecaoGrupos(
+                onVoltar = { telaAtual = "cadastrar_campeonato" },
+                onConfirmar = { lista ->
+                    configuracaoFinalGrupos = lista
+                    telaAtual = "selecao_equipes_campeonato"
+                }
+            )
+        }
+
         "selecao_equipes_campeonato" -> {
             TelaSelecaoEquipesCampeonato(
                 listaEquipes = listaE,
                 onVoltar = { telaAtual = "cadastrar_campeonato" },
                 onFinalizar = { selecionadasIds ->
+                    // 1. Mantemos a sua lógica de filtrar as equipes
                     equipesNoCampeonato.clear()
                     equipesNoCampeonato.addAll(listaE.filter { selecionadasIds.contains(it.id) })
+
+                    // 2. Limpamos a lista de partidas
                     listaPartidasCampeonato.clear()
-                    var idP = 1
-                    for (i in equipesNoCampeonato.indices) {
-                        for (j in i + 1 until equipesNoCampeonato.size) {
-                            listaPartidasCampeonato.add(Partida(idP++, equipesNoCampeonato[i].id, equipesNoCampeonato[j].id))
-                        }
-                    }
+
+                    // 3. Chamamos o formato escolhido (Brasileirão, Mata-Mata, etc.)
+                    val formato = obterFormato(modeloCampeonatoEscolhido)
+
+                    // 4. O formato gera as partidas.
+                    // Como o seu modelo Partida tem valores padrão (""),
+                    // elas nascerão com as gavetas de árbitros e técnicos prontas, mas vazias.
+                    val partidasGeradas = formato.gerarCalendario(
+                        equipes = equipesNoCampeonato.toList(),
+                        turnoEReturno = configsCampeonatoAtual.modoReturno,
+                        configsGrupos = configuracaoFinalGrupos // <--- Aqui o dado sai da tela e vai pro motor!
+                    )
+
+                    // 5. Adicionamos as novas partidas na lista
+                    listaPartidasCampeonato.addAll(partidasGeradas)
+
                     telaAtual = "painel_campeonato"
                 }
             )
@@ -131,25 +164,24 @@ fun ScoreBoardNavigation(
                 modelo = modeloCampeonatoEscolhido,
                 listaGlobalJogadores = listaJ,
                 configsIniciais = configsCampeonatoAtual,
+                listaGruposConfig = configuracaoFinalGrupos, // Envia a lista de grupos personalizada
                 onSalvarGeral = { idExistente, novasConfigs ->
-                    val novoCamp = CampeonatoSalvo(
-                        id = if (idExistente == -1) (listaC.size + 1) else idExistente,
-                        nomeExibicao = if (idExistente == -1) "Torneio ${listaC.size + 1}" else "Torneio $idExistente",
-                        modelo = modeloCampeonatoEscolhido,
-                        equipes = equipesNoCampeonato.toList(),
-                        partidas = listaPartidasCampeonato.toList(),
-                        configs = novasConfigs
-                    )
+                    // Atualiza as configurações no estado atual
+                    configsCampeonatoAtual = novasConfigs
 
-                    if (idExistente == -1) {
-                        listaC.add(novoCamp)
-                        idCampeonatoAtual = novoCamp.id
-                    } else {
-                        val index = listaC.indexOfFirst { it.id == idExistente }
-                        if (index != -1) listaC[index] = novoCamp
+                    // Procura o campeonato na lista global para atualizar o objeto salvo
+                    val index = listaC.indexOfFirst { it.id == idExistente }
+                    if (index != -1) {
+                        listaC[index] = listaC[index].copy(
+                            configs = novasConfigs,
+                            equipes = equipesNoCampeonato.toList(),
+                            partidas = listaPartidasCampeonato.toList()
+                        )
                     }
                 },
-                onVoltar = { telaAtual = "menu" }
+                onVoltar = {
+                    telaAtual = "menu"
+                }
             )
         }
         "cadastrar_jogador" -> TelaCadastroJogador(onVoltar = { telaAtual = "menu" })
@@ -175,5 +207,15 @@ fun ScoreBoardNavigation(
                 TelaSelecaoJogador(equipeAlvo = equipe, listaTotal = listaJ, onFinalizar = { telaAtual = "detalhes_equipe" })
             }
         }
+    }
+}
+
+// VEJA A DIFERENÇA: Tirei o ".kt" de todos os nomes abaixo
+fun obterFormato(modelo: String): FormatoCampeonato {
+    return when (modelo) {
+        "Brasileirão Série A" -> BrasileiraoSerieA()
+        "Mata-Mata" -> MataMata()
+        "Libertadores" -> CopaLibertadores()
+        else -> BrasileiraoSerieA()
     }
 }
