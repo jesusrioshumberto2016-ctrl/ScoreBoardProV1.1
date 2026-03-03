@@ -24,50 +24,79 @@ fun TelaPainelLibertadores(
     onVoltar: () -> Unit
 ) {
     var abaSelecionada by remember { mutableIntStateOf(0) }
-    // Adicionada a aba "Mata-Mata" na lista
     val titulosAbas = listOf("Grupos", "Mata-Mata", "Resultados", "Partidas", "Súmula", "Pré-Jogo", "Artilharia", "Configs")
+
+    // Estados para controlar a exibição das telas de visualização
+    var partidaParaVerPreJogo by remember { mutableStateOf<Partida?>(null) }
+    var partidaParaVerDetalhes by remember { mutableStateOf<Partida?>(null) }
 
     Scaffold(
         topBar = {
-            Column {
-                CenterAlignedTopAppBar(
-                    title = { Text("Painel Libertadores", fontWeight = FontWeight.Bold) },
-                    navigationIcon = {
-                        TextButton(onClick = onVoltar) { Text("Sair") }
-                    }
-                )
-                ScrollableTabRow(
-                    selectedTabIndex = abaSelecionada,
-                    edgePadding = 0.dp,
-                    containerColor = MaterialTheme.colorScheme.surface
-                ) {
-                    titulosAbas.forEachIndexed { index, titulo ->
-                        Tab(
-                            selected = abaSelecionada == index,
-                            onClick = { abaSelecionada = index },
-                            text = { Text(titulo, fontSize = 11.sp) }
-                        )
+            if (partidaParaVerPreJogo == null && partidaParaVerDetalhes == null) {
+                Column {
+                    CenterAlignedTopAppBar(
+                        title = { Text("Painel Libertadores", fontWeight = FontWeight.Bold) },
+                        navigationIcon = {
+                            TextButton(onClick = onVoltar) { Text("Sair") }
+                        }
+                    )
+                    ScrollableTabRow(
+                        selectedTabIndex = abaSelecionada,
+                        edgePadding = 0.dp,
+                        containerColor = MaterialTheme.colorScheme.surface
+                    ) {
+                        titulosAbas.forEachIndexed { index, titulo ->
+                            Tab(
+                                selected = abaSelecionada == index,
+                                onClick = { abaSelecionada = index },
+                                text = { Text(titulo, fontSize = 11.sp) }
+                            )
+                        }
                     }
                 }
             }
         }
     ) { paddingValues ->
         Box(modifier = Modifier.padding(paddingValues).fillMaxSize()) {
-            when (abaSelecionada) {
-                0 -> PainelGruposLibertadores(equipes, partidas, configsIniciais, listaGruposConfig)
-                1 -> ConteudoChaveamento(equipes, partidas) // Aba Mata-Mata usando o componente de chaveamento
-                2 -> ResultadosTab(partidas, equipes)
-                3 -> PartidasTab(partidas, equipes, onPartidaClick = { /* Navegação opcional */ })
-                4 -> SumulaTab(partidas, equipes, listaGlobalJogadores)
-                5 -> PreJogoTab(equipes, partidas, listaGlobalJogadores)
-                6 -> TelaArtilharia(equipes, listaGlobalJogadores)
-                7 -> {
-                    ConfigLibertadores(
-                        configs = configsIniciais,
-                        onSalvar = { novasConfigs ->
-                            onSalvarGeral(idCamp, novasConfigs)
-                        }
+            when {
+                partidaParaVerPreJogo != null -> {
+                    TelaPreJogoDetalhada(
+                        partida = partidaParaVerPreJogo!!,
+                        equipes = equipes,
+                        todosJogadores = listaGlobalJogadores,
+                        onVoltar = { partidaParaVerPreJogo = null }
                     )
+                }
+                partidaParaVerDetalhes != null -> {
+                    TelaSumulaDetalhada(
+                        partida = partidaParaVerDetalhes!!,
+                        equipes = equipes,
+                        onVoltar = { partidaParaVerDetalhes = null }
+                    )
+                }
+                else -> {
+                    when (abaSelecionada) {
+                        0 -> PainelGruposLibertadores(equipes, partidas, configsIniciais, listaGruposConfig)
+                        1 -> ConteudoChaveamento(equipes, partidas)
+                        2 -> ResultadosTab(partidas, equipes)
+                        3 -> PartidasTab(
+                            partidas = partidas,
+                            equipes = equipes,
+                            onPreJogoClick = { p -> partidaParaVerPreJogo = p },
+                            onDetalhesClick = { p -> partidaParaVerDetalhes = p }
+                        )
+                        4 -> SumulaTab(partidas, equipes, listaGlobalJogadores)
+                        5 -> PreJogoTab(equipes, partidas, listaGlobalJogadores)
+                        6 -> TelaArtilharia(equipes, listaGlobalJogadores)
+                        7 -> {
+                            ConfigLibertadores(
+                                configs = configsIniciais,
+                                onSalvar = { novasConfigs ->
+                                    onSalvarGeral(idCamp, novasConfigs)
+                                }
+                            )
+                        }
+                    }
                 }
             }
         }
