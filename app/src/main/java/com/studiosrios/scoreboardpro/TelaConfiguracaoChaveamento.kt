@@ -4,9 +4,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material3.*
@@ -15,7 +13,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
@@ -39,128 +36,88 @@ fun TelaConfiguracaoChaveamento(
         lista
     }
 
-    val opcoesComTbd = listOf("TBD") + slotsReais
+    // Slots das fases seguintes (Vencedores dos confrontos)
+    val numJogosPrimeiraFase = totalVagas / 2
+    val slotsVencedores = List(numJogosPrimeiraFase) { "Vence J${it + 1}" }
+    
+    val numJogosSegundaFase = numJogosPrimeiraFase / 2
+    val slotsVencedoresSegundaFase = List(numJogosSegundaFase) { "Vence QF${it + 1}" }
 
-    // Estado dos confrontos iniciais
+    val todasOpcoes = listOf("TBD") + slotsReais + slotsVencedores + slotsVencedoresSegundaFase
+
+    val totalJogos = calcularTotalJogos(totalVagas)
     val confrontos = remember { 
         mutableStateListOf<Pair<String, String>>().apply {
-            for (i in 0 until totalVagas / 2) {
+            repeat(totalJogos) {
                 add(Pair("TBD", "TBD"))
             }
         }
     }
 
-    // Lógica para garantir que um time só apareça uma vez
     fun selecionarSlot(index: Int, isFirst: Boolean, novoSlot: String) {
         if (novoSlot != "TBD") {
-            // Remove de qualquer outro lugar que já esteja
             for (i in confrontos.indices) {
                 if (confrontos[i].first == novoSlot) confrontos[i] = confrontos[i].copy(first = "TBD")
                 if (confrontos[i].second == novoSlot) confrontos[i] = confrontos[i].copy(second = "TBD")
             }
         }
-        
-        // Atualiza a posição desejada
-        if (isFirst) {
-            confrontos[index] = confrontos[index].copy(first = novoSlot)
-        } else {
-            confrontos[index] = confrontos[index].copy(second = novoSlot)
-        }
+        if (isFirst) confrontos[index] = confrontos[index].copy(first = novoSlot)
+        else confrontos[index] = confrontos[index].copy(second = novoSlot)
     }
 
     Column(modifier = Modifier.fillMaxSize().padding(16.dp)) {
-        Text("Configuração do Chaveamento", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
+        Text("Configuração Completa do Chaveamento", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
         
         Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(vertical = 8.dp)) {
             Icon(Icons.Default.Info, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(16.dp))
             Spacer(Modifier.width(4.dp))
-            Text("Defina os confrontos da 1ª fase eliminatória.", fontSize = 12.sp, color = Color.Gray)
+            Text("Defina todos os confrontos até a grande final.", fontSize = 12.sp, color = Color.Gray)
         }
 
         Card(modifier = Modifier.fillMaxWidth()) {
-            Row(
-                modifier = Modifier.padding(12.dp).fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
-                Text("Jogos de Ida e Volta", fontWeight = FontWeight.Bold)
+            Row(modifier = Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
+                Text("Jogos de Ida e Volta (Mata-Mata)", fontWeight = FontWeight.Bold)
                 Switch(checked = idaEVolta, onCheckedChange = { idaEVolta = it })
             }
         }
 
         Spacer(Modifier.height(16.dp))
 
-        // Usamos LazyColumn para os confrontos
         LazyColumn(modifier = Modifier.weight(1f)) {
-            item {
-                Text("CAMINHO ATÉ A FINAL", fontWeight = FontWeight.Black, color = MaterialTheme.colorScheme.secondary, fontSize = 14.sp)
-                Spacer(Modifier.height(8.dp))
-            }
-
             itemsIndexed(confrontos) { index, par ->
-                val matchNum = index + 1
-                // Agrupamento visual para mostrar quem enfrenta quem na próxima fase
-                val proxFase = if (matchNum % 2 != 0) "Vence J$matchNum vs Vence J${matchNum + 1}" else null
+                val faseInfo = obterNomeFaseEConfronto(index, totalVagas)
                 
-                Column {
+                Column(modifier = Modifier.padding(vertical = 4.dp)) {
+                    Text(faseInfo.first, fontWeight = FontWeight.Black, color = MaterialTheme.colorScheme.secondary, fontSize = 12.sp)
                     Card(
-                        modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
+                        modifier = Modifier.fillMaxWidth(),
                         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
                     ) {
                         Column(Modifier.padding(8.dp)) {
-                            Text("JOGO $matchNum", fontWeight = FontWeight.Bold, fontSize = 10.sp, color = MaterialTheme.colorScheme.primary)
+                            Text(faseInfo.second, fontWeight = FontWeight.Bold, fontSize = 10.sp, color = MaterialTheme.colorScheme.primary)
                             Row(verticalAlignment = Alignment.CenterVertically) {
                                 Box(modifier = Modifier.weight(1f)) {
-                                    MenuSelecaoSlot(
-                                        selecionado = par.first,
-                                        opcoes = opcoesComTbd,
-                                        onSelecionar = { selecionarSlot(index, true, it) }
-                                    )
+                                    MenuSelecaoSlot(selecionado = par.first, opcoes = todasOpcoes, onSelecionar = { selecionarSlot(index, true, it) })
                                 }
                                 Text(" x ", fontWeight = FontWeight.Bold)
                                 Box(modifier = Modifier.weight(1f)) {
-                                    MenuSelecaoSlot(
-                                        selecionado = par.second,
-                                        opcoes = opcoesComTbd,
-                                        onSelecionar = { selecionarSlot(index, false, it) }
-                                    )
+                                    MenuSelecaoSlot(selecionado = par.second, opcoes = todasOpcoes, onSelecionar = { selecionarSlot(index, false, it) })
                                 }
                             }
                         }
                     }
-                    
-                    if (proxFase != null && matchNum < confrontos.size) {
-                        Box(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(vertical = 2.dp)
-                                .height(20.dp),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Text(
-                                text = "↓ Caminho para Quartas ↓",
-                                fontSize = 9.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = Color.Gray
-                            )
-                        }
-                    }
                 }
             }
-            
-            item {
-                Spacer(Modifier.height(16.dp))
-                ResumoFinal(confrontos)
-                Spacer(Modifier.height(80.dp))
-            }
+            item { Spacer(Modifier.height(16.dp)) }
         }
 
-        Button(
-            onClick = { onConfirmar(idaEVolta, confrontos.toList()) },
-            modifier = Modifier.fillMaxWidth(),
-            enabled = totalVagas > 0
-        ) {
-            Text("CONFIRMAR CHAVEAMENTO")
+        Row(modifier = Modifier.fillMaxWidth().padding(top = 8.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            TextButton(onClick = onVoltar, modifier = Modifier.weight(1f)) {
+                Text("VOLTAR")
+            }
+            Button(onClick = { onConfirmar(idaEVolta, confrontos.toList()) }, modifier = Modifier.weight(2f), enabled = totalVagas > 0) {
+                Text("CONFIRMAR")
+            }
         }
     }
 }
@@ -200,19 +157,37 @@ fun MenuSelecaoSlot(selecionado: String, opcoes: List<String>, onSelecionar: (St
     }
 }
 
-@Composable
-fun ResumoFinal(confrontos: List<Pair<String, String>>) {
-    val totalMatches = confrontos.size
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .background(Color.LightGray.copy(alpha = 0.1f), RoundedCornerShape(8.dp))
-            .padding(12.dp)
-    ) {
-        Text("ESTRUTURA DO TORNEIO", fontWeight = FontWeight.Bold, fontSize = 12.sp)
-        Text("• 1ª Fase Knockout: $totalMatches jogos", fontSize = 11.sp)
-        if (totalMatches >= 4) Text("• Quartas de Final: ${totalMatches/2} jogos", fontSize = 11.sp)
-        if (totalMatches >= 2) Text("• Semifinais: ${totalMatches/4} jogos", fontSize = 11.sp)
-        Text("• Grande Final: 1 jogo", fontSize = 11.sp)
+fun calcularTotalJogos(vagas: Int): Int {
+    var total = 0
+    var atual = vagas
+    while (atual > 1) {
+        atual /= 2
+        total += atual
     }
+    return total
+}
+
+fun obterNomeFaseEConfronto(index: Int, vagas: Int): Pair<String, String> {
+    var count = 0
+    var faseVagas = vagas
+    val nomesFases = listOf("PRIMEIRA FASE", "QUARTAS DE FINAL", "SEMIFINAIS", "GRANDE FINAL")
+    var faseIndex = 0
+    
+    while (faseVagas > 1) {
+        val jogosNaFase = faseVagas / 2
+        if (index < count + jogosNaFase) {
+            val numNoFase = index - count + 1
+            val prefixo = when(faseVagas) {
+                16 -> "Oitavas"
+                8 -> "Quartas"
+                4 -> "Semi"
+                else -> "Jogo"
+            }
+            return Pair(nomesFases.getOrElse(faseIndex) { "FASE ADICIONAL" }, "$prefixo $numNoFase")
+        }
+        count += jogosNaFase
+        faseVagas /= 2
+        faseIndex++
+    }
+    return Pair("FINAL", "Grande Final")
 }
