@@ -6,41 +6,45 @@ class CopaLibertadores : FormatoCampeonato {
     override fun gerarCalendario(
         equipes: List<EquipeExemplo>,
         turnoEReturno: Boolean,
-        configsGrupos: List<ConfigGrupo>
+        configsGrupos: List<ConfigGrupo>,
+        confrontosMataMata: List<Pair<String, String>>,
+        idaEVoltaMataMata: Boolean
     ): List<Partida> {
         val partidas = mutableListOf<Partida>()
         var idContador = 1
-        val timesParaDistribuir = equipes.toMutableList()
+        val copiaEquipes = equipes.toMutableList()
 
         // 1. GERAÇÃO DA FASE DE GRUPOS
         configsGrupos.forEach { config ->
             val timesDesteGrupo = mutableListOf<Int>()
-
             for (i in 0 until config.qtdTimes) {
-                if (timesParaDistribuir.isNotEmpty()) {
-                    timesDesteGrupo.add(timesParaDistribuir.removeAt(0).id)
+                if (copiaEquipes.isNotEmpty()) {
+                    timesDesteGrupo.add(copiaEquipes.removeAt(0).id)
                 }
             }
 
             for (i in timesDesteGrupo.indices) {
                 for (j in i + 1 until timesDesteGrupo.size) {
-                    partidas.add(
-                        Partida(id = idContador++, mandanteId = timesDesteGrupo[i], visitanteId = timesDesteGrupo[j])
-                    )
+                    // Jogo de Ida
+                    partidas.add(Partida(id = idContador++, mandanteId = timesDesteGrupo[i], visitanteId = timesDesteGrupo[j]))
+                    // Jogo de Volta (Fase de Grupos)
                     if (turnoEReturno) {
-                        partidas.add(
-                            Partida(id = idContador++, mandanteId = timesDesteGrupo[j], visitanteId = timesDesteGrupo[i])
-                        )
+                        partidas.add(Partida(id = idContador++, mandanteId = timesDesteGrupo[j], visitanteId = timesDesteGrupo[i]))
                     }
                 }
             }
         }
 
-        // 2. GERAÇÃO DOS SLOTS DO MATA-MATA (TBD)
-        // O mata-mata na Libertadores começa após os grupos.
-        // Vamos gerar os confrontos de "Ida e Volta" se a config de mata-mata estiver ativa.
-        // Nota: Como os times ainda não foram classificados, geramos partidas com IDs negativos ou marcadores TBD.
-        // No entanto, para o ScoreBoard funcionar, as partidas de mata-mata precisam ser criadas aqui.
+        // 2. GERAÇÃO DOS CONFRONTOS DE MATA-MATA (CHAVEAMENTO)
+        confrontosMataMata.forEach { confronto ->
+            // Para o mata-mata, os times são inicialmente indefinidos (usamos -1 ou lógica de TBD no UI)
+            // Aqui geramos os slots que aparecerão no painel
+            partidas.add(Partida(id = idContador++, mandanteId = -1, visitanteId = -1, local = "A DEFINIR (IDA)"))
+            
+            if (idaEVoltaMataMata) {
+                partidas.add(Partida(id = idContador++, mandanteId = -1, visitanteId = -1, local = "A DEFINIR (VOLTA)"))
+            }
+        }
         
         return partidas
     }

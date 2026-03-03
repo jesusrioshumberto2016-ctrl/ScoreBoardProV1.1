@@ -6,12 +6,13 @@ class BrasileiraoSerieA : FormatoCampeonato {
     override fun gerarCalendario(
         equipes: List<EquipeExemplo>,
         turnoEReturno: Boolean,
-        configsGrupos: List<ConfigGrupo>
+        configsGrupos: List<ConfigGrupo>,
+        confrontosMataMata: List<Pair<String, String>>,
+        idaEVoltaMataMata: Boolean
     ): List<Partida> {
         val partidasGeradas = mutableListOf<Partida>()
         var idContador = 1
 
-        // Algoritmo de cruzamento todos contra todos (Pontos Corridos)
         for (i in equipes.indices) {
             for (j in i + 1 until equipes.size) {
                 partidasGeradas.add(
@@ -25,7 +26,7 @@ class BrasileiraoSerieA : FormatoCampeonato {
         }
 
         if (turnoEReturno) {
-            val returno = partidasGeradas.map { p ->
+            val returno = partidasGeradas.toList().map { p ->
                 Partida(id = idContador++, mandanteId = p.visitanteId, visitanteId = p.mandanteId)
             }
             partidasGeradas.addAll(returno)
@@ -38,7 +39,6 @@ class BrasileiraoSerieA : FormatoCampeonato {
             var pts = 0; var v = 0; var e = 0; var d = 0; var gm = 0; var gs = 0; var am = 0; var vm = 0
 
             partidas.filter { it.finalizada && (it.mandanteId == equipe.id || it.visitanteId == equipe.id) }.forEach { p ->
-                // Correção: Gols agora são Int? no Models.kt, então usamos ?: 0
                 val gM = p.golsMandante ?: 0
                 val gV = p.golsVisitante ?: 0
 
@@ -55,7 +55,6 @@ class BrasileiraoSerieA : FormatoCampeonato {
             LinhaTabela(equipe.nome, pts, v+e+d, v, e, d, gm, gs, gm-gs, am, vm)
         }
 
-        // --- APLICAÇÃO DOS CRITÉRIOS DE DESEMPATE ---
         var comparador = compareByDescending<LinhaTabela> { it.pontos }
 
         configs.criteriosDesempate.forEach { criterio ->

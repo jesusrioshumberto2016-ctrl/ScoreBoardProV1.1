@@ -1,6 +1,7 @@
 package com.studiosrios.scoreboardpro
 
 import android.app.DatePickerDialog
+import android.widget.Toast
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -25,6 +26,7 @@ import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshots.SnapshotStateList
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
@@ -35,7 +37,10 @@ import java.util.Calendar
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun TelaCadastroJogador(onVoltar: () -> Unit) {
+fun TelaCadastroJogador(
+    listaGlobalJogadores: SnapshotStateList<JogadorExemplo>,
+    onVoltar: () -> Unit
+) {
     var nome by remember { mutableStateOf("") }
     var altura by remember { mutableStateOf("") }
     var dataNasc by remember { mutableStateOf("Selecionar") }
@@ -84,7 +89,17 @@ fun TelaCadastroJogador(onVoltar: () -> Unit) {
         if (idadeS.isNotBlank()) Text("Idade: $idadeS", fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
 
         Spacer(modifier = Modifier.height(30.dp))
-        Button(onClick = {}, modifier = Modifier.fillMaxWidth().height(55.dp)) { Text("SALVAR") }
+        Button(
+            onClick = {
+                if (nome.isNotBlank()) {
+                    val novoId = (listaGlobalJogadores.maxOfOrNull { it.id } ?: 0) + 1
+                    listaGlobalJogadores.add(JogadorExemplo(novoId, nome, posSel, altura, idadeS))
+                    Toast.makeText(ctx, "Jogador salvo!", Toast.LENGTH_SHORT).show()
+                    onVoltar()
+                }
+            }, 
+            modifier = Modifier.fillMaxWidth().height(55.dp)
+        ) { Text("SALVAR") }
         Spacer(modifier = Modifier.height(8.dp))
         TextButton(onClick = onVoltar, modifier = Modifier.fillMaxWidth()) { Text("VOLTAR") }
     }
@@ -92,13 +107,17 @@ fun TelaCadastroJogador(onVoltar: () -> Unit) {
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun TelaCadastroEquipe(onVoltar: () -> Unit) {
+fun TelaCadastroEquipe(
+    listaGlobalEquipes: SnapshotStateList<EquipeExemplo>,
+    onVoltar: () -> Unit
+) {
     var iden by remember { mutableStateOf("") }
     var nome by remember { mutableStateOf("") }
     var cid by remember { mutableStateOf("") }
     var expC by remember { mutableStateOf(false) }
     val pat = remember { mutableStateListOf("", "", "", "", "") }
     val cids = listOf("Belo Horizonte", "Brasília", "Curitiba", "Rio de Janeiro", "Salvador", "São Paulo")
+    val ctx = LocalContext.current
 
     Column(modifier = Modifier.fillMaxSize().padding(24.dp).verticalScroll(rememberScrollState())) {
         Text("CADASTRAR EQUIPE", fontSize = 24.sp, fontWeight = FontWeight.Bold)
@@ -133,9 +152,18 @@ fun TelaCadastroEquipe(onVoltar: () -> Unit) {
         }
 
         Spacer(modifier = Modifier.height(24.dp))
-        Button(onClick = {}, modifier = Modifier.fillMaxWidth().height(55.dp)) { Text("SALVAR EQUIPE") }
+        Button(
+            onClick = {
+                if (nome.isNotBlank() && iden.isNotBlank()) {
+                    val novoId = (listaGlobalEquipes.maxOfOrNull { it.id } ?: 0) + 1
+                    listaGlobalEquipes.add(EquipeExemplo(novoId, iden, nome, cid))
+                    Toast.makeText(ctx, "Equipe salva!", Toast.LENGTH_SHORT).show()
+                    onVoltar()
+                }
+            }, 
+            modifier = Modifier.fillMaxWidth().height(55.dp)
+        ) { Text("SALVAR EQUIPE") }
         Spacer(modifier = Modifier.height(8.dp))
         TextButton(onClick = onVoltar, modifier = Modifier.fillMaxWidth()) { Text("VOLTAR") }
     }
 }
-

@@ -4,11 +4,12 @@ class MataMata : FormatoCampeonato {
 
     override val nomeTipo: String = "Mata-Mata (Eliminatórias)"
 
-    // Mantivemos o seu 'turnoEReturno: Boolean' para não quebrar a sua interface!
     override fun gerarCalendario(
         equipes: List<EquipeExemplo>,
         turnoEReturno: Boolean,
-        configsGrupos: List<ConfigGrupo>
+        configsGrupos: List<ConfigGrupo>,
+        confrontosMataMata: List<Pair<String, String>>,
+        idaEVoltaMataMata: Boolean
     ): List<Partida> {
         val partidas = mutableListOf<Partida>()
         var idContador = 1
@@ -42,7 +43,6 @@ class MataMata : FormatoCampeonato {
         partidas: List<Partida>,
         configs: ConfiguracoesCampeonato
     ): List<LinhaTabela> {
-        // Reutiliza a lógica de pontos para o ranking geral do mata-mata
         return BrasileiraoSerieA().calcularRanking(equipes, partidas, configs)
     }
 }

@@ -50,14 +50,12 @@ fun ScoreBoardNavigation(
     var modeloCampeonatoEscolhido by remember { mutableStateOf("") }
     var idCampeonatoAtual by remember { mutableIntStateOf(-1) }
     var configuracaoFinalGrupos by remember { mutableStateOf<List<ConfigGrupo>>(emptyList()) }
-    var idaEVoltaMataMata by remember { mutableStateOf(false) }
     var confrontosDefinidos by remember { mutableStateOf<List<Pair<String, String>>>(emptyList()) }
 
     val listaPartidasCampeonato = remember { mutableStateListOf<Partida>() }
     val equipesNoCampeonato = remember { mutableStateListOf<EquipeExemplo>() }
     var configsCampeonatoAtual by remember { mutableStateOf(ConfiguracoesCampeonato()) }
 
-    // Intercepta o botão físico de voltar para voltar exatamente "uma casa"
     BackHandler(enabled = telaAtual != "menu") {
         telaAtual = when (telaAtual) {
             "gerenciar_campeonato" -> "menu"
@@ -65,34 +63,29 @@ fun ScoreBoardNavigation(
             "selecao_grupos" -> "cadastrar_campeonato"
             "config_chaveamento" -> "selecao_grupos"
             "selecao_equipes_campeonato" -> {
-                if (modeloCampeonatoEscolhido == "Libertadores") "config_chaveamento"
+                if (modeloCampeonatoEscolhido.contains("Libertadores", ignoreCase = true)) "config_chaveamento"
                 else "cadastrar_campeonato"
             }
             "distribuicao_grupos" -> "selecao_equipes_campeonato"
             "painel_campeonato" -> "gerenciar_campeonato"
-
-            // Fluxo de Jogadores
             "cadastrar_jogador" -> "menu"
             "gerenciar_jogador" -> "menu"
             "detalhes_jogador" -> "gerenciar_jogador"
-
-            // Fluxo de Equipes
             "cadastrar_equipe" -> "menu"
             "gerenciar_equipe" -> "menu"
             "detalhes_equipe" -> "gerenciar_equipe"
             "selecionar_jogador_para_equipe" -> "detalhes_equipe"
-
             else -> "menu"
         }
     }
 
     when (telaAtual) {
-        "menu" -> TelaInicialMenu(onNavegar = { telaAtual = it })
+        "menu" -> TelaInicialMenu(onNavegar = { destino: String -> telaAtual = destino })
 
         "gerenciar_campeonato" -> TelaListaCampeonatos(
             lista = listaC,
             onVoltar = { telaAtual = "menu" },
-            onAbrir = { camp ->
+            onAbrir = { camp: CampeonatoSalvo ->
                 equipesNoCampeonato.clear()
                 equipesNoCampeonato.addAll(camp.equipes)
                 listaPartidasCampeonato.clear()
@@ -100,28 +93,31 @@ fun ScoreBoardNavigation(
                 modeloCampeonatoEscolhido = camp.modelo
                 idCampeonatoAtual = camp.id
                 configsCampeonatoAtual = camp.configs.copy()
+                configuracaoFinalGrupos = camp.gruposConfig
                 telaAtual = "painel_campeonato"
             }
         )
 
         "cadastrar_campeonato" -> TelaModeloCampeonato(
             onVoltar = { telaAtual = "menu" },
-            onSelecionarModelo = { modelo ->
+            onSelecionarModelo = { modelo: String ->
                 modeloCampeonatoEscolhido = modelo
                 idCampeonatoAtual = -1
                 configsCampeonatoAtual = ConfiguracoesCampeonato()
+                confrontosDefinidos = emptyList()
+                configuracaoFinalGrupos = emptyList()
 
-                if (modelo.contains("Libertadores", ignoreCase = true)) {
-                    telaAtual = "selecao_grupos"
+                telaAtual = if (modelo.contains("Libertadores", ignoreCase = true)) {
+                    "selecao_grupos"
                 } else {
-                    telaAtual = "selecao_equipes_campeonato"
+                    "selecao_equipes_campeonato"
                 }
             }
         )
         "selecao_grupos" -> {
             TelaSelecaoGrupos(
                 onVoltar = { telaAtual = "cadastrar_campeonato" },
-                onConfirmar = { lista ->
+                onConfirmar = { lista: List<ConfigGrupo> ->
                     configuracaoFinalGrupos = lista
                     telaAtual = "config_chaveamento"
                 }
@@ -131,10 +127,8 @@ fun ScoreBoardNavigation(
             TelaConfiguracaoChaveamento(
                 listaGrupos = configuracaoFinalGrupos,
                 onVoltar = { telaAtual = "selecao_grupos" },
-                onConfirmar = { idaEVolta, confrontos ->
-                    idaEVoltaMataMata = idaEVolta
+                onConfirmar = { idaEVolta: Boolean, confrontos: List<Pair<String, String>> ->
                     confrontosDefinidos = confrontos
-                    // Atualiza a config global para refletir o mata-mata
                     configsCampeonatoAtual = configsCampeonatoAtual.copy(modoIdaEVoltaMataMata = idaEVolta)
                     telaAtual = "selecao_equipes_campeonato"
                 }
@@ -145,10 +139,10 @@ fun ScoreBoardNavigation(
             TelaSelecaoEquipesCampeonato(
                 listaEquipes = listaE,
                 onVoltar = { 
-                    if (modeloCampeonatoEscolhido == "Libertadores") telaAtual = "config_chaveamento"
-                    else telaAtual = "cadastrar_campeonato"
+                    telaAtual = if (modeloCampeonatoEscolhido.contains("Libertadores", ignoreCase = true)) "config_chaveamento"
+                    else "cadastrar_campeonato"
                 },
-                onFinalizar = { selecionadasIds ->
+                onFinalizar = { selecionadasIds: List<Int> ->
                     equipesNoCampeonato.clear()
                     equipesNoCampeonato.addAll(listaE.filter { selecionadasIds.contains(it.id) })
 
@@ -160,9 +154,26 @@ fun ScoreBoardNavigation(
                         val partidasGeradas = formato.gerarCalendario(
                             equipes = equipesNoCampeonato.toList(),
                             turnoEReturno = configsCampeonatoAtual.modoReturno,
-                            configsGrupos = configuracaoFinalGrupos
+                            configsGrupos = configuracaoFinalGrupos,
+                            confrontosMataMata = confrontosDefinidos,
+                            idaEVoltaMataMata = configsCampeonatoAtual.modoIdaEVoltaMataMata
                         )
                         listaPartidasCampeonato.addAll(partidasGeradas)
+                        
+                        if (idCampeonatoAtual == -1) {
+                            val novoId = (listaC.maxOfOrNull { it.id } ?: 0) + 1
+                            idCampeonatoAtual = novoId
+                            listaC.add(CampeonatoSalvo(
+                                id = novoId,
+                                nomeExibicao = "Campeonato $novoId",
+                                modelo = modeloCampeonatoEscolhido,
+                                equipes = equipesNoCampeonato.toList(),
+                                partidas = listaPartidasCampeonato.toList(),
+                                configs = configsCampeonatoAtual,
+                                gruposConfig = configuracaoFinalGrupos
+                            ))
+                        }
+                        
                         telaAtual = "painel_campeonato"
                     }
                 }
@@ -173,7 +184,7 @@ fun ScoreBoardNavigation(
                 equipesSelecionadas = equipesNoCampeonato.toList(),
                 configGrupos = configuracaoFinalGrupos,
                 onVoltar = { telaAtual = "selecao_equipes_campeonato" },
-                onFinalizar = { equipesDistribuidas ->
+                onFinalizar = { equipesDistribuidas: List<EquipeExemplo> ->
                     equipesNoCampeonato.clear()
                     equipesNoCampeonato.addAll(equipesDistribuidas)
                     
@@ -182,9 +193,26 @@ fun ScoreBoardNavigation(
                     val partidasGeradas = formato.gerarCalendario(
                         equipes = equipesNoCampeonato.toList(),
                         turnoEReturno = configsCampeonatoAtual.modoReturno,
-                        configsGrupos = configuracaoFinalGrupos
+                        configsGrupos = configuracaoFinalGrupos,
+                        confrontosMataMata = confrontosDefinidos,
+                        idaEVoltaMataMata = configsCampeonatoAtual.modoIdaEVoltaMataMata
                     )
                     listaPartidasCampeonato.addAll(partidasGeradas)
+
+                    if (idCampeonatoAtual == -1) {
+                        val novoId = (listaC.maxOfOrNull { it.id } ?: 0) + 1
+                        idCampeonatoAtual = novoId
+                        listaC.add(CampeonatoSalvo(
+                            id = novoId,
+                            nomeExibicao = "Campeonato $novoId",
+                            modelo = modeloCampeonatoEscolhido,
+                            equipes = equipesNoCampeonato.toList(),
+                            partidas = listaPartidasCampeonato.toList(),
+                            configs = configsCampeonatoAtual,
+                            gruposConfig = configuracaoFinalGrupos
+                        ))
+                    }
+
                     telaAtual = "painel_campeonato"
                 }
             )
@@ -198,7 +226,7 @@ fun ScoreBoardNavigation(
                 listaGlobalJogadores = listaJ,
                 configsIniciais = configsCampeonatoAtual,
                 listaGruposConfig = configuracaoFinalGrupos,
-                onSalvarGeral = { idExistente, novasConfigs ->
+                onSalvarGeral = { idExistente: Int, novasConfigs: ConfiguracoesCampeonato ->
                     configsCampeonatoAtual = novasConfigs
 
                     val index = listaC.indexOfFirst { it.id == idExistente }
@@ -215,19 +243,19 @@ fun ScoreBoardNavigation(
                 }
             )
         }
-        "cadastrar_jogador" -> TelaCadastroJogador(onVoltar = { telaAtual = "menu" })
-        "gerenciar_jogador" -> TelaListaJogadores(lista = listaJ, onVoltar = { telaAtual = "menu" }, onGerenciar = { jogador -> jogadorSelecionado = jogador; telaAtual = "detalhes_jogador" })
+        "cadastrar_jogador" -> TelaCadastroJogador(listaGlobalJogadores = listaJ, onVoltar = { telaAtual = "menu" })
+        "gerenciar_jogador" -> TelaListaJogadores(lista = listaJ, onVoltar = { telaAtual = "menu" }, onGerenciar = { jogador: JogadorExemplo -> jogadorSelecionado = jogador; telaAtual = "detalhes_jogador" })
         "detalhes_jogador" -> {
             jogadorSelecionado?.let { jogador ->
-                TelaDetalhesJogador(jogador = jogador, onSalvar = { novaPos ->
+                TelaDetalhesJogador(jogador = jogador, onSalvar = { novaPos: String ->
                     val index = listaJ.indexOfFirst { it.id == jogador.id }
                     if (index != -1) listaJ[index] = listaJ[index].copy(posicao = novaPos)
                     telaAtual = "gerenciar_jogador"
                 }, onVoltar = { telaAtual = "gerenciar_jogador" })
             }
         }
-        "cadastrar_equipe" -> TelaCadastroEquipe(onVoltar = { telaAtual = "menu" })
-        "gerenciar_equipe" -> TelaListaEquipes(lista = listaE, onVoltar = { telaAtual = "menu" }, onGerenciar = { equipe -> equipeSelecionada = equipe; telaAtual = "detalhes_equipe" })
+        "cadastrar_equipe" -> TelaCadastroEquipe(listaGlobalEquipes = listaE, onVoltar = { telaAtual = "menu" })
+        "gerenciar_equipe" -> TelaListaEquipes(lista = listaE, onVoltar = { telaAtual = "menu" }, onGerenciar = { equipe: EquipeExemplo -> equipeSelecionada = equipe; telaAtual = "detalhes_equipe" })
         "detalhes_equipe" -> {
             equipeSelecionada?.let { equipe ->
                 TelaDetalhesEquipe(equipe = equipe, listaJogadores = listaJ, onAdicionar = { telaAtual = "selecionar_jogador_para_equipe" }, onVoltar = { telaAtual = "gerenciar_equipe" })
@@ -242,10 +270,10 @@ fun ScoreBoardNavigation(
 }
 
 fun obterFormato(modelo: String): FormatoCampeonato {
-    return when (modelo) {
-        "Brasileirão Série A" -> BrasileiraoSerieA()
-        "Mata-Mata" -> MataMata()
-        "Libertadores" -> CopaLibertadores()
+    return when {
+        modelo.contains("Série A", ignoreCase = true) -> BrasileiraoSerieA()
+        modelo.contains("Mata", ignoreCase = true) -> MataMata()
+        modelo.contains("Libertadores", ignoreCase = true) -> CopaLibertadores()
         else -> BrasileiraoSerieA()
     }
 }
