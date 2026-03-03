@@ -10,7 +10,8 @@ class CopaLibertadores : FormatoCampeonato {
     ): List<Partida> {
         val partidas = mutableListOf<Partida>()
         var idContador = 1
-        val timesSorteados = equipes.shuffled().toMutableList()
+        // Alteração: Removido o .shuffled() para que a ordem de seleção dos times seja respeitada na formação dos grupos
+        val timesParaDistribuir = equipes.toMutableList()
 
         // Loop por cada grupo personalizado
         configsGrupos.forEach { config ->
@@ -18,8 +19,8 @@ class CopaLibertadores : FormatoCampeonato {
 
             // Distribui os times conforme a quantidade definida para o grupo
             for (i in 0 until config.qtdTimes) {
-                if (timesSorteados.isNotEmpty()) {
-                    timesDesteGrupo.add(timesSorteados.removeAt(0).id)
+                if (timesParaDistribuir.isNotEmpty()) {
+                    timesDesteGrupo.add(timesParaDistribuir.removeAt(0).id)
                 }
             }
 
@@ -46,7 +47,6 @@ class CopaLibertadores : FormatoCampeonato {
         configs: ConfiguracoesCampeonato
     ): List<LinhaTabela> {
         // Reutiliza a lógica de pontos do Brasileirão que já corrigimos
-        // Certifique-se que BrasileiraoSerieA.kt está compilando sem erros
         return BrasileiraoSerieA().calcularRanking(equipes, partidas, configs)
     }
 }

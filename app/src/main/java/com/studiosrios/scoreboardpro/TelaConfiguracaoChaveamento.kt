@@ -1,13 +1,21 @@
 package com.studiosrios.scoreboardpro
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Info
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
@@ -20,8 +28,8 @@ fun TelaConfiguracaoChaveamento(
     var idaEVolta by remember { mutableStateOf(true) }
     val totalVagas = listaGrupos.sumOf { it.qtdClassificados }
     
-    // Gera a lista de slots disponíveis (ex: 1º Grupo A, 2º Grupo A...)
-    val slotsDisponiveis = remember(listaGrupos) {
+    // Slots reais vindo dos grupos
+    val slotsReais = remember(listaGrupos) {
         val lista = mutableListOf<String>()
         listaGrupos.forEach { grupo ->
             for (i in 1..grupo.qtdClassificados) {
@@ -31,81 +39,128 @@ fun TelaConfiguracaoChaveamento(
         lista
     }
 
-    // Estado para os confrontos definidos pelo usuário
-    // Inicialmente, podemos tentar um sorteio automático ou deixar vazio para o usuário preencher
+    val opcoesComTbd = listOf("TBD") + slotsReais
+
+    // Estado dos confrontos iniciais
     val confrontos = remember { 
         mutableStateListOf<Pair<String, String>>().apply {
-            // Tenta criar pares iniciais automáticos (1º A vs 2º B, etc) se possível
             for (i in 0 until totalVagas / 2) {
-                val s1 = if (i * 2 < slotsDisponiveis.size) slotsDisponiveis[i * 2] else "TBD"
-                val s2 = if (i * 2 + 1 < slotsDisponiveis.size) slotsDisponiveis[i * 2 + 1] else "TBD"
-                add(Pair(s1, s2))
+                add(Pair("TBD", "TBD"))
             }
+        }
+    }
+
+    // Lógica para garantir que um time só apareça uma vez
+    fun selecionarSlot(index: Int, isFirst: Boolean, novoSlot: String) {
+        if (novoSlot != "TBD") {
+            // Remove de qualquer outro lugar que já esteja
+            for (i in confrontos.indices) {
+                if (confrontos[i].first == novoSlot) confrontos[i] = confrontos[i].copy(first = "TBD")
+                if (confrontos[i].second == novoSlot) confrontos[i] = confrontos[i].copy(second = "TBD")
+            }
+        }
+        
+        // Atualiza a posição desejada
+        if (isFirst) {
+            confrontos[index] = confrontos[index].copy(first = novoSlot)
+        } else {
+            confrontos[index] = confrontos[index].copy(second = novoSlot)
         }
     }
 
     Column(modifier = Modifier.fillMaxSize().padding(16.dp)) {
         Text("Configuração do Chaveamento", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
-        Spacer(modifier = Modifier.height(8.dp))
         
-        Text("Total de classificados: $totalVagas", style = MaterialTheme.typography.bodyLarge)
-        
-        Card(modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp)) {
+        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(vertical = 8.dp)) {
+            Icon(Icons.Default.Info, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(16.dp))
+            Spacer(Modifier.width(4.dp))
+            Text("Defina os confrontos da 1ª fase eliminatória.", fontSize = 12.sp, color = Color.Gray)
+        }
+
+        Card(modifier = Modifier.fillMaxWidth()) {
             Row(
                 modifier = Modifier.padding(12.dp).fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
-                Column {
-                    Text("Jogos de Ida e Volta", fontWeight = FontWeight.Bold)
-                    Text("Válido para todo o Mata-Mata", style = MaterialTheme.typography.labelSmall)
-                }
+                Text("Jogos de Ida e Volta", fontWeight = FontWeight.Bold)
                 Switch(checked = idaEVolta, onCheckedChange = { idaEVolta = it })
             }
         }
 
-        Text("Defina os confrontos (Oitavas/Quartas):", fontWeight = FontWeight.Bold, modifier = Modifier.padding(top = 8.dp))
+        Spacer(Modifier.height(16.dp))
 
+        // Usamos LazyColumn para os confrontos
         LazyColumn(modifier = Modifier.weight(1f)) {
+            item {
+                Text("CAMINHO ATÉ A FINAL", fontWeight = FontWeight.Black, color = MaterialTheme.colorScheme.secondary, fontSize = 14.sp)
+                Spacer(Modifier.height(8.dp))
+            }
+
             itemsIndexed(confrontos) { index, par ->
-                Card(modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp)) {
-                    Row(
-                        modifier = Modifier.padding(12.dp).fillMaxWidth(),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.SpaceEvenly
+                val matchNum = index + 1
+                // Agrupamento visual para mostrar quem enfrenta quem na próxima fase
+                val proxFase = if (matchNum % 2 != 0) "Vence J$matchNum vs Vence J${matchNum + 1}" else null
+                
+                Column {
+                    Card(
+                        modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
+                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
                     ) {
-                        Box(modifier = Modifier.weight(1f)) {
-                            MenuSelecaoSlot(
-                                selecionado = par.first,
-                                opcoes = slotsDisponiveis,
-                                onSelecionar = { confrontos[index] = confrontos[index].copy(first = it) }
-                            )
+                        Column(Modifier.padding(8.dp)) {
+                            Text("JOGO $matchNum", fontWeight = FontWeight.Bold, fontSize = 10.sp, color = MaterialTheme.colorScheme.primary)
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Box(modifier = Modifier.weight(1f)) {
+                                    MenuSelecaoSlot(
+                                        selecionado = par.first,
+                                        opcoes = opcoesComTbd,
+                                        onSelecionar = { selecionarSlot(index, true, it) }
+                                    )
+                                }
+                                Text(" x ", fontWeight = FontWeight.Bold)
+                                Box(modifier = Modifier.weight(1f)) {
+                                    MenuSelecaoSlot(
+                                        selecionado = par.second,
+                                        opcoes = opcoesComTbd,
+                                        onSelecionar = { selecionarSlot(index, false, it) }
+                                    )
+                                }
+                            }
                         }
-                        
-                        Text(" VS ", fontWeight = FontWeight.Black, modifier = Modifier.padding(horizontal = 8.dp))
-                        
-                        Box(modifier = Modifier.weight(1f)) {
-                            MenuSelecaoSlot(
-                                selecionado = par.second,
-                                opcoes = slotsDisponiveis,
-                                onSelecionar = { confrontos[index] = confrontos[index].copy(second = it) }
+                    }
+                    
+                    if (proxFase != null && matchNum < confrontos.size) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 2.dp)
+                                .height(20.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                text = "↓ Caminho para Quartas ↓",
+                                fontSize = 9.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Color.Gray
                             )
                         }
                     }
                 }
             }
+            
+            item {
+                Spacer(Modifier.height(16.dp))
+                ResumoFinal(confrontos)
+                Spacer(Modifier.height(80.dp))
+            }
         }
 
         Button(
             onClick = { onConfirmar(idaEVolta, confrontos.toList()) },
-            modifier = Modifier.fillMaxWidth().padding(top = 16.dp),
-            enabled = totalVagas % 2 == 0 && totalVagas > 0
+            modifier = Modifier.fillMaxWidth(),
+            enabled = totalVagas > 0
         ) {
-            Text("PRÓXIMO: SELECIONAR EQUIPES")
-        }
-        
-        TextButton(onClick = onVoltar, modifier = Modifier.fillMaxWidth()) {
-            Text("VOLTAR")
+            Text("CONFIRMAR CHAVEAMENTO")
         }
     }
 }
@@ -118,14 +173,23 @@ fun MenuSelecaoSlot(selecionado: String, opcoes: List<String>, onSelecionar: (St
         OutlinedButton(
             onClick = { expandido = true },
             modifier = Modifier.fillMaxWidth(),
-            contentPadding = PaddingValues(4.dp)
+            contentPadding = PaddingValues(horizontal = 4.dp, vertical = 0.dp),
+            shape = RoundedCornerShape(8.dp),
+            colors = ButtonDefaults.outlinedButtonColors(
+                containerColor = if (selecionado == "TBD") Color.Transparent else MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f)
+            )
         ) {
-            Text(selecionado, fontSize = 11.sp, maxLines = 1)
+            Text(
+                text = selecionado,
+                fontSize = 11.sp,
+                maxLines = 1,
+                fontWeight = if (selecionado == "TBD") FontWeight.Normal else FontWeight.Bold
+            )
         }
         DropdownMenu(expanded = expandido, onDismissRequest = { expandido = false }) {
             opcoes.forEach { opcao ->
                 DropdownMenuItem(
-                    text = { Text(opcao) },
+                    text = { Text(opcao, fontSize = 12.sp) },
                     onClick = {
                         onSelecionar(opcao)
                         expandido = false
@@ -133,5 +197,22 @@ fun MenuSelecaoSlot(selecionado: String, opcoes: List<String>, onSelecionar: (St
                 )
             }
         }
+    }
+}
+
+@Composable
+fun ResumoFinal(confrontos: List<Pair<String, String>>) {
+    val totalMatches = confrontos.size
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(Color.LightGray.copy(alpha = 0.1f), RoundedCornerShape(8.dp))
+            .padding(12.dp)
+    ) {
+        Text("ESTRUTURA DO TORNEIO", fontWeight = FontWeight.Bold, fontSize = 12.sp)
+        Text("• 1ª Fase Knockout: $totalMatches jogos", fontSize = 11.sp)
+        if (totalMatches >= 4) Text("• Quartas de Final: ${totalMatches/2} jogos", fontSize = 11.sp)
+        if (totalMatches >= 2) Text("• Semifinais: ${totalMatches/4} jogos", fontSize = 11.sp)
+        Text("• Grande Final: 1 jogo", fontSize = 11.sp)
     }
 }

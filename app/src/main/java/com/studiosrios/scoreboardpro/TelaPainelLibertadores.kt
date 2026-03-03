@@ -62,7 +62,7 @@ fun TelaPainelLibertadores(
                 4 -> PreJogoTab(equipes, partidas, listaGlobalJogadores)
                 5 -> TelaArtilharia(equipes, listaGlobalJogadores)
                 6 -> {
-                    TelaConfiguracoesCampeonato(
+                    ConfigLibertadores(
                         configs = configsIniciais,
                         onSalvar = { novasConfigs ->
                             onSalvarGeral(idCamp, novasConfigs)
@@ -87,19 +87,22 @@ fun PainelGruposLibertadores(
             Text("Nenhum grupo configurado.", Modifier.padding(16.dp))
         } else {
             listaGrupos.forEach { grupo ->
-                Text(
-                    text = grupo.nome,
-                    style = MaterialTheme.typography.titleLarge,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.padding(16.dp)
-                )
-                val fim = (indiceInicio + grupo.qtdTimes).coerceAtMost(equipes.size)
-                val equipesDesteGrupo = equipes.subList(indiceInicio, fim)
-                TelaTabelaRanking(equipes = equipesDesteGrupo, partidas = partidas, configs = configs)
-                indiceInicio += grupo.qtdTimes
-                Spacer(modifier = Modifier.height(16.dp))
-                HorizontalDivider(thickness = 1.dp, color = MaterialTheme.colorScheme.outlineVariant)
+                // Proteção para não tentar acessar índice fora da lista de equipes
+                if (indiceInicio < equipes.size) {
+                    Text(
+                        text = grupo.nome,
+                        style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.padding(16.dp)
+                    )
+                    val fim = (indiceInicio + grupo.qtdTimes).coerceAtMost(equipes.size)
+                    val equipesDesteGrupo = equipes.subList(indiceInicio, fim)
+                    TelaTabelaRanking(equipes = equipesDesteGrupo, partidas = partidas, configs = configs)
+                    indiceInicio += grupo.qtdTimes
+                    Spacer(modifier = Modifier.height(16.dp))
+                    HorizontalDivider(thickness = 1.dp, color = MaterialTheme.colorScheme.outlineVariant)
+                }
             }
         }
     }
