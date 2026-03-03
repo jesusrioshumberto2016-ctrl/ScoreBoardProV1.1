@@ -28,14 +28,11 @@ fun TelaPreJogoDetalhada(
         Text("INFORMAÇÕES PRÉ-JOGO", fontSize = 20.sp, fontWeight = FontWeight.Black, color = MaterialTheme.colorScheme.primary)
         Spacer(Modifier.height(16.dp))
 
-        // Card de Informações Gerais
+        // Card de Informações Gerais (Árbitros)
         Card(modifier = Modifier.fillMaxWidth()) {
             Column(Modifier.padding(16.dp)) {
-                Text("DADOS DO CONFRONTO", fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.secondary)
+                Text("EQUIPE DE ARBITRAGEM", fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.secondary)
                 Divider(Modifier.padding(vertical = 8.dp))
-                Text("Data/Hora: ${partida.data} às ${partida.horario}")
-                Text("Local: ${partida.local}")
-                Spacer(Modifier.height(8.dp))
                 Text("Árbitro: ${partida.arbitroPrincipal.ifBlank { "A definir" }}")
                 Text("Assistentes: ${partida.assistente1.ifBlank { "-" }} / ${partida.assistente2.ifBlank { "-" }}")
             }
