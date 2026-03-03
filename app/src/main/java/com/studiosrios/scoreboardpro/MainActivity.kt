@@ -134,6 +134,8 @@ fun ScoreBoardNavigation(
                 onConfirmar = { idaEVolta, confrontos ->
                     idaEVoltaMataMata = idaEVolta
                     confrontosDefinidos = confrontos
+                    // Atualiza a config global para refletir o mata-mata
+                    configsCampeonatoAtual = configsCampeonatoAtual.copy(modoIdaEVoltaMataMata = idaEVolta)
                     telaAtual = "selecao_equipes_campeonato"
                 }
             )
