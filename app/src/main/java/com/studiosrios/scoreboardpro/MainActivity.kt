@@ -68,6 +68,7 @@ fun ScoreBoardNavigation(
                 if (modeloCampeonatoEscolhido == "Libertadores") "config_chaveamento"
                 else "cadastrar_campeonato"
             }
+            "distribuicao_grupos" -> "selecao_equipes_campeonato"
             "painel_campeonato" -> "gerenciar_campeonato"
 
             // Fluxo de Jogadores
@@ -149,16 +150,38 @@ fun ScoreBoardNavigation(
                     equipesNoCampeonato.clear()
                     equipesNoCampeonato.addAll(listaE.filter { selecionadasIds.contains(it.id) })
 
+                    if (modeloCampeonatoEscolhido.contains("Libertadores", ignoreCase = true)) {
+                        telaAtual = "distribuicao_grupos"
+                    } else {
+                        listaPartidasCampeonato.clear()
+                        val formato = obterFormato(modeloCampeonatoEscolhido)
+                        val partidasGeradas = formato.gerarCalendario(
+                            equipes = equipesNoCampeonato.toList(),
+                            turnoEReturno = configsCampeonatoAtual.modoReturno,
+                            configsGrupos = configuracaoFinalGrupos
+                        )
+                        listaPartidasCampeonato.addAll(partidasGeradas)
+                        telaAtual = "painel_campeonato"
+                    }
+                }
+            )
+        }
+        "distribuicao_grupos" -> {
+            TelaDistribuicaoGrupos(
+                equipesSelecionadas = equipesNoCampeonato.toList(),
+                configGrupos = configuracaoFinalGrupos,
+                onVoltar = { telaAtual = "selecao_equipes_campeonato" },
+                onFinalizar = { equipesDistribuidas ->
+                    equipesNoCampeonato.clear()
+                    equipesNoCampeonato.addAll(equipesDistribuidas)
+                    
                     listaPartidasCampeonato.clear()
-
                     val formato = obterFormato(modeloCampeonatoEscolhido)
-
                     val partidasGeradas = formato.gerarCalendario(
                         equipes = equipesNoCampeonato.toList(),
                         turnoEReturno = configsCampeonatoAtual.modoReturno,
                         configsGrupos = configuracaoFinalGrupos
                     )
-
                     listaPartidasCampeonato.addAll(partidasGeradas)
                     telaAtual = "painel_campeonato"
                 }
