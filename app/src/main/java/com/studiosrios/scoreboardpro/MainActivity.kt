@@ -51,6 +51,7 @@ fun ScoreBoardNavigation(
     var idCampeonatoAtual by remember { mutableIntStateOf(-1) }
     var configuracaoFinalGrupos by remember { mutableStateOf<List<ConfigGrupo>>(emptyList()) }
     var idaEVoltaMataMata by remember { mutableStateOf(false) }
+    var confrontosDefinidos by remember { mutableStateOf<List<Pair<String, String>>>(emptyList()) }
 
     val listaPartidasCampeonato = remember { mutableStateListOf<Partida>() }
     val equipesNoCampeonato = remember { mutableStateListOf<EquipeExemplo>() }
@@ -127,10 +128,11 @@ fun ScoreBoardNavigation(
         }
         "config_chaveamento" -> {
             TelaConfiguracaoChaveamento(
-                totalVagas = configuracaoFinalGrupos.sumOf { it.qtdClassificados },
+                listaGrupos = configuracaoFinalGrupos,
                 onVoltar = { telaAtual = "selecao_grupos" },
-                onConfirmar = { idaEVolta ->
+                onConfirmar = { idaEVolta, confrontos ->
                     idaEVoltaMataMata = idaEVolta
+                    confrontosDefinidos = confrontos
                     telaAtual = "selecao_equipes_campeonato"
                 }
             )
@@ -153,7 +155,7 @@ fun ScoreBoardNavigation(
 
                     val partidasGeradas = formato.gerarCalendario(
                         equipes = equipesNoCampeonato.toList(),
-                        turnoEReturno = if (modeloCampeonatoEscolhido == "Libertadores") configsCampeonatoAtual.modoReturno else configsCampeonatoAtual.modoReturno,
+                        turnoEReturno = configsCampeonatoAtual.modoReturno,
                         configsGrupos = configuracaoFinalGrupos
                     )
 
