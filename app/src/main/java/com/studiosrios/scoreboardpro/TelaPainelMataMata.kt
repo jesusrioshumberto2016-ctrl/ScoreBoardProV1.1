@@ -5,6 +5,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.snapshots.SnapshotStateList
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -15,7 +16,7 @@ import androidx.compose.ui.unit.sp
 fun TelaPainelMataMata(
     idCamp: Int,
     equipes: List<EquipeExemplo>,
-    partidas: List<Partida>,
+    partidas: SnapshotStateList<Partida>,
     listaGlobalJogadores: List<JogadorExemplo>,
     configsIniciais: ConfiguracoesCampeonato,
     onSalvarGeral: (Int, ConfiguracoesCampeonato) -> Unit,

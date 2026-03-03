@@ -1,12 +1,13 @@
 package com.studiosrios.scoreboardpro
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.snapshots.SnapshotStateList
 
 @Composable
 fun TelaPainelCampeonato(
     idCamp: Int,
     equipes: List<EquipeExemplo>,
-    partidas: List<Partida>,
+    partidas: SnapshotStateList<Partida>,
     modelo: String,
     listaGlobalJogadores: List<JogadorExemplo>,
     configsIniciais: ConfiguracoesCampeonato,

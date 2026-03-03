@@ -5,6 +5,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.snapshots.SnapshotStateList
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -15,7 +16,7 @@ import androidx.compose.ui.unit.sp
 fun TelaPainelLibertadores(
     idCamp: Int,
     equipes: List<EquipeExemplo>,
-    partidas: List<Partida>,
+    partidas: SnapshotStateList<Partida>,
     listaGlobalJogadores: List<JogadorExemplo>,
     configsIniciais: ConfiguracoesCampeonato,
     listaGruposConfig: List<ConfigGrupo>,
@@ -23,7 +24,8 @@ fun TelaPainelLibertadores(
     onVoltar: () -> Unit
 ) {
     var abaSelecionada by remember { mutableIntStateOf(0) }
-    val titulosAbas = listOf("Grupos", "Jogos", "Artilharia", "Configs")
+    // Abas atualizadas conforme pedido: "Jogos" -> "Resultados" + novas abas "Partidas", "Súmula", "Pré-Jogo"
+    val titulosAbas = listOf("Grupos", "Resultados", "Partidas", "Súmula", "Pré-Jogo", "Artilharia", "Configs")
 
     Scaffold(
         topBar = {
@@ -34,12 +36,17 @@ fun TelaPainelLibertadores(
                         TextButton(onClick = onVoltar) { Text("Sair") }
                     }
                 )
-                TabRow(selectedTabIndex = abaSelecionada) {
+                // Usamos ScrollableTabRow pois agora temos muitas abas
+                ScrollableTabRow(
+                    selectedTabIndex = abaSelecionada,
+                    edgePadding = 0.dp,
+                    containerColor = MaterialTheme.colorScheme.surface
+                ) {
                     titulosAbas.forEachIndexed { index, titulo ->
                         Tab(
                             selected = abaSelecionada == index,
                             onClick = { abaSelecionada = index },
-                            text = { Text(titulo, fontSize = 12.sp) }
+                            text = { Text(titulo, fontSize = 11.sp) }
                         )
                     }
                 }
@@ -49,9 +56,12 @@ fun TelaPainelLibertadores(
         Box(modifier = Modifier.padding(paddingValues).fillMaxSize()) {
             when (abaSelecionada) {
                 0 -> PainelGruposLibertadores(equipes, partidas, configsIniciais, listaGruposConfig)
-                1 -> TelaListaJogos(partidas, equipes)
-                2 -> TelaArtilharia(equipes, listaGlobalJogadores)
-                3 -> {
+                1 -> ResultadosTab(partidas, equipes)
+                2 -> PartidasTab(partidas, equipes, onPartidaClick = { /* Navegação opcional */ })
+                3 -> SumulaTab(partidas, equipes, listaGlobalJogadores)
+                4 -> PreJogoTab(equipes, partidas, listaGlobalJogadores)
+                5 -> TelaArtilharia(equipes, listaGlobalJogadores)
+                6 -> {
                     TelaConfiguracoesCampeonato(
                         configs = configsIniciais,
                         onSalvar = { novasConfigs ->

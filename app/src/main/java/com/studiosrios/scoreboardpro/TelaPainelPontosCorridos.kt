@@ -3,6 +3,7 @@ package com.studiosrios.scoreboardpro
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.snapshots.SnapshotStateList
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -13,7 +14,7 @@ import androidx.compose.ui.unit.sp
 fun TelaPainelPontosCorridos(
     idCamp: Int,
     equipes: List<EquipeExemplo>,
-    partidas: List<Partida>,
+    partidas: SnapshotStateList<Partida>,
     modelo: String,
     listaGlobalJogadores: List<JogadorExemplo>,
     configsIniciais: ConfiguracoesCampeonato,
