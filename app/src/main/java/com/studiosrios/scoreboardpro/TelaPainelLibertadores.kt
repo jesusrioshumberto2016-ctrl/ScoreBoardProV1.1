@@ -24,8 +24,8 @@ fun TelaPainelLibertadores(
     onVoltar: () -> Unit
 ) {
     var abaSelecionada by remember { mutableIntStateOf(0) }
-    // Abas atualizadas conforme pedido: "Jogos" -> "Resultados" + novas abas "Partidas", "Súmula", "Pré-Jogo"
-    val titulosAbas = listOf("Grupos", "Resultados", "Partidas", "Súmula", "Pré-Jogo", "Artilharia", "Configs")
+    // Adicionada a aba "Mata-Mata" na lista
+    val titulosAbas = listOf("Grupos", "Mata-Mata", "Resultados", "Partidas", "Súmula", "Pré-Jogo", "Artilharia", "Configs")
 
     Scaffold(
         topBar = {
@@ -36,7 +36,6 @@ fun TelaPainelLibertadores(
                         TextButton(onClick = onVoltar) { Text("Sair") }
                     }
                 )
-                // Usamos ScrollableTabRow pois agora temos muitas abas
                 ScrollableTabRow(
                     selectedTabIndex = abaSelecionada,
                     edgePadding = 0.dp,
@@ -56,12 +55,13 @@ fun TelaPainelLibertadores(
         Box(modifier = Modifier.padding(paddingValues).fillMaxSize()) {
             when (abaSelecionada) {
                 0 -> PainelGruposLibertadores(equipes, partidas, configsIniciais, listaGruposConfig)
-                1 -> ResultadosTab(partidas, equipes)
-                2 -> PartidasTab(partidas, equipes, onPartidaClick = { /* Navegação opcional */ })
-                3 -> SumulaTab(partidas, equipes, listaGlobalJogadores)
-                4 -> PreJogoTab(equipes, partidas, listaGlobalJogadores)
-                5 -> TelaArtilharia(equipes, listaGlobalJogadores)
-                6 -> {
+                1 -> ConteudoChaveamento(equipes, partidas) // Aba Mata-Mata usando o componente de chaveamento
+                2 -> ResultadosTab(partidas, equipes)
+                3 -> PartidasTab(partidas, equipes, onPartidaClick = { /* Navegação opcional */ })
+                4 -> SumulaTab(partidas, equipes, listaGlobalJogadores)
+                5 -> PreJogoTab(equipes, partidas, listaGlobalJogadores)
+                6 -> TelaArtilharia(equipes, listaGlobalJogadores)
+                7 -> {
                     ConfigLibertadores(
                         configs = configsIniciais,
                         onSalvar = { novasConfigs ->
@@ -87,7 +87,6 @@ fun PainelGruposLibertadores(
             Text("Nenhum grupo configurado.", Modifier.padding(16.dp))
         } else {
             listaGrupos.forEach { grupo ->
-                // Proteção para não tentar acessar índice fora da lista de equipes
                 if (indiceInicio < equipes.size) {
                     Text(
                         text = grupo.nome,

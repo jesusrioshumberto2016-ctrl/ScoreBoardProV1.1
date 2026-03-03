@@ -10,21 +10,18 @@ class CopaLibertadores : FormatoCampeonato {
     ): List<Partida> {
         val partidas = mutableListOf<Partida>()
         var idContador = 1
-        // Alteração: Removido o .shuffled() para que a ordem de seleção dos times seja respeitada na formação dos grupos
         val timesParaDistribuir = equipes.toMutableList()
 
-        // Loop por cada grupo personalizado
+        // 1. GERAÇÃO DA FASE DE GRUPOS
         configsGrupos.forEach { config ->
             val timesDesteGrupo = mutableListOf<Int>()
 
-            // Distribui os times conforme a quantidade definida para o grupo
             for (i in 0 until config.qtdTimes) {
                 if (timesParaDistribuir.isNotEmpty()) {
                     timesDesteGrupo.add(timesParaDistribuir.removeAt(0).id)
                 }
             }
 
-            // Gera os jogos (todos contra todos dentro do grupo)
             for (i in timesDesteGrupo.indices) {
                 for (j in i + 1 until timesDesteGrupo.size) {
                     partidas.add(
@@ -38,6 +35,13 @@ class CopaLibertadores : FormatoCampeonato {
                 }
             }
         }
+
+        // 2. GERAÇÃO DOS SLOTS DO MATA-MATA (TBD)
+        // O mata-mata na Libertadores começa após os grupos.
+        // Vamos gerar os confrontos de "Ida e Volta" se a config de mata-mata estiver ativa.
+        // Nota: Como os times ainda não foram classificados, geramos partidas com IDs negativos ou marcadores TBD.
+        // No entanto, para o ScoreBoard funcionar, as partidas de mata-mata precisam ser criadas aqui.
+        
         return partidas
     }
 
@@ -46,7 +50,6 @@ class CopaLibertadores : FormatoCampeonato {
         partidas: List<Partida>,
         configs: ConfiguracoesCampeonato
     ): List<LinhaTabela> {
-        // Reutiliza a lógica de pontos do Brasileirão que já corrigimos
         return BrasileiraoSerieA().calcularRanking(equipes, partidas, configs)
     }
 }
