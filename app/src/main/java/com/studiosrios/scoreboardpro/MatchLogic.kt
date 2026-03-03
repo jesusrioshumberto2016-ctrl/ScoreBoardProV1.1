@@ -26,13 +26,11 @@ fun calcularClassificacao(equipes: List<EquipeExemplo>, partidas: List<Partida>)
         partidas.filter { it.finalizada && (it.mandanteId == equipe.id || it.visitanteId == equipe.id) }
             .forEach { part ->
                 j++
-                // Correção: Removido toIntOrNull() pois já são Int? no Models.kt
                 val gM = part.golsMandante ?: 0
                 val gV = part.golsVisitante ?: 0
 
                 if (part.mandanteId == equipe.id) {
                     gm += gM; gs += gV
-                    // Adiciona cartões na conta (se os campos existirem na LinhaTabela)
                     ca += part.cartoesAmarelosMandante
                     cv += part.cartoesVermelhosMandante
                     
@@ -43,7 +41,6 @@ fun calcularClassificacao(equipes: List<EquipeExemplo>, partidas: List<Partida>)
                     }
                 } else {
                     gm += gV; gs += gM
-                    // Adiciona cartões na conta
                     ca += part.cartoesAmarelosVisitante
                     cv += part.cartoesVermelhosVisitante
 
@@ -55,8 +52,8 @@ fun calcularClassificacao(equipes: List<EquipeExemplo>, partidas: List<Partida>)
                 }
             }
 
-        // Retorna o molde LinhaTabela definido no seu Models.kt
         LinhaTabela(
+            equipeId = equipe.id,
             nome = equipe.nome,
             pontos = p,
             jogos = j,

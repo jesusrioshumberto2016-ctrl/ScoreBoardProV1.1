@@ -52,9 +52,10 @@ class BrasileiraoSerieA : FormatoCampeonato {
                     if (gV > gM) { pts += 3; v++ } else if (gV == gM) { pts += 1; e++ } else d++
                 }
             }
-            LinhaTabela(equipe.nome, pts, v+e+d, v, e, d, gm, gs, gm-gs, am, vm)
+            LinhaTabela(equipe.id, equipe.nome, pts, v+e+d, v, e, d, gm, gs, gm-gs, am, vm)
         }
 
+        // --- APLICAÇÃO DOS CRITÉRIOS DE DESEMPATE ---
         var comparador = compareByDescending<LinhaTabela> { it.pontos }
 
         configs.criteriosDesempate.forEach { criterio ->
@@ -64,6 +65,26 @@ class BrasileiraoSerieA : FormatoCampeonato {
                 "Gols Marcados" -> comparador.thenByDescending { it.gm }
                 "Cartões Amarelos" -> comparador.thenBy { it.amarelos }
                 "Cartões Vermelhos" -> comparador.thenBy { it.vermelhos }
+                "Confronto Direto" -> {
+                    comparador.thenComparator { a, b ->
+                        val jogosEntre = partidas.filter { 
+                            it.finalizada && 
+                            ((it.mandanteId == a.equipeId && it.visitanteId == b.equipeId) || (it.mandanteId == b.equipeId && it.visitanteId == a.equipeId))
+                        }
+                        var ptsA = 0
+                        var ptsB = 0
+                        jogosEntre.forEach { j ->
+                            val gM = j.golsMandante ?: 0
+                            val gV = j.golsVisitante ?: 0
+                            if (j.mandanteId == a.equipeId) {
+                                if (gM > gV) ptsA += 3 else if (gM == gV) ptsA += 1 else ptsB += 3
+                            } else {
+                                if (gV > gM) ptsA += 3 else if (gV == gM) ptsA += 1 else ptsB += 3
+                            }
+                        }
+                        ptsB.compareTo(ptsA) // Descending
+                    }
+                }
                 else -> comparador
             }
         }

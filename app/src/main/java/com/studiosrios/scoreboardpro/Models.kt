@@ -68,6 +68,7 @@ data class Partida(
 )
 
 data class LinhaTabela(
+    val equipeId: Int, // Adicionado ID para permitir confronto direto
     val nome: String,
     val pontos: Int,
     val jogos: Int,
@@ -82,8 +83,8 @@ data class LinhaTabela(
 )
 
 data class ConfiguracoesCampeonato(
-    val modoReturno: Boolean = false, // Para fase de grupos / pontos corridos
-    val modoIdaEVoltaMataMata: Boolean = true, // Para o mata-mata
+    val modoReturno: Boolean = false, 
+    val modoIdaEVoltaMataMata: Boolean = true,
     val criteriosDesempate: List<String> = listOf("Selecionar", "Selecionar", "Selecionar", "Selecionar", "Selecionar", "Selecionar"),
     val exibirCartoesNaTabela: Boolean = false
 )
