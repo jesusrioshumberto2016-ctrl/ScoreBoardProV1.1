@@ -20,7 +20,7 @@ fun ConfigLibertadores(
     var exibirCartoes by remember { mutableStateOf(configs.exibirCartoesNaTabela) }
     val criterios = remember { mutableStateListOf<String>().apply { addAll(configs.criteriosDesempate) } }
 
-    val opcoesCriterios = listOf("Selecionar", "Vitórias", "Saldo de Gols", "Gols Marcados", "Cartões Amarelos", "Cartões Vermelhos")
+    val opcoesCriterios = listOf("Selecionar", "Confronto Direto", "Vitórias", "Saldo de Gols", "Gols Marcados", "Cartões Amarelos", "Cartões Vermelhos")
 
     Column(modifier = Modifier.fillMaxSize().padding(16.dp).verticalScroll(rememberScrollState())) {
         Text("Configurações: Libertadores", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
