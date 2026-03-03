@@ -36,14 +36,28 @@ fun TelaConfiguracaoChaveamento(
         lista
     }
 
-    // Slots das fases seguintes (Vencedores dos confrontos)
-    val numJogosPrimeiraFase = totalVagas / 2
-    val slotsVencedores = List(numJogosPrimeiraFase) { "Vence J${it + 1}" }
-    
-    val numJogosSegundaFase = numJogosPrimeiraFase / 2
-    val slotsVencedoresSegundaFase = List(numJogosSegundaFase) { "Vence QF${it + 1}" }
-
-    val todasOpcoes = listOf("TBD") + slotsReais + slotsVencedores + slotsVencedoresSegundaFase
+    // Slots das fases seguintes (Vencedores dos confrontos) de forma dinâmica
+    val todasOpcoes = remember(totalVagas, slotsReais) {
+        val lista = mutableListOf("TBD")
+        lista.addAll(slotsReais)
+        
+        var currentVagas = totalVagas
+        while (currentVagas > 2) {
+            val jogosNaFase = currentVagas / 2
+            val prefixo = when (currentVagas) {
+                32 -> "PF"
+                16 -> "Oitavas"
+                8 -> "QF"
+                4 -> "Semi"
+                else -> "J"
+            }
+            for (i in 1..jogosNaFase) {
+                lista.add("Vence $prefixo $i")
+            }
+            currentVagas /= 2
+        }
+        lista
+    }
 
     val totalJogos = calcularTotalJogos(totalVagas)
     val confrontos = remember { 
@@ -170,24 +184,22 @@ fun calcularTotalJogos(vagas: Int): Int {
 fun obterNomeFaseEConfronto(index: Int, vagas: Int): Pair<String, String> {
     var count = 0
     var faseVagas = vagas
-    val nomesFases = listOf("PRIMEIRA FASE", "QUARTAS DE FINAL", "SEMIFINAIS", "GRANDE FINAL")
-    var faseIndex = 0
     
     while (faseVagas > 1) {
         val jogosNaFase = faseVagas / 2
         if (index < count + jogosNaFase) {
             val numNoFase = index - count + 1
-            val prefixo = when(faseVagas) {
-                16 -> "Oitavas"
-                8 -> "Quartas"
-                4 -> "Semi"
-                else -> "Jogo"
+            return when (faseVagas) {
+                32 -> Pair("PRIMEIRA FASE", "PF $numNoFase")
+                16 -> Pair("OITAVAS DE FINAL", "Oitavas $numNoFase")
+                8 -> Pair("QUARTAS DE FINAL", "QF $numNoFase")
+                4 -> Pair("SEMIFINAIS", "Semi $numNoFase")
+                2 -> Pair("GRANDE FINAL", "Grande Final")
+                else -> Pair("FASE ELIMINATÓRIA", "Jogo $numNoFase")
             }
-            return Pair(nomesFases.getOrElse(faseIndex) { "FASE ADICIONAL" }, "$prefixo $numNoFase")
         }
         count += jogosNaFase
         faseVagas /= 2
-        faseIndex++
     }
     return Pair("FINAL", "Grande Final")
 }

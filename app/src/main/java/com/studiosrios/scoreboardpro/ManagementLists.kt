@@ -203,15 +203,15 @@ fun TelaSelecaoEquipesCampeonato(listaEquipes: List<EquipeExemplo>, onVoltar: ()
         Spacer(modifier = Modifier.height(10.dp))
 
         Surface(
-            color = if (selecionadas.size in 3..20) Color(0xFFE8F5E9) else Color(0xFFFFEBEE),
+            color = if (selecionadas.size in 2..32) Color(0xFFE8F5E9) else Color(0xFFFFEBEE),
             shape = MaterialTheme.shapes.small,
             modifier = Modifier.fillMaxWidth()
         ) {
             Text(
-                "Equipes selecionadas: ${selecionadas.size} (Mínimo 3, Máximo 20)",
+                "Equipes selecionadas: ${selecionadas.size} (Mínimo 2, Máximo 32)",
                 modifier = Modifier.padding(8.dp),
                 fontWeight = FontWeight.Bold,
-                color = if (selecionadas.size in 3..20) Color(0xFF2E7D32) else Color(0xFFC62828)
+                color = if (selecionadas.size in 2..32) Color(0xFF2E7D32) else Color(0xFFC62828)
             )
         }
 
@@ -224,8 +224,8 @@ fun TelaSelecaoEquipesCampeonato(listaEquipes: List<EquipeExemplo>, onVoltar: ()
                     onClick = {
                         if (isSelected) selecionadas.remove(equipe.id)
                         else {
-                            if (selecionadas.size < 20) selecionadas.add(equipe.id)
-                            else Toast.makeText(contexto, "Limite de 20 equipes atingido!", Toast.LENGTH_SHORT).show()
+                            if (selecionadas.size < 32) selecionadas.add(equipe.id)
+                            else Toast.makeText(contexto, "Limite de 32 equipes atingido!", Toast.LENGTH_SHORT).show()
                         }
                     },
                     modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
@@ -245,7 +245,7 @@ fun TelaSelecaoEquipesCampeonato(listaEquipes: List<EquipeExemplo>, onVoltar: ()
         Button(
             onClick = { onFinalizar(selecionadas.toList()) },
             modifier = Modifier.fillMaxWidth().height(55.dp),
-            enabled = selecionadas.size in 3..20
+            enabled = selecionadas.size in 2..32
         ) {
             Text("INICIAR CAMPEONATO")
         }
