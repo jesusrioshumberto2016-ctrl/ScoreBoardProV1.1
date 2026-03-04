@@ -135,15 +135,14 @@ fun TelaPainelLibertadores(
                                         compareBy<Partida> { it.data.split("/").reversed().joinToString("") }
                                             .thenBy { it.horario }
                                     )
-                                    // Cast explícito para SnapshotStateList para evitar erro de tipo
-                                    val listaSnapshot = remember(partidasOrdenadas) {
+                                    val listaCastada = remember(partidasOrdenadas) {
                                         val novaLista = SnapshotStateList<Partida>()
                                         novaLista.addAll(partidasOrdenadas)
                                         novaLista
                                     }
-                                    PreJogoTab(equipes, listaSnapshot, listaGlobalJogadores)
+                                    PreJogoTab(equipes, listaCastada, listaGlobalJogadores)
                                 }
-                                6 -> TelaArtilharia(equipes, listaGlobalJogadores)
+                                6 -> TelaArtilharia(equipes, partidas, listaGlobalJogadores)
                                 7 -> {
                                     ConfigLibertadores(
                                         configs = configsIniciais,

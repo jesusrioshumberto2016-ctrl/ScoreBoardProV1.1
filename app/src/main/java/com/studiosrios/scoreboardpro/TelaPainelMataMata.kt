@@ -25,39 +25,78 @@ fun TelaPainelMataMata(
     var abaSelecionada by remember { mutableIntStateOf(0) }
     val titulosAbas = listOf("Chaveamento", "Jogos", "Artilharia", "Configs")
 
+    var partidaParaVerPreJogo by remember { mutableStateOf<Partida?>(null) }
+    var partidaParaVerDetalhes by remember { mutableStateOf<Partida?>(null) }
+
     Scaffold(
         topBar = {
-            Column {
-                CenterAlignedTopAppBar(
-                    title = { Text("Painel Mata-Mata", fontWeight = FontWeight.Bold) },
-                    navigationIcon = {
-                        TextButton(onClick = onVoltar) { Text("Sair") }
-                    }
-                )
-                TabRow(selectedTabIndex = abaSelecionada) {
-                    titulosAbas.forEachIndexed { index, titulo ->
-                        Tab(
-                            selected = abaSelecionada == index,
-                            onClick = { abaSelecionada = index },
-                            text = { Text(titulo, fontSize = 12.sp) }
-                        )
+            if (partidaParaVerPreJogo == null && partidaParaVerDetalhes == null) {
+                Column {
+                    CenterAlignedTopAppBar(
+                        title = { Text("Painel Mata-Mata", fontWeight = FontWeight.Bold) },
+                        navigationIcon = {
+                            TextButton(onClick = onVoltar) { Text("Sair") }
+                        }
+                    )
+                    TabRow(selectedTabIndex = abaSelecionada) {
+                        titulosAbas.forEachIndexed { index, titulo ->
+                            Tab(
+                                selected = abaSelecionada == index,
+                                onClick = { abaSelecionada = index },
+                                text = { Text(titulo, fontSize = 12.sp) }
+                            )
+                        }
                     }
                 }
             }
         }
     ) { paddingValues ->
         Box(modifier = Modifier.padding(paddingValues).fillMaxSize()) {
-            when (abaSelecionada) {
-                0 -> ConteudoChaveamento(equipes, partidas)
-                1 -> TelaListaJogos(partidas, equipes)
-                2 -> TelaArtilharia(equipes, listaGlobalJogadores)
-                3 -> {
-                    TelaConfiguracoesCampeonato(
-                        configs = configsIniciais,
-                        onSalvar = { novasConfigs ->
-                            onSalvarGeral(idCamp, novasConfigs)
-                        }
+            when {
+                partidaParaVerPreJogo != null -> {
+                    TelaPreJogoDetalhada(
+                        partida = partidaParaVerPreJogo!!,
+                        equipes = equipes,
+                        todosJogadores = listaGlobalJogadores,
+                        onVoltar = { partidaParaVerPreJogo = null }
                     )
+                }
+                partidaParaVerDetalhes != null -> {
+                    TelaSumulaDetalhada(
+                        partida = partidaParaVerDetalhes!!,
+                        equipes = equipes,
+                        onVoltar = { partidaParaVerDetalhes = null }
+                    )
+                }
+                else -> {
+                    when (abaSelecionada) {
+                        0 -> {
+                            ConteudoChaveamentoMataMata(
+                                equipes = equipes,
+                                partidas = partidas,
+                                onPreJogo = { p -> partidaParaVerPreJogo = p },
+                                onDetalhes = { p -> partidaParaVerDetalhes = p }
+                            )
+                        }
+                        1 -> {
+                            PartidasTab(
+                                partidas = partidas,
+                                equipes = equipes,
+                                onPreJogoClick = { p -> partidaParaVerPreJogo = p },
+                                onDetalhesClick = { p -> partidaParaVerDetalhes = p },
+                                somenteMataMata = true
+                            )
+                        }
+                        2 -> TelaArtilharia(equipes, partidas, listaGlobalJogadores)
+                        3 -> {
+                            ConfigMataMata(
+                                configs = configsIniciais,
+                                onSalvar = { novasConfigs ->
+                                    onSalvarGeral(idCamp, novasConfigs)
+                                }
+                            )
+                        }
+                    }
                 }
             }
         }
@@ -65,27 +104,32 @@ fun TelaPainelMataMata(
 }
 
 @Composable
-fun ConteudoChaveamento(equipes: List<EquipeExemplo>, partidas: List<Partida>) {
+fun ConteudoChaveamentoMataMata(
+    equipes: List<EquipeExemplo>,
+    partidas: List<Partida>,
+    onPreJogo: (Partida) -> Unit,
+    onDetalhes: (Partida) -> Unit
+) {
     Column(modifier = Modifier.fillMaxSize().padding(16.dp).verticalScroll(rememberScrollState())) {
-        Text("Chaveamento Mata-Mata", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
+        Text("Chaveamento do Torneio", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
         Spacer(modifier = Modifier.height(16.dp))
         
-        partidas.forEach { partida ->
-            val mandante = equipes.find { it.id == partida.mandanteId }?.nome ?: "TBD"
-            val visitante = equipes.find { it.id == partida.visitanteId }?.nome ?: "TBD"
-            
-            Card(
-                modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
-            ) {
-                Row(
-                    modifier = Modifier.padding(16.dp).fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween
-                ) {
-                    Text(mandante, fontWeight = FontWeight.Medium)
-                    Text("vs", color = MaterialTheme.colorScheme.secondary)
-                    Text(visitante, fontWeight = FontWeight.Medium)
+        if (partidas.isEmpty()) {
+            Text("Nenhum confronto gerado.", color = MaterialTheme.colorScheme.secondary)
+        } else {
+            val fases = partidas.groupBy { it.fase }
+            fases.forEach { (nomeFase, jogos) ->
+                Text(nomeFase.uppercase(), fontWeight = FontWeight.Black, color = MaterialTheme.colorScheme.primary, fontSize = 14.sp)
+                Spacer(Modifier.height(8.dp))
+                jogos.forEach { partida ->
+                    ItemPartidaCard(
+                        partida = partida,
+                        equipes = equipes,
+                        onPreJogoClick = onPreJogo,
+                        onDetalhesClick = onDetalhes
+                    )
                 }
+                Spacer(Modifier.height(16.dp))
             }
         }
     }

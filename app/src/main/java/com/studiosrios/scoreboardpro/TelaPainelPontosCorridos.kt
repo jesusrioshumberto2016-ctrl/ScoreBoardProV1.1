@@ -48,8 +48,8 @@ fun TelaPainelPontosCorridos(
         Box(modifier = Modifier.padding(paddingValues).fillMaxSize()) {
             when (abaSelecionada) {
                 0 -> TelaTabelaRanking(equipes = equipes, partidas = partidas, configs = configsIniciais)
-                1 -> TelaListaJogos(partidas, equipes)
-                2 -> TelaArtilharia(equipes, listaGlobalJogadores)
+                1 -> PartidasTab(partidas, equipes, {}, {})
+                2 -> TelaArtilharia(equipes, partidas, listaGlobalJogadores)
                 3 -> {
                     TelaConfiguracoesCampeonato(
                         configs = configsIniciais,
