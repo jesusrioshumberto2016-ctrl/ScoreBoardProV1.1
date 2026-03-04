@@ -31,8 +31,8 @@ fun SumulaTab(
     if (partidaFocadaId == null) {
         LazyColumn(Modifier.padding(16.dp)) {
             items(partidas) { p ->
-                val mandante = equipes.find { it.id == p.mandanteId }?.nome ?: "M"
-                val visitante = equipes.find { it.id == p.visitanteId }?.nome ?: "V"
+                val mandante = equipes.find { it.id == p.mandanteId }?.nome ?: p.labelMandante
+                val visitante = equipes.find { it.id == p.visitanteId }?.nome ?: p.labelVisitante
                 Card(Modifier.fillMaxWidth().padding(vertical = 4.dp)) {
                     Row(Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
                         Text("$mandante vs $visitante", Modifier.weight(1f), fontWeight = FontWeight.Bold)
@@ -66,8 +66,8 @@ fun ConteudoRegistrarEventos(
     todosJogadores: List<JogadorExemplo>,
     onVoltar: () -> Unit
 ) {
-    val mNome = equipes.find { it.id == p.mandanteId }?.nome ?: "M"
-    val vNome = equipes.find { it.id == p.visitanteId }?.nome ?: "V"
+    val mNome = equipes.find { it.id == p.mandanteId }?.nome ?: p.labelMandante
+    val vNome = equipes.find { it.id == p.visitanteId }?.nome ?: p.labelVisitante
     val relacionadosIds = p.titularesMandante + p.reservasMandante + p.titularesVisitante + p.reservasVisitante
     val jogadoresDaPartida = todosJogadores.filter { it.id in relacionadosIds || it.equipeId == p.mandanteId || it.equipeId == p.visitanteId }
 
@@ -79,7 +79,6 @@ fun ConteudoRegistrarEventos(
     var minutoInput by remember { mutableStateOf("") }
     var jogadorPendenteParaEvento by remember { mutableStateOf<JogadorExemplo?>(null) }
 
-    // Estado para o diálogo de assistência
     var showDialogAssistencia by remember { mutableStateOf(false) }
     var jogadorDoGol by remember { mutableStateOf<JogadorExemplo?>(null) }
     var minutoDoGol by remember { mutableStateOf("") }
@@ -103,14 +102,12 @@ fun ConteudoRegistrarEventos(
                     val jog = jogadorPendenteParaEvento
                     if (jog != null) {
                         if (tipoAtual == "GOL" || tipoAtual == "GOL (PÊNALTI)") {
-                            // Se for gol, guarda os dados e abre o diálogo de assistência
                             jogadorDoGol = jog
                             minutoDoGol = minutoInput
                             tipoDoGol = tipoAtual
                             showDialogMinuto = false
                             showDialogAssistencia = true
                         } else {
-                            // Para outros eventos, registra normalmente
                             salvarEvento(p, partidas, equipes, jog, tipoAtual, minutoInput)
                             showDialogMinuto = false
                             minutoInput = ""
@@ -129,7 +126,6 @@ fun ConteudoRegistrarEventos(
             text = {
                 Column(Modifier.verticalScroll(rememberScrollState())) {
                     TextButton(onClick = {
-                        // Salva apenas o gol, sem assistência
                         val author = jogadorDoGol
                         if (author != null) {
                             salvarEvento(p, partidas, equipes, author, tipoDoGol, minutoDoGol)
@@ -141,11 +137,9 @@ fun ConteudoRegistrarEventos(
 
                     Divider()
 
-                    // Lista apenas companheiros de time do autor do gol
                     val companheiros = jogadoresDaPartida.filter { it.equipeId == jogadorDoGol?.equipeId && it.id != jogadorDoGol?.id }
                     companheiros.forEach { comp ->
                         TextButton(onClick = {
-                            // Salva o gol e depois a assistência
                             val author = jogadorDoGol
                             if (author != null) {
                                 salvarEvento(p, partidas, equipes, author, tipoDoGol, minutoDoGol)
@@ -328,7 +322,6 @@ fun ConteudoRegistrarEventos(
     }
 }
 
-// Função auxiliar para salvar eventos e atualizar o placar
 fun salvarEvento(
     p: Partida,
     partidas: SnapshotStateList<Partida>,
