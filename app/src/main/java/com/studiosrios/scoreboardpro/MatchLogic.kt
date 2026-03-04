@@ -73,3 +73,36 @@ fun calcularClassificacao(equipes: List<EquipeExemplo>, partidas: List<Partida>)
             .thenByDescending { it.sg }
     )
 }
+
+fun calcularTotalJogos(vagas: Int): Int {
+    var total = 0
+    var atual = vagas
+    while (atual > 1) {
+        atual /= 2
+        total += atual
+    }
+    return total
+}
+
+fun obterNomeFaseEConfronto(index: Int, vagas: Int): Pair<String, String> {
+    var count = 0
+    var faseVagas = vagas
+    
+    while (faseVagas > 1) {
+        val jogosNaFase = faseVagas / 2
+        if (index < count + jogosNaFase) {
+            val numNoFase = index - count + 1
+            return when (faseVagas) {
+                32 -> Pair("PRIMEIRA FASE", "PF $numNoFase")
+                16 -> Pair("OITAVAS DE FINAL", "Oitavas $numNoFase")
+                8 -> Pair("QUARTAS DE FINAL", "QF $numNoFase")
+                4 -> Pair("SEMIFINAIS", "Semi $numNoFase")
+                2 -> Pair("GRANDE FINAL", "Grande Final")
+                else -> Pair("FASE ELIMINATÓRIA", "Jogo $numNoFase")
+            }
+        }
+        count += jogosNaFase
+        faseVagas /= 2
+    }
+    return Pair("FINAL", "Grande Final")
+}

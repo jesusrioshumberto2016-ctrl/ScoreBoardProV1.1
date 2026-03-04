@@ -26,7 +26,6 @@ fun TelaPainelLibertadores(
     var abaSelecionada by remember { mutableIntStateOf(0) }
     val titulosAbas = listOf("Grupos", "Mata-Mata", "Resultados", "Partidas", "Súmula", "Pré-Jogo", "Artilharia", "Configs")
 
-    // Estados para controlar a exibição das telas de visualização
     var partidaParaVerPreJogo by remember { mutableStateOf<Partida?>(null) }
     var partidaParaVerDetalhes by remember { mutableStateOf<Partida?>(null) }
 
@@ -77,14 +76,24 @@ fun TelaPainelLibertadores(
                 else -> {
                     when (abaSelecionada) {
                         0 -> PainelGruposLibertadores(equipes, partidas, configsIniciais, listaGruposConfig)
-                        1 -> ConteudoChaveamento(equipes, partidas)
+                        1 -> {
+                            // ABA MATA-MATA: Mostra apenas partidas de fases eliminatórias
+                            val partidasMataMata = partidas.filter { 
+                                !it.fase.contains("RODADA", ignoreCase = true) && it.fase.isNotBlank() 
+                            }
+                            ConteudoChaveamentoLibertadores(equipes, partidasMataMata)
+                        }
                         2 -> ResultadosTab(partidas, equipes)
-                        3 -> PartidasTab(
-                            partidas = partidas,
-                            equipes = equipes,
-                            onPreJogoClick = { p -> partidaParaVerPreJogo = p },
-                            onDetalhesClick = { p -> partidaParaVerDetalhes = p }
-                        )
+                        3 -> {
+                            // ABA PARTIDAS: Organizada por rodada com navegação
+                            PartidasTab(
+                                partidas = partidas,
+                                equipes = equipes,
+                                onPreJogoClick = { p -> partidaParaVerPreJogo = p },
+                                onDetalhesClick = { p -> partidaParaVerDetalhes = p },
+                                somenteMataMata = false // Garante que mostre rodadas de grupos
+                            )
+                        }
                         4 -> SumulaTab(partidas, equipes, listaGlobalJogadores)
                         5 -> PreJogoTab(equipes, partidas, listaGlobalJogadores)
                         6 -> TelaArtilharia(equipes, listaGlobalJogadores)
@@ -98,6 +107,44 @@ fun TelaPainelLibertadores(
                         }
                     }
                 }
+            }
+        }
+    }
+}
+
+@Composable
+fun ConteudoChaveamentoLibertadores(equipes: List<EquipeExemplo>, partidas: List<Partida>) {
+    Column(modifier = Modifier.fillMaxSize().padding(16.dp).verticalScroll(rememberScrollState())) {
+        Text("Fase Eliminatória", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
+        Spacer(modifier = Modifier.height(16.dp))
+        
+        if (partidas.isEmpty()) {
+            Text("Nenhuma partida de mata-mata gerada ainda.", color = MaterialTheme.colorScheme.secondary)
+        } else {
+            // Agrupa por fase para organizar visualmente
+            val fases = partidas.groupBy { it.fase }
+            fases.forEach { (nomeFase, jogos) ->
+                Text(nomeFase, fontWeight = FontWeight.Black, color = MaterialTheme.colorScheme.primary, fontSize = 14.sp)
+                Spacer(Modifier.height(8.dp))
+                jogos.forEach { partida ->
+                    val mandante = equipes.find { it.id == partida.mandanteId }?.nome ?: "TBD"
+                    val visitante = equipes.find { it.id == partida.visitanteId }?.nome ?: "TBD"
+                    
+                    Card(
+                        modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
+                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(16.dp).fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Text(mandante, fontWeight = FontWeight.Medium)
+                            Text("vs", color = MaterialTheme.colorScheme.secondary)
+                            Text(visitante, fontWeight = FontWeight.Medium)
+                        }
+                    }
+                }
+                Spacer(Modifier.height(16.dp))
             }
         }
     }
@@ -126,7 +173,11 @@ fun PainelGruposLibertadores(
                     )
                     val fim = (indiceInicio + grupo.qtdTimes).coerceAtMost(equipes.size)
                     val equipesDesteGrupo = equipes.subList(indiceInicio, fim)
-                    TelaTabelaRanking(equipes = equipesDesteGrupo, partidas = partidas, configs = configs)
+                    // Filtrar apenas partidas que pertencem a este grupo (opcional, mas bom para performance)
+                    val idsEquipes = equipesDesteGrupo.map { it.id }
+                    val partidasDesteGrupo = partidas.filter { it.mandanteId in idsEquipes && it.visitanteId in idsEquipes }
+                    
+                    TelaTabelaRanking(equipes = equipesDesteGrupo, partidas = partidasDesteGrupo, configs = configs)
                     indiceInicio += grupo.qtdTimes
                     Spacer(modifier = Modifier.height(16.dp))
                     HorizontalDivider(thickness = 1.dp, color = MaterialTheme.colorScheme.outlineVariant)

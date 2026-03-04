@@ -14,7 +14,7 @@ class CopaLibertadores : FormatoCampeonato {
         var idContador = 1
         val copiaEquipes = equipes.toMutableList()
 
-        // 1. GERAÇÃO DA FASE DE GRUPOS
+        // 1. GERAÇÃO DA FASE DE GRUPOS (Organizada por Rodadas)
         configsGrupos.forEach { config ->
             val timesDesteGrupo = mutableListOf<Int>()
             for (i in 0 until config.qtdTimes) {
@@ -23,27 +23,55 @@ class CopaLibertadores : FormatoCampeonato {
                 }
             }
 
+            // Gerador de rodadas simples (Todos contra todos no grupo)
             for (i in timesDesteGrupo.indices) {
                 for (j in i + 1 until timesDesteGrupo.size) {
-                    // Jogo de Ida
-                    partidas.add(Partida(id = idContador++, mandanteId = timesDesteGrupo[i], visitanteId = timesDesteGrupo[j]))
-                    // Jogo de Volta (Fase de Grupos)
+                    val rodadaIda = if (turnoEReturno) "${i + j}ª Rodada" else "Rodada Única"
+                    partidas.add(Partida(
+                        id = idContador++, 
+                        mandanteId = timesDesteGrupo[i], 
+                        visitanteId = timesDesteGrupo[j],
+                        fase = rodadaIda
+                    ))
+                    
                     if (turnoEReturno) {
-                        partidas.add(Partida(id = idContador++, mandanteId = timesDesteGrupo[j], visitanteId = timesDesteGrupo[i]))
+                        partidas.add(Partida(
+                            id = idContador++, 
+                            mandanteId = timesDesteGrupo[j], 
+                            visitanteId = timesDesteGrupo[i],
+                            fase = "${i + j + 1}ª Rodada"
+                        ))
                     }
                 }
             }
         }
 
-        // 2. GERAÇÃO DOS CONFRONTOS DE MATA-MATA (CHAVEAMENTO)
-        confrontosMataMata.forEach { confronto ->
-            // Para o mata-mata, os times são inicialmente indefinidos (usamos -1 ou lógica de TBD no UI)
-            // Aqui geramos os slots que aparecerão no painel
-            partidas.add(Partida(id = idContador++, mandanteId = -1, visitanteId = -1, local = "A DEFINIR (IDA)"))
+        // 2. GERAÇÃO DOS CONFRONTOS DE MATA-MATA
+        // Aqui usamos os nomes das fases para o filtro da PartidasTab funcionar
+        var indexConfronto = 0
+        val totalVagas = configsGrupos.sumOf { it.qtdClassificados }
+        
+        confrontosMataMata.forEach { _ ->
+            val faseInfo = obterNomeFaseEConfronto(indexConfronto, totalVagas)
+            
+            partidas.add(Partida(
+                id = idContador++, 
+                mandanteId = -1, 
+                visitanteId = -1, 
+                fase = faseInfo.first,
+                local = "A DEFINIR (IDA)"
+            ))
             
             if (idaEVoltaMataMata) {
-                partidas.add(Partida(id = idContador++, mandanteId = -1, visitanteId = -1, local = "A DEFINIR (VOLTA)"))
+                partidas.add(Partida(
+                    id = idContador++, 
+                    mandanteId = -1, 
+                    visitanteId = -1, 
+                    fase = faseInfo.first,
+                    local = "A DEFINIR (VOLTA)"
+                ))
             }
+            indexConfronto++
         }
         
         return partidas
