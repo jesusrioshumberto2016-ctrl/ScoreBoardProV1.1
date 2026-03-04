@@ -27,13 +27,14 @@ fun ResultadosTab(
     equipes: List<EquipeExemplo>
 ) {
     val contexto = LocalContext.current
-    // Usamos a função de ordenação definida no MatchLogic.kt
     val partidasOrdenadas = obterPartidasOrdenadas(partidas)
 
     LazyColumn(Modifier.padding(16.dp)) {
         items(partidasOrdenadas, key = { it.id }) { partida ->
-            val m = equipes.find { it.id == partida.mandanteId }?.nome ?: "M"
-            val v = equipes.find { it.id == partida.visitanteId }?.nome ?: "V"
+            // LOGICA DE LABELS: Se ID for -1 (mata-mata não definido), usa o label customizado
+            val m = equipes.find { it.id == partida.mandanteId }?.nome ?: partida.labelMandante.ifBlank { "M" }
+            val v = equipes.find { it.id == partida.visitanteId }?.nome ?: partida.labelVisitante.ifBlank { "V" }
+            
             var mostrarDialogoLocal by remember { mutableStateOf(false) }
             var localTemporario by remember { mutableStateOf(partida.local) }
 
@@ -56,6 +57,15 @@ fun ResultadosTab(
 
             Card(Modifier.fillMaxWidth().padding(vertical = 8.dp), colors = CardDefaults.cardColors(containerColor = if(partida.finalizada) Color(0xFFE3F2FD) else Color.White)) {
                 Column(Modifier.padding(12.dp)) {
+                    // Exibe a Fase/Rodada no topo do card de resultado
+                    Text(
+                        text = partida.fase.uppercase(),
+                        fontSize = 9.sp,
+                        fontWeight = FontWeight.Black,
+                        color = MaterialTheme.colorScheme.secondary,
+                        modifier = Modifier.padding(bottom = 4.dp)
+                    )
+
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                         TextButton(onClick = { 
                             if(!partida.finalizada){ 
@@ -87,7 +97,7 @@ fun ResultadosTab(
                         }
                     }
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text(m, Modifier.weight(1f), textAlign = TextAlign.Center, fontWeight = FontWeight.Bold)
+                        Text(m, Modifier.weight(1f), textAlign = TextAlign.Center, fontWeight = FontWeight.Bold, fontSize = 14.sp)
                         
                         OutlinedTextField(
                             value = partida.golsMandante?.toString() ?: "", 
@@ -125,7 +135,7 @@ fun ResultadosTab(
                             textStyle = TextStyle(textAlign = TextAlign.Center)
                         )
                         
-                        Text(v, Modifier.weight(1f), textAlign = TextAlign.Center, fontWeight = FontWeight.Bold)
+                        Text(v, Modifier.weight(1f), textAlign = TextAlign.Center, fontWeight = FontWeight.Bold, fontSize = 14.sp)
                     }
                     
                     Button(
