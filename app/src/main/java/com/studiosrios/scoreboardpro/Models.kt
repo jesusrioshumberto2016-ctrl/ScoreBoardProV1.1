@@ -34,7 +34,9 @@ data class Partida(
     val id: Int,
     val mandanteId: Int,
     val visitanteId: Int,
-    val fase: String = "", // Adicionado campo para identificar Rodada ou Fase
+    val fase: String = "",
+    val labelMandante: String = "", // Adicionado para exibir 1º Grupo A, etc.
+    val labelVisitante: String = "", // Adicionado para exibir 2º Grupo B, etc.
     val data: String = "",
     val horario: String = "",
     val local: String = "A DEFINIR",

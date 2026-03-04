@@ -23,7 +23,6 @@ class CopaLibertadores : FormatoCampeonato {
                 }
             }
 
-            // Gerador de rodadas simples (Todos contra todos no grupo)
             for (i in timesDesteGrupo.indices) {
                 for (j in i + 1 until timesDesteGrupo.size) {
                     val rodadaIda = if (turnoEReturno) "${i + j}ª Rodada" else "Rodada Única"
@@ -46,28 +45,33 @@ class CopaLibertadores : FormatoCampeonato {
             }
         }
 
-        // 2. GERAÇÃO DOS CONFRONTOS DE MATA-MATA
-        // Aqui usamos os nomes das fases para o filtro da PartidasTab funcionar
+        // 2. GERAÇÃO DOS CONFRONTOS DE MATA-MATA (Conforme definição do usuário)
         var indexConfronto = 0
         val totalVagas = configsGrupos.sumOf { it.qtdClassificados }
         
-        confrontosMataMata.forEach { _ ->
+        confrontosMataMata.forEach { par ->
             val faseInfo = obterNomeFaseEConfronto(indexConfronto, totalVagas)
             
+            // Jogo de Ida
             partidas.add(Partida(
                 id = idContador++, 
                 mandanteId = -1, 
                 visitanteId = -1, 
                 fase = faseInfo.first,
+                labelMandante = par.first, // 1º Grupo A, Vence J1, etc.
+                labelVisitante = par.second, // 2º Grupo C, Vence J2, etc.
                 local = "A DEFINIR (IDA)"
             ))
             
+            // Jogo de Volta
             if (idaEVoltaMataMata) {
                 partidas.add(Partida(
                     id = idContador++, 
                     mandanteId = -1, 
                     visitanteId = -1, 
                     fase = faseInfo.first,
+                    labelMandante = par.second, // Inverte o mando na volta
+                    labelVisitante = par.first,
                     local = "A DEFINIR (VOLTA)"
                 ))
             }
