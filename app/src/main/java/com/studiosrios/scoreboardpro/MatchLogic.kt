@@ -9,7 +9,6 @@ package com.studiosrios.scoreboardpro
 fun obterPartidasOrdenadas(partidas: List<Partida>): List<Partida> {
     return partidas.sortedWith(
         compareBy(
-            // Converte "DD/MM" para "MMDD" para uma ordenação correta por data
             { it.data.split("/").reversed().joinToString("") },
             { it.horario }
         )
@@ -22,7 +21,6 @@ fun calcularClassificacao(equipes: List<EquipeExemplo>, partidas: List<Partida>)
         var p = 0; var j = 0; var v = 0; var e = 0; var d = 0; var gm = 0; var gs = 0
         var ca = 0; var cv = 0
 
-        // Filtra partidas finalizadas onde a equipe participou
         partidas.filter { it.finalizada && (it.mandanteId == equipe.id || it.visitanteId == equipe.id) }
             .forEach { part ->
                 j++
@@ -67,17 +65,24 @@ fun calcularClassificacao(equipes: List<EquipeExemplo>, partidas: List<Partida>)
             vermelhos = cv
         )
     }.sortedWith(
-        // Critérios de desempate padrão: Pontos > Vitórias > Saldo de Gols
         compareByDescending<LinhaTabela> { it.pontos }
             .thenByDescending { it.vitorias }
             .thenByDescending { it.sg }
     )
 }
 
-// 3. VERIFICAÇÃO DE CONCLUSÃO DA FASE DE GRUPOS
+// 3. VERIFICAÇÃO DE CONCLUSÃO DA FASE DE GRUPOS (Melhorada)
 fun verificarFaseGruposFinalizada(partidas: List<Partida>): Boolean {
-    val partidasGrupos = partidas.filter { it.fase.contains("Rodada", ignoreCase = true) }
-    return if (partidasGrupos.isEmpty()) false else partidasGrupos.all { it.finalizada }
+    // Filtra todas as partidas que pertencem à fase de grupos (Rodada ou Única)
+    val partidasGrupos = partidas.filter { 
+        it.fase.contains("Rodada", ignoreCase = true) || it.fase.contains("Única", ignoreCase = true)
+    }
+    
+    // Se não houver partidas de grupo, não exibe o botão
+    if (partidasGrupos.isEmpty()) return false
+    
+    // Retorna true apenas se TODAS as partidas de grupo estiverem finalizadas
+    return partidasGrupos.all { it.finalizada }
 }
 
 fun calcularTotalJogos(vagas: Int): Int {

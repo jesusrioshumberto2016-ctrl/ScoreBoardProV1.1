@@ -38,8 +38,10 @@ fun TelaPainelLibertadores(
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
 
-    // Verifica se a fase de grupos está finalizada
-    val gruposFinalizados = remember(partidas) { verificarFaseGruposFinalizada(partidas) }
+    // CORREÇÃO: Usando derivedStateOf para observar mudanças nos itens da lista
+    val gruposFinalizados by remember {
+        derivedStateOf { verificarFaseGruposFinalizada(partidas) }
+    }
 
     Scaffold(
         snackbarHost = { SnackbarHost(snackbarHostState) },
@@ -103,7 +105,9 @@ fun TelaPainelLibertadores(
                                 0 -> PainelGruposLibertadores(equipes, partidas, configsIniciais, listaGruposConfig)
                                 1 -> {
                                     val partidasMataMata = partidas.filter { 
-                                        !it.fase.contains("RODADA", ignoreCase = true) && it.fase.isNotBlank() 
+                                        !it.fase.contains("RODADA", ignoreCase = true) && 
+                                        !it.fase.contains("ÚNICA", ignoreCase = true) && 
+                                        it.fase.isNotBlank() 
                                     }
                                     ConteudoChaveamentoLibertadores(equipes, partidasMataMata)
                                 }
@@ -135,25 +139,35 @@ fun TelaPainelLibertadores(
                         }
 
                         // Botão de Conclusão da Fase de Grupos
-                        if (gruposFinalizados && abaSelecionada == 0) {
-                            Surface(
-                                modifier = Modifier.fillMaxWidth(),
-                                color = MaterialTheme.colorScheme.primaryContainer,
-                                shadowElevation = 8.dp
+                        Surface(
+                            modifier = Modifier.fillMaxWidth(),
+                            color = MaterialTheme.colorScheme.surface,
+                            shadowElevation = 12.dp
+                        ) {
+                            Button(
+                                onClick = { 
+                                    scope.launch {
+                                        snackbarHostState.showSnackbar("Fase de grupos concluída! Próxima etapa: Mata-Mata.")
+                                    }
+                                },
+                                enabled = gruposFinalizados,
+                                modifier = Modifier.fillMaxWidth().padding(16.dp),
+                                colors = ButtonDefaults.buttonColors(
+                                    containerColor = if (gruposFinalizados) Color(0xFF2E7D32) else Color.Gray,
+                                    disabledContainerColor = Color.LightGray.copy(alpha = 0.6f)
+                                )
                             ) {
-                                Button(
-                                    onClick = { 
-                                        scope.launch {
-                                            snackbarHostState.showSnackbar("Fase de grupos concluída! Próxima etapa: Mata-Mata.")
-                                        }
-                                    },
-                                    modifier = Modifier.fillMaxWidth().padding(16.dp),
-                                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF2E7D32))
-                                ) {
-                                    Icon(Icons.Default.CheckCircle, null)
-                                    Spacer(Modifier.width(8.dp))
-                                    Text("CONCLUIR FASE DE GRUPOS", fontWeight = FontWeight.Bold)
-                                }
+                                Icon(
+                                    imageVector = Icons.Default.CheckCircle, 
+                                    contentDescription = null,
+                                    tint = if (gruposFinalizados) Color.White else Color.DarkGray
+                                )
+                                Spacer(Modifier.width(8.dp))
+                                Text(
+                                    text = "CONCLUIR FASE DE GRUPOS", 
+                                    fontWeight = FontWeight.Bold,
+                                    color = if (gruposFinalizados) Color.White else Color.DarkGray
+                                )
                             }
                         }
                     }

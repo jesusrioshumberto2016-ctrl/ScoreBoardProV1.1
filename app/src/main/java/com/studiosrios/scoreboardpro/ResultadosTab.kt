@@ -26,137 +26,170 @@ fun ResultadosTab(
     partidas: SnapshotStateList<Partida>,
     equipes: List<EquipeExemplo>
 ) {
-    val contexto = LocalContext.current
-    val partidasOrdenadas = obterPartidasOrdenadas(partidas)
+    var subAbaSelecionada by remember { mutableIntStateOf(0) }
+    val titulosSubAbas = listOf("Fase de Grupos", "Mata-Mata")
 
-    LazyColumn(Modifier.padding(16.dp)) {
-        items(partidasOrdenadas, key = { it.id }) { partida ->
-            // LOGICA DE LABELS: Se ID for -1 (mata-mata não definido), usa o label customizado
-            val m = equipes.find { it.id == partida.mandanteId }?.nome ?: partida.labelMandante.ifBlank { "M" }
-            val v = equipes.find { it.id == partida.visitanteId }?.nome ?: partida.labelVisitante.ifBlank { "V" }
-            
-            var mostrarDialogoLocal by remember { mutableStateOf(false) }
-            var localTemporario by remember { mutableStateOf(partida.local) }
-
-            if (mostrarDialogoLocal) {
-                AlertDialog(
-                    onDismissRequest = { mostrarDialogoLocal = false },
-                    title = { Text("Definir Local") },
-                    text = { OutlinedTextField(value = localTemporario, onValueChange = { localTemporario = it }, label = { Text("Local/Estádio") }) },
-                    confirmButton = { 
-                        Button(onClick = { 
-                            val idx = partidas.indexOfFirst { it.id == partida.id }
-                            if(idx != -1) {
-                                partidas[idx] = partidas[idx].copy(local = localTemporario)
-                            }
-                            mostrarDialogoLocal = false 
-                        }) { Text("OK") } 
-                    }
+    Column(Modifier.fillMaxSize()) {
+        TabRow(selectedTabIndex = subAbaSelecionada, containerColor = MaterialTheme.colorScheme.surfaceVariant) {
+            titulosSubAbas.forEachIndexed { index, titulo ->
+                Tab(
+                    selected = subAbaSelecionada == index,
+                    onClick = { subAbaSelecionada = index },
+                    text = { Text(titulo, fontSize = 12.sp, fontWeight = FontWeight.Bold) }
                 )
             }
+        }
 
-            Card(Modifier.fillMaxWidth().padding(vertical = 8.dp), colors = CardDefaults.cardColors(containerColor = if(partida.finalizada) Color(0xFFE3F2FD) else Color.White)) {
-                Column(Modifier.padding(12.dp)) {
-                    // Exibe a Fase/Rodada no topo do card de resultado
-                    Text(
-                        text = partida.fase.uppercase(),
-                        fontSize = 9.sp,
-                        fontWeight = FontWeight.Black,
-                        color = MaterialTheme.colorScheme.secondary,
-                        modifier = Modifier.padding(bottom = 4.dp)
-                    )
+        // Filtro dinâmico baseado na sub-aba
+        val partidasFiltradas = if (subAbaSelecionada == 0) {
+            partidas.filter { it.fase.contains("Rodada", ignoreCase = true) || it.fase.contains("Única", ignoreCase = true) }
+        } else {
+            partidas.filter { !it.fase.contains("Rodada", ignoreCase = true) && !it.fase.contains("Única", ignoreCase = true) && it.fase.isNotBlank() }
+        }
 
-                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                        TextButton(onClick = { 
-                            if(!partida.finalizada){ 
-                                val c = Calendar.getInstance()
-                                DatePickerDialog(contexto, { _, y, month, d -> 
-                                    val idx = partidas.indexOfFirst { it.id == partida.id }
-                                    if(idx != -1) {
-                                        val dataFormatada = "%02d/%02d".format(d, month + 1)
-                                        partidas[idx] = partidas[idx].copy(data = dataFormatada)
-                                    }
-                                }, c.get(Calendar.YEAR), c.get(Calendar.MONTH), c.get(Calendar.DAY_OF_MONTH)).show() 
-                            } 
-                        }) { Text("DATA: ${partida.data.ifBlank { "00/00" }}", fontSize = 10.sp) }
-
-                        TextButton(onClick = { 
-                            if(!partida.finalizada){ 
-                                TimePickerDialog(contexto, { _, h, min -> 
-                                    val idx = partidas.indexOfFirst { it.id == partida.id }
-                                    if(idx != -1) {
-                                        val horaFormatada = "%02d:%02d".format(h, min)
-                                        partidas[idx] = partidas[idx].copy(horario = horaFormatada)
-                                    }
-                                }, 15, 0, true).show() 
-                            } 
-                        }) { Text("HORA: ${partida.horario.ifBlank { "00:00" }}", fontSize = 10.sp) }
-
-                        TextButton(onClick = { if(!partida.finalizada) mostrarDialogoLocal = true }) { 
-                            Text("LOCAL: ${partida.local}", fontSize = 10.sp) 
-                        }
-                    }
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text(m, Modifier.weight(1f), textAlign = TextAlign.Center, fontWeight = FontWeight.Bold, fontSize = 14.sp)
-                        
-                        OutlinedTextField(
-                            value = partida.golsMandante?.toString() ?: "", 
-                            onValueChange = { input -> 
-                                if(!partida.finalizada) { 
-                                    val idx = partidas.indexOfFirst { it.id == partida.id }
-                                    if(idx != -1) { 
-                                        val num = input.filter { it.isDigit() }.toIntOrNull()
-                                        partidas[idx] = partidas[idx].copy(golsMandante = num) 
-                                    } 
-                                } 
-                            }, 
-                            modifier = Modifier.width(60.dp), 
-                            enabled = !partida.finalizada, 
-                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number), 
-                            textStyle = TextStyle(textAlign = TextAlign.Center)
-                        )
-                        
-                        Text(" X ", fontWeight = FontWeight.Black)
-                        
-                        OutlinedTextField(
-                            value = partida.golsVisitante?.toString() ?: "", 
-                            onValueChange = { input -> 
-                                if(!partida.finalizada) { 
-                                    val idx = partidas.indexOfFirst { it.id == partida.id }
-                                    if(idx != -1) { 
-                                        val num = input.filter { it.isDigit() }.toIntOrNull()
-                                        partidas[idx] = partidas[idx].copy(golsVisitante = num) 
-                                    } 
-                                } 
-                            }, 
-                            modifier = Modifier.width(60.dp), 
-                            enabled = !partida.finalizada, 
-                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number), 
-                            textStyle = TextStyle(textAlign = TextAlign.Center)
-                        )
-                        
-                        Text(v, Modifier.weight(1f), textAlign = TextAlign.Center, fontWeight = FontWeight.Bold, fontSize = 14.sp)
-                    }
-                    
-                    Button(
-                        onClick = { 
-                            val idx = partidas.indexOfFirst { it.id == partida.id }
-                            if (idx != -1) {
-                                val gM = partidas[idx].golsMandante ?: 0
-                                val gV = partidas[idx].golsVisitante ?: 0
-                                partidas[idx] = partidas[idx].copy(
-                                    finalizada = !partida.finalizada, 
-                                    golsMandante = gM, 
-                                    golsVisitante = gV
-                                )
-                            }
-                        }, 
-                        modifier = Modifier.fillMaxWidth().padding(top = 8.dp), 
-                        colors = ButtonDefaults.buttonColors(containerColor = if(partida.finalizada) Color.Red else Color.DarkGray)
-                    ) { 
-                        Text(if(partida.finalizada) "CORRIGIR / CANCELAR" else "CONFIRMAR RESULTADO") 
-                    }
+        if (partidasFiltradas.isEmpty()) {
+            Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                Text("Nenhuma partida encontrada nesta fase.", color = Color.Gray)
+            }
+        } else {
+            LazyColumn(Modifier.padding(16.dp)) {
+                items(partidasFiltradas, key = { it.id }) { partida ->
+                    ItemResultadoCard(partida, partidas, equipes)
                 }
+            }
+        }
+    }
+}
+
+@Composable
+fun ItemResultadoCard(
+    partida: Partida,
+    listaGeral: SnapshotStateList<Partida>,
+    equipes: List<EquipeExemplo>
+) {
+    val contexto = LocalContext.current
+    val m = equipes.find { it.id == partida.mandanteId }?.nome ?: partida.labelMandante.ifBlank { "M" }
+    val v = equipes.find { it.id == partida.visitanteId }?.nome ?: partida.labelVisitante.ifBlank { "V" }
+    
+    var mostrarDialogoLocal by remember { mutableStateOf(false) }
+    var localTemporario by remember { mutableStateOf(partida.local) }
+
+    if (mostrarDialogoLocal) {
+        AlertDialog(
+            onDismissRequest = { mostrarDialogoLocal = false },
+            title = { Text("Definir Local") },
+            text = { OutlinedTextField(value = localTemporario, onValueChange = { localTemporario = it }, label = { Text("Local/Estádio") }) },
+            confirmButton = { 
+                Button(onClick = { 
+                    val idx = listaGeral.indexOfFirst { it.id == partida.id }
+                    if(idx != -1) {
+                        listaGeral[idx] = listaGeral[idx].copy(local = localTemporario)
+                    }
+                    mostrarDialogoLocal = false 
+                }) { Text("OK") } 
+            }
+        )
+    }
+
+    Card(Modifier.fillMaxWidth().padding(vertical = 8.dp), colors = CardDefaults.cardColors(containerColor = if(partida.finalizada) Color(0xFFE3F2FD) else Color.White)) {
+        Column(Modifier.padding(12.dp)) {
+            Text(
+                text = partida.fase.uppercase(),
+                fontSize = 9.sp,
+                fontWeight = FontWeight.Black,
+                color = MaterialTheme.colorScheme.secondary,
+                modifier = Modifier.padding(bottom = 4.dp)
+            )
+
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                TextButton(onClick = { 
+                    if(!partida.finalizada){ 
+                        val c = Calendar.getInstance()
+                        DatePickerDialog(contexto, { _, y, month, d -> 
+                            val idx = listaGeral.indexOfFirst { it.id == partida.id }
+                            if(idx != -1) {
+                                val dataFormatada = "%02d/%02d".format(d, month + 1)
+                                listaGeral[idx] = listaGeral[idx].copy(data = dataFormatada)
+                            }
+                        }, c.get(Calendar.YEAR), c.get(Calendar.MONTH), c.get(Calendar.DAY_OF_MONTH)).show() 
+                    } 
+                }) { Text("DATA: ${partida.data.ifBlank { "00/00" }}", fontSize = 10.sp) }
+
+                TextButton(onClick = { 
+                    if(!partida.finalizada){ 
+                        TimePickerDialog(contexto, { _, h, min -> 
+                            val idx = listaGeral.indexOfFirst { it.id == partida.id }
+                            if(idx != -1) {
+                                val horaFormatada = "%02d:%02d".format(h, min)
+                                listaGeral[idx] = listaGeral[idx].copy(horario = horaFormatada)
+                            }
+                        }, 15, 0, true).show() 
+                    } 
+                }) { Text("HORA: ${partida.horario.ifBlank { "00:00" }}", fontSize = 10.sp) }
+
+                TextButton(onClick = { if(!partida.finalizada) mostrarDialogoLocal = true }) { 
+                    Text("LOCAL: ${partida.local}", fontSize = 10.sp) 
+                }
+            }
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(m, Modifier.weight(1f), textAlign = TextAlign.Center, fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                
+                OutlinedTextField(
+                    value = partida.golsMandante?.toString() ?: "", 
+                    onValueChange = { input -> 
+                        if(!partida.finalizada) { 
+                            val idx = listaGeral.indexOfFirst { it.id == partida.id }
+                            if(idx != -1) { 
+                                val num = input.filter { it.isDigit() }.toIntOrNull()
+                                listaGeral[idx] = listaGeral[idx].copy(golsMandante = num) 
+                            } 
+                        } 
+                    }, 
+                    modifier = Modifier.width(60.dp), 
+                    enabled = !partida.finalizada, 
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number), 
+                    textStyle = TextStyle(textAlign = TextAlign.Center)
+                )
+                
+                Text(" X ", fontWeight = FontWeight.Black)
+                
+                OutlinedTextField(
+                    value = partida.golsVisitante?.toString() ?: "", 
+                    onValueChange = { input -> 
+                        if(!partida.finalizada) { 
+                            val idx = listaGeral.indexOfFirst { it.id == partida.id }
+                            if(idx != -1) { 
+                                val num = input.filter { it.isDigit() }.toIntOrNull()
+                                listaGeral[idx] = listaGeral[idx].copy(golsVisitante = num) 
+                            } 
+                        } 
+                    }, 
+                    modifier = Modifier.width(60.dp), 
+                    enabled = !partida.finalizada, 
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number), 
+                    textStyle = TextStyle(textAlign = TextAlign.Center)
+                )
+                
+                Text(v, Modifier.weight(1f), textAlign = TextAlign.Center, fontWeight = FontWeight.Bold, fontSize = 14.sp)
+            }
+            
+            Button(
+                onClick = { 
+                    val idx = listaGeral.indexOfFirst { it.id == partida.id }
+                    if (idx != -1) {
+                        val gM = listaGeral[idx].golsMandante ?: 0
+                        val gV = listaGeral[idx].golsVisitante ?: 0
+                        listaGeral[idx] = listaGeral[idx].copy(
+                            finalizada = !partida.finalizada, 
+                            golsMandante = gM, 
+                            golsVisitante = gV
+                        )
+                    }
+                }, 
+                modifier = Modifier.fillMaxWidth().padding(top = 8.dp), 
+                colors = ButtonDefaults.buttonColors(containerColor = if(partida.finalizada) Color.Red else Color.DarkGray)
+            ) { 
+                Text(if(partida.finalizada) "CORRIGIR / CANCELAR" else "CONFIRMAR RESULTADO")
             }
         }
     }
