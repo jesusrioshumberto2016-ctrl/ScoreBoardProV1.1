@@ -3,13 +3,19 @@ package com.studiosrios.scoreboardpro
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Save
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.snapshots.SnapshotStateList
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -29,7 +35,14 @@ fun TelaPainelLibertadores(
     var partidaParaVerPreJogo by remember { mutableStateOf<Partida?>(null) }
     var partidaParaVerDetalhes by remember { mutableStateOf<Partida?>(null) }
 
+    val snackbarHostState = remember { SnackbarHostState() }
+    val scope = rememberCoroutineScope()
+
+    // Verifica se a fase de grupos está finalizada
+    val gruposFinalizados = remember(partidas) { verificarFaseGruposFinalizada(partidas) }
+
     Scaffold(
+        snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             if (partidaParaVerPreJogo == null && partidaParaVerDetalhes == null) {
                 Column {
@@ -37,6 +50,16 @@ fun TelaPainelLibertadores(
                         title = { Text("Painel Libertadores", fontWeight = FontWeight.Bold) },
                         navigationIcon = {
                             TextButton(onClick = onVoltar) { Text("Sair") }
+                        },
+                        actions = {
+                            IconButton(onClick = {
+                                onSalvarGeral(idCamp, configsIniciais)
+                                scope.launch {
+                                    snackbarHostState.showSnackbar("Dados salvos com sucesso!")
+                                }
+                            }) {
+                                Icon(Icons.Default.Save, contentDescription = "Salvar")
+                            }
                         }
                     )
                     ScrollableTabRow(
@@ -74,34 +97,64 @@ fun TelaPainelLibertadores(
                     )
                 }
                 else -> {
-                    when (abaSelecionada) {
-                        0 -> PainelGruposLibertadores(equipes, partidas, configsIniciais, listaGruposConfig)
-                        1 -> {
-                            val partidasMataMata = partidas.filter { 
-                                !it.fase.contains("RODADA", ignoreCase = true) && it.fase.isNotBlank() 
-                            }
-                            ConteudoChaveamentoLibertadores(equipes, partidasMataMata)
-                        }
-                        2 -> ResultadosTab(partidas, equipes)
-                        3 -> {
-                            PartidasTab(
-                                partidas = partidas,
-                                equipes = equipes,
-                                onPreJogoClick = { p -> partidaParaVerPreJogo = p },
-                                onDetalhesClick = { p -> partidaParaVerDetalhes = p },
-                                somenteMataMata = false
-                            )
-                        }
-                        4 -> SumulaTab(partidas, equipes, listaGlobalJogadores)
-                        5 -> PreJogoTab(equipes, partidas, listaGlobalJogadores)
-                        6 -> TelaArtilharia(equipes, listaGlobalJogadores)
-                        7 -> {
-                            ConfigLibertadores(
-                                configs = configsIniciais,
-                                onSalvar = { novasConfigs ->
-                                    onSalvarGeral(idCamp, novasConfigs)
+                    Column(Modifier.fillMaxSize()) {
+                        Box(modifier = Modifier.weight(1f)) {
+                            when (abaSelecionada) {
+                                0 -> PainelGruposLibertadores(equipes, partidas, configsIniciais, listaGruposConfig)
+                                1 -> {
+                                    val partidasMataMata = partidas.filter { 
+                                        !it.fase.contains("RODADA", ignoreCase = true) && it.fase.isNotBlank() 
+                                    }
+                                    ConteudoChaveamentoLibertadores(equipes, partidasMataMata)
                                 }
-                            )
+                                2 -> ResultadosTab(partidas, equipes)
+                                3 -> {
+                                    PartidasTab(
+                                        partidas = partidas,
+                                        equipes = equipes,
+                                        onPreJogoClick = { p -> partidaParaVerPreJogo = p },
+                                        onDetalhesClick = { p -> partidaParaVerDetalhes = p },
+                                        somenteMataMata = false
+                                    )
+                                }
+                                4 -> SumulaTab(partidas, equipes, listaGlobalJogadores)
+                                5 -> PreJogoTab(equipes, partidas, listaGlobalJogadores)
+                                6 -> TelaArtilharia(equipes, listaGlobalJogadores)
+                                7 -> {
+                                    ConfigLibertadores(
+                                        configs = configsIniciais,
+                                        onSalvar = { novasConfigs ->
+                                            onSalvarGeral(idCamp, novasConfigs)
+                                            scope.launch {
+                                                snackbarHostState.showSnackbar("Configurações atualizadas!")
+                                            }
+                                        }
+                                    )
+                                }
+                            }
+                        }
+
+                        // Botão de Conclusão da Fase de Grupos
+                        if (gruposFinalizados && abaSelecionada == 0) {
+                            Surface(
+                                modifier = Modifier.fillMaxWidth(),
+                                color = MaterialTheme.colorScheme.primaryContainer,
+                                shadowElevation = 8.dp
+                            ) {
+                                Button(
+                                    onClick = { 
+                                        scope.launch {
+                                            snackbarHostState.showSnackbar("Fase de grupos concluída! Próxima etapa: Mata-Mata.")
+                                        }
+                                    },
+                                    modifier = Modifier.fillMaxWidth().padding(16.dp),
+                                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF2E7D32))
+                                ) {
+                                    Icon(Icons.Default.CheckCircle, null)
+                                    Spacer(Modifier.width(8.dp))
+                                    Text("CONCLUIR FASE DE GRUPOS", fontWeight = FontWeight.Bold)
+                                }
+                            }
                         }
                     }
                 }

@@ -74,6 +74,12 @@ fun calcularClassificacao(equipes: List<EquipeExemplo>, partidas: List<Partida>)
     )
 }
 
+// 3. VERIFICAÇÃO DE CONCLUSÃO DA FASE DE GRUPOS
+fun verificarFaseGruposFinalizada(partidas: List<Partida>): Boolean {
+    val partidasGrupos = partidas.filter { it.fase.contains("Rodada", ignoreCase = true) }
+    return if (partidasGrupos.isEmpty()) false else partidasGrupos.all { it.finalizada }
+}
+
 fun calcularTotalJogos(vagas: Int): Int {
     var total = 0
     var atual = vagas
