@@ -1,6 +1,5 @@
 package com.studiosrios.scoreboardpro
 
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -67,27 +66,37 @@ fun PartidasTab(
 
                     Divider(Modifier.padding(vertical = 12.dp), thickness = 0.5.dp, color = MaterialTheme.colorScheme.outlineVariant)
 
-                    // BOTÕES DE AÇÃO: PRÉ-JOGO (Esquerda) e DETALHES (Direita)
-                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                    // BOTÕES DE AÇÃO E IDENTIFICAÇÃO DA FASE
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
                         OutlinedButton(
                             onClick = { onPreJogoClick(partida) },
                             contentPadding = PaddingValues(horizontal = 12.dp, vertical = 0.dp),
-                            modifier = Modifier.height(32.dp)
+                            modifier = Modifier.height(32.dp).weight(1f)
                         ) {
                             Icon(Icons.Default.Login, null, modifier = Modifier.size(14.dp))
                             Spacer(Modifier.width(4.dp))
-                            Text("PRÉ-JOGO", fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                            Text("PRÉ-JOGO", fontSize = 9.sp, fontWeight = FontWeight.Bold)
                         }
+
+                        // IDENTIFICAÇÃO DA FASE (CENTRO)
+                        Text(
+                            text = partida.fase.ifBlank { "Rodada" },
+                            fontSize = 10.sp,
+                            fontWeight = FontWeight.ExtraBold,
+                            color = MaterialTheme.colorScheme.secondary,
+                            modifier = Modifier.weight(1f),
+                            textAlign = TextAlign.Center
+                        )
 
                         Button(
                             onClick = { onDetalhesClick(partida) },
                             contentPadding = PaddingValues(horizontal = 12.dp, vertical = 0.dp),
-                            modifier = Modifier.height(32.dp),
+                            modifier = Modifier.height(32.dp).weight(1f),
                             colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.secondary)
                         ) {
                             Icon(Icons.Default.Info, null, modifier = Modifier.size(14.dp))
                             Spacer(Modifier.width(4.dp))
-                            Text("DETALHES", fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                            Text("DETALHES", fontSize = 9.sp, fontWeight = FontWeight.Bold)
                         }
                     }
                 }

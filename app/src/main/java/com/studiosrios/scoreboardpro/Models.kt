@@ -34,6 +34,7 @@ data class Partida(
     val id: Int,
     val mandanteId: Int,
     val visitanteId: Int,
+    val fase: String = "", // Adicionado campo para identificar Rodada ou Fase
     val data: String = "",
     val horario: String = "",
     val local: String = "A DEFINIR",
@@ -68,7 +69,7 @@ data class Partida(
 )
 
 data class LinhaTabela(
-    val equipeId: Int, // Adicionado ID para permitir confronto direto
+    val equipeId: Int,
     val nome: String,
     val pontos: Int,
     val jogos: Int,
