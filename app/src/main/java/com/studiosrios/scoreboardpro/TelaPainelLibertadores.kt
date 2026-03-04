@@ -108,7 +108,12 @@ fun TelaPainelLibertadores(
                                         !it.fase.contains("ÚNICA", ignoreCase = true) && 
                                         it.fase.isNotBlank() 
                                     }
-                                    ConteudoChaveamentoLibertadores(equipes, partidasMataMata)
+                                    ConteudoChaveamentoLibertadores(
+                                        equipes = equipes, 
+                                        partidas = partidasMataMata,
+                                        onPreJogo = { p -> partidaParaVerPreJogo = p },
+                                        onDetalhes = { p -> partidaParaVerDetalhes = p }
+                                    )
                                 }
                                 2 -> ResultadosTab(partidas, equipes)
                                 3 -> {
@@ -145,9 +150,7 @@ fun TelaPainelLibertadores(
                         ) {
                             Button(
                                 onClick = { 
-                                    // AÇÃO DE PROMOÇÃO: Preenche os times nas vagas de mata-mata
                                     promoverClassificadosMataMata(partidas, equipes, listaGruposConfig, configsIniciais)
-                                    
                                     scope.launch {
                                         snackbarHostState.showSnackbar("Classificados definidos! Verifique a aba Mata-Mata.")
                                     }
@@ -180,7 +183,12 @@ fun TelaPainelLibertadores(
 }
 
 @Composable
-fun ConteudoChaveamentoLibertadores(equipes: List<EquipeExemplo>, partidas: List<Partida>) {
+fun ConteudoChaveamentoLibertadores(
+    equipes: List<EquipeExemplo>, 
+    partidas: List<Partida>,
+    onPreJogo: (Partida) -> Unit,
+    onDetalhes: (Partida) -> Unit
+) {
     Column(modifier = Modifier.fillMaxSize().padding(16.dp).verticalScroll(rememberScrollState())) {
         Text("Fase Eliminatória", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
         Spacer(modifier = Modifier.height(16.dp))
@@ -193,22 +201,12 @@ fun ConteudoChaveamentoLibertadores(equipes: List<EquipeExemplo>, partidas: List
                 Text(nomeFase, fontWeight = FontWeight.Black, color = MaterialTheme.colorScheme.primary, fontSize = 14.sp)
                 Spacer(Modifier.height(8.dp))
                 jogos.forEach { partida ->
-                    val mandante = equipes.find { it.id == partida.mandanteId }?.nome ?: partida.labelMandante
-                    val visitante = equipes.find { it.id == partida.visitanteId }?.nome ?: partida.labelVisitante
-                    
-                    Card(
-                        modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
-                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
-                    ) {
-                        Row(
-                            modifier = Modifier.padding(16.dp).fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween
-                        ) {
-                            Text(mandante, fontWeight = FontWeight.Medium)
-                            Text("vs", color = MaterialTheme.colorScheme.secondary)
-                            Text(visitante, fontWeight = FontWeight.Medium)
-                        }
-                    }
+                    ItemPartidaCard(
+                        partida = partida,
+                        equipes = equipes,
+                        onPreJogoClick = onPreJogo,
+                        onDetalhesClick = onDetalhes
+                    )
                 }
                 Spacer(Modifier.height(16.dp))
             }
