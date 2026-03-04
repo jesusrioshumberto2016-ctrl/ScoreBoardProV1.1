@@ -107,7 +107,11 @@ fun TelaPainelLibertadores(
                                         !it.fase.contains("RODADA", ignoreCase = true) && 
                                         !it.fase.contains("ÚNICA", ignoreCase = true) && 
                                         it.fase.isNotBlank() 
-                                    }
+                                    }.sortedWith(
+                                        compareBy<Partida> { it.data.split("/").reversed().joinToString("") }
+                                            .thenBy { it.horario }
+                                    )
+                                    
                                     ConteudoChaveamentoLibertadores(
                                         equipes = equipes, 
                                         partidas = partidasMataMata,
@@ -126,7 +130,19 @@ fun TelaPainelLibertadores(
                                     )
                                 }
                                 4 -> SumulaTab(partidas, equipes, listaGlobalJogadores)
-                                5 -> PreJogoTab(equipes, partidas, listaGlobalJogadores)
+                                5 -> {
+                                    val partidasOrdenadas = partidas.sortedWith(
+                                        compareBy<Partida> { it.data.split("/").reversed().joinToString("") }
+                                            .thenBy { it.horario }
+                                    )
+                                    // Cast explícito para SnapshotStateList para evitar erro de tipo
+                                    val listaSnapshot = remember(partidasOrdenadas) {
+                                        val novaLista = SnapshotStateList<Partida>()
+                                        novaLista.addAll(partidasOrdenadas)
+                                        novaLista
+                                    }
+                                    PreJogoTab(equipes, listaSnapshot, listaGlobalJogadores)
+                                }
                                 6 -> TelaArtilharia(equipes, listaGlobalJogadores)
                                 7 -> {
                                     ConfigLibertadores(
@@ -142,7 +158,6 @@ fun TelaPainelLibertadores(
                             }
                         }
 
-                        // Botão de Conclusão da Fase de Grupos
                         Surface(
                             modifier = Modifier.fillMaxWidth(),
                             color = MaterialTheme.colorScheme.surface,

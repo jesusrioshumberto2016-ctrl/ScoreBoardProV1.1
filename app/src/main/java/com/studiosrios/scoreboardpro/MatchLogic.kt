@@ -7,10 +7,13 @@ import androidx.compose.runtime.snapshots.SnapshotStateList
  * fiquem focadas apenas em mostrar os dados.
  */
 
-// 1. ORDENAÇÃO DE PARTIDAS
+// 1. ORDENAÇÃO DE PARTIDAS (Melhorada para considerar rodadas e mata-mata)
 fun obterPartidasOrdenadas(partidas: List<Partida>): List<Partida> {
     return partidas.sortedWith(
-        compareBy(
+        compareBy<Partida>(
+            // Primeiro separa fase de grupos do mata-mata (simplificado)
+            { !it.fase.contains("Rodada", ignoreCase = true) },
+            // Depois ordena pela string da data convertida para formato comparável (YYYYMMDD ou MMDD)
             { it.data.split("/").reversed().joinToString("") },
             { it.horario }
         )
@@ -19,7 +22,6 @@ fun obterPartidasOrdenadas(partidas: List<Partida>): List<Partida> {
 
 // 2. CÁLCULO DA CLASSIFICAÇÃO
 fun calcularClassificacao(equipes: List<EquipeExemplo>, partidas: List<Partida>, configs: ConfiguracoesCampeonato): List<LinhaTabela> {
-    // Reutiliza a lógica do Brasileirão que já contempla desempates
     return BrasileiraoSerieA().calcularRanking(equipes, partidas, configs)
 }
 
@@ -42,7 +44,6 @@ fun promoverClassificadosMataMata(
     val mapaVagas = mutableMapOf<String, Int>()
     var indiceInicio = 0
 
-    // Calcula o ranking de cada grupo e mapeia as vagas
     configsGrupos.forEach { grupo ->
         val fim = (indiceInicio + grupo.qtdTimes).coerceAtMost(equipes.size)
         val equipesDoGrupo = equipes.subList(indiceInicio, fim)
@@ -53,13 +54,11 @@ fun promoverClassificadosMataMata(
         
         ranking.forEachIndexed { index, linha ->
             val posicao = index + 1
-            // Mapeia "1º Grupo A", "2º Grupo A", etc.
             mapaVagas["${posicao}º ${grupo.nome}"] = linha.equipeId
         }
         indiceInicio += grupo.qtdTimes
     }
 
-    // Atualiza as partidas de mata-mata que possuem os labels correspondentes
     for (i in partidas.indices) {
         val p = partidas[i]
         val novoMandanteId = mapaVagas[p.labelMandante] ?: p.mandanteId

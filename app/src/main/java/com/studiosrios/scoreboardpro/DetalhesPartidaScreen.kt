@@ -18,10 +18,9 @@ import androidx.compose.ui.unit.sp
 
 @Composable
 fun TelaSumulaDetalhada(partida: Partida, equipes: List<EquipeExemplo>, onVoltar: () -> Unit) {
-    val mandante = equipes.find { it.id == partida.mandanteId }?.nome ?: "Time"
-    val visitante = equipes.find { it.id == partida.visitanteId }?.nome ?: "Time"
+    val mandante = equipes.find { it.id == partida.mandanteId }?.nome ?: partida.labelMandante.ifBlank { "TBD" }
+    val visitante = equipes.find { it.id == partida.visitanteId }?.nome ?: partida.labelVisitante.ifBlank { "TBD" }
 
-    // Correção: Gols são Int?, então verificamos se são null em vez de isEmpty()
     val gM = if(partida.golsMandante == null) "-" else partida.golsMandante.toString()
     val gV = if(partida.golsVisitante == null) "-" else partida.golsVisitante.toString()
 
@@ -31,19 +30,22 @@ fun TelaSumulaDetalhada(partida: Partida, equipes: List<EquipeExemplo>, onVoltar
 
         Card(modifier = Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = Color(0xFFF5F5F5))) {
             Column(Modifier.padding(16.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-                Text("${partida.data} às ${partida.horario}", fontWeight = FontWeight.Bold)
+                Text(partida.fase.uppercase(), fontWeight = FontWeight.Black, color = MaterialTheme.colorScheme.secondary, fontSize = 12.sp)
+                Text("${partida.data} às ${partida.horario}")
                 Text("Local: ${partida.local}")
                 Spacer(Modifier.height(10.dp))
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(mandante, Modifier.weight(1f), textAlign = TextAlign.Center, fontSize = 18.sp, fontWeight = FontWeight.Bold)
-                    Text("$gM X $gV", fontSize = 22.sp, fontWeight = FontWeight.Black)
-                    Text(visitante, Modifier.weight(1f), textAlign = TextAlign.Center, fontSize = 18.sp, fontWeight = FontWeight.Bold)
+                    Text(mandante, Modifier.weight(1f), textAlign = TextAlign.Center, fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                    Text(" $gM X $gV ", fontSize = 22.sp, fontWeight = FontWeight.Black)
+                    Text(visitante, Modifier.weight(1f), textAlign = TextAlign.Center, fontSize = 16.sp, fontWeight = FontWeight.Bold)
                 }
-                Spacer(Modifier.height(10.dp))
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(Icons.Default.Star, null, tint = Color(0xFFB79400))
-                    Spacer(Modifier.width(8.dp))
-                    Text("MELHOR JOGADOR: ${partida.melhorJogador.ifBlank { "Não definido" }}", fontWeight = FontWeight.Bold, color = Color(0xFFB79400))
+                if (partida.finalizada) {
+                    Spacer(Modifier.height(10.dp))
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(Icons.Default.Star, null, tint = Color(0xFFB79400))
+                        Spacer(Modifier.width(8.dp))
+                        Text("MELHOR JOGADOR: ${partida.melhorJogador.ifBlank { "Não definido" }}", fontWeight = FontWeight.Bold, color = Color(0xFFB79400))
+                    }
                 }
             }
         }

@@ -38,11 +38,16 @@ fun PartidasTab(
                 it.fase.contains("PF", true)
             }
         } else {
-            partidas.filter { it.fase.contains("RODADA", true) || it.fase.isBlank() }
+            // Inclui Rodadas de grupo
+            partidas.filter { 
+                it.fase.contains("RODADA", true) || 
+                it.fase.contains("ÚNICA", true) || 
+                it.fase.isBlank() 
+            }
         }
     }
 
-    // 2. Agrupar por fase/rodada e obter lista única de fases
+    // 2. Obter lista única de fases e manter ordem crescente (ex: 1ª Rodada, 2ª Rodada...)
     val fasesDisponiveis = remember(partidasFiltradas) {
         partidasFiltradas.map { it.fase.ifBlank { "Rodada" } }.distinct()
     }
@@ -55,7 +60,15 @@ fun PartidasTab(
     }
 
     val faseExibida = if (fasesDisponiveis.isNotEmpty()) fasesDisponiveis[indiceFaseAtual] else "Nenhum jogo"
-    val partidasDaFase = partidasFiltradas.filter { (it.fase.ifBlank { "Rodada" }) == faseExibida }
+    
+    // 3. Ordenação CRESCENTE das partidas dentro da fase (mais antigas no topo)
+    val partidasDaFase = remember(partidasFiltradas, faseExibida) {
+        val lista = partidasFiltradas.filter { (it.fase.ifBlank { "Rodada" }) == faseExibida }
+        lista.sortedWith(
+            compareBy<Partida> { it.data.split("/").reversed().joinToString("") }
+                .thenBy { it.horario }
+        )
+    }
 
     Column(Modifier.fillMaxSize()) {
         // NAVEGAÇÃO DE RODADAS/FASES
@@ -117,8 +130,8 @@ fun ItemPartidaCard(
     onPreJogoClick: (Partida) -> Unit,
     onDetalhesClick: (Partida) -> Unit
 ) {
-    val mandante = equipes.find { it.id == partida.mandanteId }?.nome ?: "Time"
-    val visitante = equipes.find { it.id == partida.visitanteId }?.nome ?: "Time"
+    val mandante = equipes.find { it.id == partida.mandanteId }?.nome ?: partida.labelMandante
+    val visitante = equipes.find { it.id == partida.visitanteId }?.nome ?: partida.labelVisitante
     
     val placarTexto = if (partida.golsMandante == null && partida.golsVisitante == null) {
         " VS "

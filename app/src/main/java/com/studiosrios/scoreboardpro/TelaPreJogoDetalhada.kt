@@ -21,8 +21,8 @@ fun TelaPreJogoDetalhada(
     todosJogadores: List<JogadorExemplo>,
     onVoltar: () -> Unit
 ) {
-    val mandante = equipes.find { it.id == partida.mandanteId }
-    val visitante = equipes.find { it.id == partida.visitanteId }
+    val mandante = equipes.find { it.id == partida.mandanteId }?.nome ?: partida.labelMandante.ifBlank { "TBD" }
+    val visitante = equipes.find { it.id == partida.visitanteId }?.nome ?: partida.labelVisitante.ifBlank { "TBD" }
 
     Column(modifier = Modifier.fillMaxSize().background(Color.White).padding(16.dp)) {
         Text("INFORMAÇÕES PRÉ-JOGO", fontSize = 20.sp, fontWeight = FontWeight.Black, color = MaterialTheme.colorScheme.primary)
@@ -31,7 +31,9 @@ fun TelaPreJogoDetalhada(
         // Card de Informações Gerais (Árbitros)
         Card(modifier = Modifier.fillMaxWidth()) {
             Column(Modifier.padding(16.dp)) {
-                Text("EQUIPE DE ARBITRAGEM", fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.secondary)
+                Text(partida.fase.uppercase(), fontWeight = FontWeight.Black, color = MaterialTheme.colorScheme.secondary, fontSize = 12.sp)
+                Spacer(Modifier.height(4.dp))
+                Text("EQUIPE DE ARBITRAGEM", fontWeight = FontWeight.Bold, fontSize = 14.sp)
                 Divider(Modifier.padding(vertical = 8.dp))
                 Text("Árbitro: ${partida.arbitroPrincipal.ifBlank { "A definir" }}")
                 Text("Assistentes: ${partida.assistente1.ifBlank { "-" }} / ${partida.assistente2.ifBlank { "-" }}")
@@ -44,7 +46,7 @@ fun TelaPreJogoDetalhada(
         Row(Modifier.fillMaxWidth().weight(1f)) {
             // Coluna Mandante
             Column(Modifier.weight(1f).padding(4.dp)) {
-                Text(mandante?.nome ?: "Mandante", fontWeight = FontWeight.Bold, fontSize = 12.sp, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth())
+                Text(mandante, fontWeight = FontWeight.Bold, fontSize = 12.sp, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth())
                 Text("Técnico: ${partida.tecnicoMandante.ifBlank { "-" }}", fontSize = 10.sp, color = Color.Gray)
                 Spacer(Modifier.height(8.dp))
                 Text("TITULARES", fontWeight = FontWeight.Bold, fontSize = 10.sp)
@@ -60,7 +62,7 @@ fun TelaPreJogoDetalhada(
 
             // Coluna Visitante
             Column(Modifier.weight(1f).padding(4.dp)) {
-                Text(visitante?.nome ?: "Visitante", fontWeight = FontWeight.Bold, fontSize = 12.sp, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth())
+                Text(visitante, fontWeight = FontWeight.Bold, fontSize = 12.sp, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth())
                 Text("Técnico: ${partida.tecnicoVisitante.ifBlank { "-" }}", fontSize = 10.sp, color = Color.Gray)
                 Spacer(Modifier.height(8.dp))
                 Text("TITULARES", fontWeight = FontWeight.Bold, fontSize = 10.sp)
