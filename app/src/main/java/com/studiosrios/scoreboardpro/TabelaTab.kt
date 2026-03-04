@@ -15,9 +15,13 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
 @Composable
-fun TabelaTab(equipes: List<EquipeExemplo>, partidas: List<Partida>) {
-    // Chamando a lógica centralizada no MatchLogic (Cálculo puro)
-    val classificacao = calcularClassificacao(equipes, partidas)
+fun TabelaTab(
+    equipes: List<EquipeExemplo>, 
+    partidas: List<Partida>,
+    configs: ConfiguracoesCampeonato = ConfiguracoesCampeonato()
+) {
+    // Chamando a lógica centralizada no MatchLogic passando as configs
+    val classificacao = calcularClassificacao(equipes, partidas, configs)
 
     Column(Modifier.fillMaxSize()) {
         // Cabeçalho da Tabela

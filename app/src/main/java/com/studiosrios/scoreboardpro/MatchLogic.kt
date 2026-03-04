@@ -1,5 +1,7 @@
 package com.studiosrios.scoreboardpro
 
+import androidx.compose.runtime.snapshots.SnapshotStateList
+
 /**
  * MatchLogic: O arquivo que processa os números para que as telas
  * fiquem focadas apenas em mostrar os dados.
@@ -16,73 +18,60 @@ fun obterPartidasOrdenadas(partidas: List<Partida>): List<Partida> {
 }
 
 // 2. CÁLCULO DA CLASSIFICAÇÃO
-fun calcularClassificacao(equipes: List<EquipeExemplo>, partidas: List<Partida>): List<LinhaTabela> {
-    return equipes.map { equipe ->
-        var p = 0; var j = 0; var v = 0; var e = 0; var d = 0; var gm = 0; var gs = 0
-        var ca = 0; var cv = 0
-
-        partidas.filter { it.finalizada && (it.mandanteId == equipe.id || it.visitanteId == equipe.id) }
-            .forEach { part ->
-                j++
-                val gM = part.golsMandante ?: 0
-                val gV = part.golsVisitante ?: 0
-
-                if (part.mandanteId == equipe.id) {
-                    gm += gM; gs += gV
-                    ca += part.cartoesAmarelosMandante
-                    cv += part.cartoesVermelhosMandante
-                    
-                    when {
-                        gM > gV -> { p += 3; v++ }
-                        gM == gV -> { p += 1; e++ }
-                        else -> d++
-                    }
-                } else {
-                    gm += gV; gs += gM
-                    ca += part.cartoesAmarelosVisitante
-                    cv += part.cartoesVermelhosVisitante
-
-                    when {
-                        gV > gM -> { p += 3; v++ }
-                        gV == gM -> { p += 1; e++ }
-                        else -> d++
-                    }
-                }
-            }
-
-        LinhaTabela(
-            equipeId = equipe.id,
-            nome = equipe.nome,
-            pontos = p,
-            jogos = j,
-            vitorias = v,
-            empates = e,
-            derrotas = d,
-            gm = gm,
-            gs = gs,
-            sg = gm - gs,
-            amarelos = ca,
-            vermelhos = cv
-        )
-    }.sortedWith(
-        compareByDescending<LinhaTabela> { it.pontos }
-            .thenByDescending { it.vitorias }
-            .thenByDescending { it.sg }
-    )
+fun calcularClassificacao(equipes: List<EquipeExemplo>, partidas: List<Partida>, configs: ConfiguracoesCampeonato): List<LinhaTabela> {
+    // Reutiliza a lógica do Brasileirão que já contempla desempates
+    return BrasileiraoSerieA().calcularRanking(equipes, partidas, configs)
 }
 
-// 3. VERIFICAÇÃO DE CONCLUSÃO DA FASE DE GRUPOS (Melhorada)
+// 3. VERIFICAÇÃO DE CONCLUSÃO DA FASE DE GRUPOS
 fun verificarFaseGruposFinalizada(partidas: List<Partida>): Boolean {
-    // Filtra todas as partidas que pertencem à fase de grupos (Rodada ou Única)
     val partidasGrupos = partidas.filter { 
         it.fase.contains("Rodada", ignoreCase = true) || it.fase.contains("Única", ignoreCase = true)
     }
-    
-    // Se não houver partidas de grupo, não exibe o botão
     if (partidasGrupos.isEmpty()) return false
-    
-    // Retorna true apenas se TODAS as partidas de grupo estiverem finalizadas
     return partidasGrupos.all { it.finalizada }
+}
+
+// 4. PROMOÇÃO DE EQUIPES PARA O MATA-MATA
+fun promoverClassificadosMataMata(
+    partidas: SnapshotStateList<Partida>,
+    equipes: List<EquipeExemplo>,
+    configsGrupos: List<ConfigGrupo>,
+    configs: ConfiguracoesCampeonato
+) {
+    val mapaVagas = mutableMapOf<String, Int>()
+    var indiceInicio = 0
+
+    // Calcula o ranking de cada grupo e mapeia as vagas
+    configsGrupos.forEach { grupo ->
+        val fim = (indiceInicio + grupo.qtdTimes).coerceAtMost(equipes.size)
+        val equipesDoGrupo = equipes.subList(indiceInicio, fim)
+        val idsEquipes = equipesDoGrupo.map { it.id }
+        val partidasDoGrupo = partidas.filter { it.mandanteId in idsEquipes && it.visitanteId in idsEquipes }
+        
+        val ranking = calcularClassificacao(equipesDoGrupo, partidasDoGrupo, configs)
+        
+        ranking.forEachIndexed { index, linha ->
+            val posicao = index + 1
+            // Mapeia "1º Grupo A", "2º Grupo A", etc.
+            mapaVagas["${posicao}º ${grupo.nome}"] = linha.equipeId
+        }
+        indiceInicio += grupo.qtdTimes
+    }
+
+    // Atualiza as partidas de mata-mata que possuem os labels correspondentes
+    for (i in partidas.indices) {
+        val p = partidas[i]
+        val novoMandanteId = mapaVagas[p.labelMandante] ?: p.mandanteId
+        val novoVisitanteId = mapaVagas[p.labelVisitante] ?: p.visitanteId
+        
+        if (novoMandanteId != p.mandanteId || novoVisitanteId != p.visitanteId) {
+            partidas[i] = p.copy(
+                mandanteId = novoMandanteId,
+                visitanteId = novoVisitanteId
+            )
+        }
+    }
 }
 
 fun calcularTotalJogos(vagas: Int): Int {

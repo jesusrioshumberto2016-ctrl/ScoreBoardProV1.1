@@ -38,7 +38,6 @@ fun TelaPainelLibertadores(
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
 
-    // CORREÇÃO: Usando derivedStateOf para observar mudanças nos itens da lista
     val gruposFinalizados by remember {
         derivedStateOf { verificarFaseGruposFinalizada(partidas) }
     }
@@ -146,8 +145,11 @@ fun TelaPainelLibertadores(
                         ) {
                             Button(
                                 onClick = { 
+                                    // AÇÃO DE PROMOÇÃO: Preenche os times nas vagas de mata-mata
+                                    promoverClassificadosMataMata(partidas, equipes, listaGruposConfig, configsIniciais)
+                                    
                                     scope.launch {
-                                        snackbarHostState.showSnackbar("Fase de grupos concluída! Próxima etapa: Mata-Mata.")
+                                        snackbarHostState.showSnackbar("Classificados definidos! Verifique a aba Mata-Mata.")
                                     }
                                 },
                                 enabled = gruposFinalizados,
