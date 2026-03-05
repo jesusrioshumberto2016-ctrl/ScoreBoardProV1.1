@@ -135,7 +135,7 @@ fun ConteudoRegistrarEventos(
                         jogadorPendenteParaEvento = null
                     }) { Text("SEM ASSISTÊNCIA", fontWeight = FontWeight.Bold, color = Color.Gray) }
 
-                    Divider()
+                    HorizontalDivider()
 
                     val companheiros = jogadoresDaPartida.filter { it.equipeId == jogadorDoGol?.equipeId && it.id != jogadorDoGol?.id }
                     companheiros.forEach { comp ->
@@ -259,7 +259,7 @@ fun ConteudoRegistrarEventos(
 
         Spacer(Modifier.height(16.dp))
         Text("HISTÓRICO DE EVENTOS:", fontWeight = FontWeight.Bold)
-        Divider()
+        HorizontalDivider()
 
         p.eventos.forEach { ev ->
             val cor = when(ev.tipo) {
@@ -280,7 +280,7 @@ fun ConteudoRegistrarEventos(
                 IconButton(onClick = {
                     val idx = partidas.indexOfFirst { it.id == p.id }
                     if (idx != -1) {
-                        var pEd = partidas[idx]
+                        val pEd = partidas[idx]
                         var novosGolsMandante = pEd.golsMandante
                         var novosGolsVisitante = pEd.golsVisitante
 
@@ -332,7 +332,7 @@ fun salvarEvento(
 ) {
     val idx = partidas.indexOfFirst { it.id == p.id }
     if (idx != -1) {
-        var pEd = partidas[idx]
+        val pEd = partidas[idx]
         val nomeEq = equipes.find { it.id == jog.equipeId }?.nome ?: "Sem Time"
 
         var novosGolsMandante = pEd.golsMandante
@@ -353,12 +353,7 @@ fun salvarEvento(
         }
 
         val novo = EventoPartida(jogadorNome = jog.nome, equipeNome = nomeEq, tipo = tipo, minuto = minuto)
-        var listaEventos = pEd.eventos + novo
-
-        if (tipo == "YELLOW CARD") {
-            val jaTem = pEd.eventos.any { it.jogadorNome == jog.nome && it.tipo == "YELLOW CARD" }
-            if (jaTem) listaEventos = listaEventos + EventoPartida(jogadorNome = jog.nome, equipeNome = nomeEq, tipo = "RED CARD", minuto = minuto)
-        }
+        val listaEventos = pEd.eventos + novo
 
         partidas[idx] = pEd.copy(
             eventos = listaEventos,
