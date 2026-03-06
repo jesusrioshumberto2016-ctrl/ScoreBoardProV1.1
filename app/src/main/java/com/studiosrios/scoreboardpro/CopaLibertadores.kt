@@ -58,8 +58,9 @@ class CopaLibertadores : FormatoCampeonato {
                 mandanteId = -1, 
                 visitanteId = -1, 
                 fase = faseInfo.first,
-                labelMandante = par.first, // 1º Grupo A, Vence J1, etc.
-                labelVisitante = par.second, // 2º Grupo C, Vence J2, etc.
+                nomeConfronto = faseInfo.second, // Ex: "Oitavas 1"
+                labelMandante = par.first, 
+                labelVisitante = par.second, 
                 local = "A DEFINIR (IDA)"
             ))
             
@@ -70,7 +71,8 @@ class CopaLibertadores : FormatoCampeonato {
                     mandanteId = -1, 
                     visitanteId = -1, 
                     fase = faseInfo.first,
-                    labelMandante = par.second, // Inverte o mando na volta
+                    nomeConfronto = faseInfo.second, // Mesmo nome para agrupar ida e volta
+                    labelMandante = par.second,
                     labelVisitante = par.first,
                     local = "A DEFINIR (VOLTA)"
                 ))

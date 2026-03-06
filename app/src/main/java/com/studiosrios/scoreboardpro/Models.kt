@@ -34,9 +34,10 @@ data class Partida(
     val id: Int,
     val mandanteId: Int,
     val visitanteId: Int,
-    val fase: String = "",
-    val labelMandante: String = "", // Adicionado para exibir 1º Grupo A, etc.
-    val labelVisitante: String = "", // Adicionado para exibir 2º Grupo B, etc.
+    val fase: String = "", // Nome da Fase (ex: OITAVAS DE FINAL)
+    val nomeConfronto: String = "", // Identificador único do confronto (ex: Oitavas 1)
+    val labelMandante: String = "", 
+    val labelVisitante: String = "",
     val data: String = "",
     val horario: String = "",
     val local: String = "A DEFINIR",

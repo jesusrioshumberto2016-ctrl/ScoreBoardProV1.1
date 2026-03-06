@@ -34,7 +34,7 @@ fun verificarFaseGruposFinalizada(partidas: List<Partida>): Boolean {
     return partidasGrupos.all { it.finalizada }
 }
 
-// 4. PROMOÇÃO DE EQUIPES PARA O MATA-MATA
+// 4. PROMOÇÃO DE EQUIPES PARA O MATA-MATA (Incluindo promoção de vencedores)
 fun promoverClassificadosMataMata(
     partidas: SnapshotStateList<Partida>,
     equipes: List<EquipeExemplo>,
@@ -44,6 +44,7 @@ fun promoverClassificadosMataMata(
     val mapaVagas = mutableMapOf<String, Int>()
     var indiceInicio = 0
 
+    // --- PARTE A: PROMOÇÃO DOS GRUPOS ---
     configsGrupos.forEach { grupo ->
         val fim = (indiceInicio + grupo.qtdTimes).coerceAtMost(equipes.size)
         val equipesDoGrupo = equipes.subList(indiceInicio, fim)
@@ -59,6 +60,34 @@ fun promoverClassificadosMataMata(
         indiceInicio += grupo.qtdTimes
     }
 
+    // --- PARTE B: PROMOÇÃO DOS VENCEDORES DE CONFRONTOS ---
+    // Agrupa partidas por confronto para calcular o agregado (Ida e Volta)
+    val confrontosFinalizados = partidas
+        .filter { it.finalizada && it.nomeConfronto.isNotBlank() }
+        .groupBy { it.nomeConfronto }
+
+    confrontosFinalizados.forEach { (nome, jogos) ->
+        val mandantePrimeiroJogo = jogos.first().mandanteId
+        val visitantePrimeiroJogo = jogos.first().visitanteId
+        
+        var saldoMandante = 0
+        var saldoVisitante = 0
+        
+        jogos.forEach { j ->
+            val gM = j.golsMandante ?: 0
+            val gV = j.golsVisitante ?: 0
+            if (j.mandanteId == mandantePrimeiroJogo) {
+                saldoMandante += gM; saldoVisitante += gV
+            } else {
+                saldoMandante += gV; saldoVisitante += gM
+            }
+        }
+        
+        val vencedorId = if (saldoMandante >= saldoVisitante) mandantePrimeiroJogo else visitantePrimeiroJogo
+        mapaVagas["Vence $nome"] = vencedorId
+    }
+
+    // --- PARTE C: ATUALIZAÇÃO FINAL ---
     for (i in partidas.indices) {
         val p = partidas[i]
         val novoMandanteId = mapaVagas[p.labelMandante] ?: p.mandanteId
@@ -86,22 +115,27 @@ fun calcularTotalJogos(vagas: Int): Int {
 fun obterNomeFaseEConfronto(index: Int, vagas: Int): Pair<String, String> {
     var count = 0
     var faseVagas = vagas
+    val nomesFases = listOf("PF", "Oitavas", "QF", "Semi", "Final")
+    var faseIndex = if (vagas == 32) 0 else if (vagas == 16) 1 else if (vagas == 8) 2 else if (vagas == 4) 3 else 4
     
-    while (faseVagas > 1) {
-        val jogosNaFase = faseVagas / 2
+    var fV = faseVagas
+    var fI = faseIndex
+    while (fV > 1) {
+        val jogosNaFase = fV / 2
         if (index < count + jogosNaFase) {
             val numNoFase = index - count + 1
-            return when (faseVagas) {
-                32 -> Pair("PRIMEIRA FASE", "PF $numNoFase")
-                16 -> Pair("OITAVAS DE FINAL", "Oitavas $numNoFase")
-                8 -> Pair("QUARTAS DE FINAL", "QF $numNoFase")
-                4 -> Pair("SEMIFINAIS", "Semi $numNoFase")
-                2 -> Pair("GRANDE FINAL", "Grande Final")
-                else -> Pair("FASE ELIMINATÓRIA", "Jogo $numNoFase")
+            val nomeFaseFull = when(fV) {
+                32 -> "PRIMEIRA FASE"
+                16 -> "OITAVAS DE FINAL"
+                8 -> "QUARTAS DE FINAL"
+                4 -> "SEMIFINAIS"
+                else -> "GRANDE FINAL"
             }
+            return Pair(nomeFaseFull, "${nomesFases[fI]} $numNoFase")
         }
         count += jogosNaFase
-        faseVagas /= 2
+        fV /= 2
+        fI++
     }
-    return Pair("FINAL", "Grande Final")
+    return Pair("FINAL", "Final")
 }

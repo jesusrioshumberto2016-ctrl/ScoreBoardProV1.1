@@ -12,20 +12,49 @@ import androidx.compose.ui.Modifier
 
 
 class MainActivity : ComponentActivity() {
-    private val listaGlobalJogadores = mutableStateListOf(
-        JogadorExemplo(1, "Neymar Jr", "PT", "1.75", "32 anos"),
-        JogadorExemplo(2, "Lionel Messi", "MAT", "1.70", "36 anos")
-    )
-    private val listaGlobalEquipes = mutableStateListOf(
-        EquipeExemplo(1, "FLA2026", "Flamengo", "Rio de Janeiro"),
-        EquipeExemplo(2, "SEP1914", "Palmeiras", "São Paulo"),
-        EquipeExemplo(3, "COR1910", "Corinthians", "São Paulo"),
-        EquipeExemplo(4, "SPA1930", "São Paulo", "São Paulo")
-    )
+    private val listaGlobalJogadores = mutableStateListOf<JogadorExemplo>()
+    private val listaGlobalEquipes = mutableStateListOf<EquipeExemplo>()
     private val listaGlobalCampeonatos = mutableStateListOf<CampeonatoSalvo>()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        
+        // --- PRÉ-CADASTRO DE TESTE (32 EQUIPES X 16 JOGADORES) ---
+        if (listaGlobalEquipes.isEmpty()) {
+            val cidades = listOf("Rio de Janeiro", "São Paulo", "Belo Horizonte", "Porto Alegre", "Curitiba", "Salvador", "Fortaleza", "Brasília")
+            val posicoes = listOf("GOL", "ZAG", "ZAG", "LAT", "LAT", "VOL", "VOL", "MEI", "MEI", "MAT", "PT", "PT", "CA", "CA", "ALA", "ALA")
+            
+            var jogadorIdContador = 1
+            for (i in 1..32) {
+                val equipeId = i
+                val nomeEquipe = "Equipe de Teste $i"
+                val sigla = "EQP$i"
+                val cidade = cidades[(i - 1) % cidades.size]
+                
+                val jogadoresDestaEquipe = mutableListOf<JogadorExemplo>()
+                for (j in 1..16) {
+                    val jog = JogadorExemplo(
+                        id = jogadorIdContador++,
+                        nome = "Jogador $j - E$i",
+                        posicao = posicoes[j - 1],
+                        altura = "1.${75 + (j % 15)}",
+                        idade = "${18 + (j % 15)} anos",
+                        equipeId = equipeId
+                    )
+                    jogadoresDestaEquipe.add(jog)
+                    listaGlobalJogadores.add(jog)
+                }
+                
+                listaGlobalEquipes.add(EquipeExemplo(
+                    id = equipeId,
+                    identificacao = sigla,
+                    nome = nomeEquipe,
+                    city = cidade,
+                    jogadores = jogadoresDestaEquipe
+                ))
+            }
+        }
+
         setContent {
             MaterialTheme {
                 Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
