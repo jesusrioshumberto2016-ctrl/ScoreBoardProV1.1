@@ -15,11 +15,12 @@ import androidx.compose.ui.unit.sp
 @Composable
 fun TelaSelecaoGrupos(
     onVoltar: () -> Unit,
-    onConfirmar: (List<ConfigGrupo>) -> Unit
+    onConfirmar: (List<ConfigGrupo>, Boolean) -> Unit
 ) {
     // Começamos com 2 grupos por padrão
     var qtdGrupos by remember { mutableIntStateOf(2) }
     val listaConfigs = remember { mutableStateListOf<ConfigGrupo>() }
+    var modoReturno by remember { mutableStateOf(false) }
 
     // Atualiza a lista sempre que a quantidade de grupos mudar
     LaunchedEffect(qtdGrupos) {
@@ -43,6 +44,20 @@ fun TelaSelecaoGrupos(
             IconButton(onClick = { if (qtdGrupos > 1) qtdGrupos-- }) { Text("-", fontSize = 20.sp) }
             Text("$qtdGrupos", fontWeight = FontWeight.Bold)
             IconButton(onClick = { if (qtdGrupos < 12) qtdGrupos++ }) { Text("+", fontSize = 20.sp) }
+        }
+
+        Card(modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp)) {
+            Row(
+                Modifier.padding(16.dp), 
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Column {
+                    Text("Fase de Grupos: Ida e Volta", fontWeight = FontWeight.Bold)
+                    Text("Turno e returno nos grupos", style = MaterialTheme.typography.labelSmall)
+                }
+                Switch(checked = modoReturno, onCheckedChange = { modoReturno = it })
+            }
         }
 
         Divider()
@@ -86,7 +101,7 @@ fun TelaSelecaoGrupos(
         val totalTimesNecessarios = listaConfigs.sumOf { it.qtdTimes }
 
         Button(
-            onClick = { onConfirmar(listaConfigs.toList()) },
+            onClick = { onConfirmar(listaConfigs.toList(), modoReturno) },
             modifier = Modifier.fillMaxWidth().padding(top = 16.dp)
         ) {
             Text("PRÓXIMO: ESCOLHER $totalTimesNecessarios TIMES")

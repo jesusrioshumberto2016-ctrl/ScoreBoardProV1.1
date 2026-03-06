@@ -146,8 +146,9 @@ fun ScoreBoardNavigation(
         "selecao_grupos" -> {
             TelaSelecaoGrupos(
                 onVoltar = { telaAtual = "cadastrar_campeonato" },
-                onConfirmar = { lista: List<ConfigGrupo> ->
+                onConfirmar = { lista: List<ConfigGrupo>, idaEVolta: Boolean ->
                     configuracaoFinalGrupos = lista
+                    configsCampeonatoAtual = configsCampeonatoAtual.copy(modoReturno = idaEVolta)
                     telaAtual = "config_chaveamento"
                 }
             )
