@@ -19,15 +19,12 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         
-        // --- PRÉ-CADASTRO DE TESTE (32 EQUIPES X 16 JOGADORES) ---
         if (listaGlobalEquipes.isEmpty()) {
             val cidades = listOf("Rio de Janeiro", "São Paulo", "Belo Horizonte", "Porto Alegre", "Curitiba", "Salvador", "Fortaleza", "Brasília")
             val posicoes = listOf("GOL", "ZAG", "ZAG", "LAT", "LAT", "VOL", "VOL", "MEI", "MEI", "MAT", "PT", "PT", "CA", "CA", "ALA", "ALA")
             
             var jogadorIdContador = 1
             for (i in 1..32) {
-                val equipeId = i
-                val nomeEquipe = "Equipe de Teste $i"
                 val sigla = "EQP$i"
                 val cidade = cidades[(i - 1) % cidades.size]
                 
@@ -39,16 +36,16 @@ class MainActivity : ComponentActivity() {
                         posicao = posicoes[j - 1],
                         altura = "1.${75 + (j % 15)}",
                         idade = "${18 + (j % 15)} anos",
-                        equipeId = equipeId
+                        equipeId = i
                     )
                     jogadoresDestaEquipe.add(jog)
                     listaGlobalJogadores.add(jog)
                 }
                 
                 listaGlobalEquipes.add(EquipeExemplo(
-                    id = equipeId,
+                    id = i,
                     identificacao = sigla,
-                    nome = nomeEquipe,
+                    nome = "Equipe de Teste $i",
                     city = cidade,
                     jogadores = jogadoresDestaEquipe
                 ))
@@ -157,9 +154,12 @@ fun ScoreBoardNavigation(
             TelaConfiguracaoChaveamento(
                 listaGrupos = configuracaoFinalGrupos,
                 onVoltar = { telaAtual = "selecao_grupos" },
-                onConfirmar = { idaEVolta: Boolean, confrontos: List<Pair<String, String>> ->
+                onConfirmar = { idaEVolta: Boolean, finalIdaEVolta: Boolean, confrontos: List<Pair<String, String>> ->
                     confrontosDefinidos = confrontos
-                    configsCampeonatoAtual = configsCampeonatoAtual.copy(modoIdaEVoltaMataMata = idaEVolta)
+                    configsCampeonatoAtual = configsCampeonatoAtual.copy(
+                        modoIdaEVoltaMataMata = idaEVolta,
+                        modoIdaEVoltaFinal = finalIdaEVolta
+                    )
                     telaAtual = "selecao_equipes_campeonato"
                 }
             )
@@ -186,7 +186,8 @@ fun ScoreBoardNavigation(
                             turnoEReturno = configsCampeonatoAtual.modoReturno,
                             configsGrupos = configuracaoFinalGrupos,
                             confrontosMataMata = confrontosDefinidos,
-                            idaEVoltaMataMata = configsCampeonatoAtual.modoIdaEVoltaMataMata
+                            idaEVoltaMataMata = configsCampeonatoAtual.modoIdaEVoltaMataMata,
+                            idaEVoltaFinal = configsCampeonatoAtual.modoIdaEVoltaFinal
                         )
                         listaPartidasCampeonato.addAll(partidasGeradas)
                         
@@ -225,7 +226,8 @@ fun ScoreBoardNavigation(
                         turnoEReturno = configsCampeonatoAtual.modoReturno,
                         configsGrupos = configuracaoFinalGrupos,
                         confrontosMataMata = confrontosDefinidos,
-                        idaEVoltaMataMata = configsCampeonatoAtual.modoIdaEVoltaMataMata
+                        idaEVoltaMataMata = configsCampeonatoAtual.modoIdaEVoltaMataMata,
+                        idaEVoltaFinal = configsCampeonatoAtual.modoIdaEVoltaFinal
                     )
                     listaPartidasCampeonato.addAll(partidasGeradas)
 
@@ -248,11 +250,10 @@ fun ScoreBoardNavigation(
             )
         }
         "painel_campeonato" -> {
-            TelaPainelCampeonato(
+            TelaPainelLibertadores(
                 idCamp = idCampeonatoAtual,
                 equipes = equipesNoCampeonato,
                 partidas = listaPartidasCampeonato,
-                modelo = modeloCampeonatoEscolhido,
                 listaGlobalJogadores = listaJ,
                 configsIniciais = configsCampeonatoAtual,
                 listaGruposConfig = configuracaoFinalGrupos,

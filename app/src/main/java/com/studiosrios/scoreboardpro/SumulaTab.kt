@@ -29,13 +29,24 @@ fun SumulaTab(
     var partidaFocadaId by remember { mutableStateOf<Int?>(null) }
 
     if (partidaFocadaId == null) {
+        val partidasOrdenadas = obterPartidasOrdenadas(partidas)
+
         LazyColumn(Modifier.padding(16.dp)) {
-            items(partidas) { p ->
+            items(partidasOrdenadas, key = { it.id }) { p ->
                 val mandante = equipes.find { it.id == p.mandanteId }?.nome ?: p.labelMandante
                 val visitante = equipes.find { it.id == p.visitanteId }?.nome ?: p.labelVisitante
                 Card(Modifier.fillMaxWidth().padding(vertical = 4.dp)) {
                     Row(Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
-                        Text("$mandante vs $visitante", Modifier.weight(1f), fontWeight = FontWeight.Bold)
+                        Column(Modifier.weight(1f)) {
+                            Text(
+                                text = p.fase.uppercase(),
+                                fontSize = 9.sp,
+                                fontWeight = FontWeight.Black,
+                                color = MaterialTheme.colorScheme.secondary
+                            )
+                            Text("$mandante vs $visitante", fontWeight = FontWeight.Bold)
+                            Text("${p.data} - ${p.horario}", fontSize = 10.sp, color = Color.Gray)
+                        }
                         Button(onClick = { partidaFocadaId = p.id }) { Text("ABRIR SÚMULA") }
                     }
                 }

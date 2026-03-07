@@ -8,7 +8,8 @@ interface FormatoCampeonato {
         turnoEReturno: Boolean,
         configsGrupos: List<ConfigGrupo> = emptyList(),
         confrontosMataMata: List<Pair<String, String>> = emptyList(),
-        idaEVoltaMataMata: Boolean = false
+        idaEVoltaMataMata: Boolean = false,
+        idaEVoltaFinal: Boolean = false
     ): List<Partida>
 
     fun calcularRanking(equipes: List<EquipeExemplo>, partidas: List<Partida>, configs: ConfiguracoesCampeonato): List<LinhaTabela>

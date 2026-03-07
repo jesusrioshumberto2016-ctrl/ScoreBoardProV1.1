@@ -89,6 +89,7 @@ data class LinhaTabela(
 data class ConfiguracoesCampeonato(
     val modoReturno: Boolean = false, 
     val modoIdaEVoltaMataMata: Boolean = true,
+    val modoIdaEVoltaFinal: Boolean = false, // Adicionado para a final
     val criteriosDesempate: List<String> = listOf("Selecionar", "Selecionar", "Selecionar", "Selecionar", "Selecionar", "Selecionar"),
     val exibirCartoesNaTabela: Boolean = false
 )

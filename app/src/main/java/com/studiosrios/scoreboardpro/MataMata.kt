@@ -9,7 +9,8 @@ class MataMata : FormatoCampeonato {
         turnoEReturno: Boolean,
         configsGrupos: List<ConfigGrupo>,
         confrontosMataMata: List<Pair<String, String>>,
-        idaEVoltaMataMata: Boolean
+        idaEVoltaMataMata: Boolean,
+        idaEVoltaFinal: Boolean
     ): List<Partida> {
         val partidas = mutableListOf<Partida>()
         var idContador = 1
@@ -21,7 +22,8 @@ class MataMata : FormatoCampeonato {
                     Partida(
                         id = idContador++,
                         mandanteId = sorteadas[i].id,
-                        visitanteId = sorteadas[i + 1].id
+                        visitanteId = sorteadas[i + 1].id,
+                        fase = "Eliminatória"
                     )
                 )
                 if (turnoEReturno) {
@@ -29,7 +31,8 @@ class MataMata : FormatoCampeonato {
                         Partida(
                             id = idContador++,
                             mandanteId = sorteadas[i + 1].id,
-                            visitanteId = sorteadas[i].id
+                            visitanteId = sorteadas[i].id,
+                            fase = "Eliminatória"
                         )
                     )
                 }

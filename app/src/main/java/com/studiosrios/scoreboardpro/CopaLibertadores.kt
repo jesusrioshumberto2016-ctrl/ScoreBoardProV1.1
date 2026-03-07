@@ -8,7 +8,8 @@ class CopaLibertadores : FormatoCampeonato {
         turnoEReturno: Boolean,
         configsGrupos: List<ConfigGrupo>,
         confrontosMataMata: List<Pair<String, String>>,
-        idaEVoltaMataMata: Boolean
+        idaEVoltaMataMata: Boolean,
+        idaEVoltaFinal: Boolean
     ): List<Partida> {
         val partidas = mutableListOf<Partida>()
         var idContador = 1
@@ -51,30 +52,34 @@ class CopaLibertadores : FormatoCampeonato {
         
         confrontosMataMata.forEach { par ->
             val faseInfo = obterNomeFaseEConfronto(indexConfronto, totalVagas)
+            val ehFinal = faseInfo.first.contains("FINAL", ignoreCase = true) && !faseInfo.first.contains("OITAVAS", ignoreCase = true) && !faseInfo.first.contains("QUARTAS", ignoreCase = true) && !faseInfo.first.contains("SEMI", ignoreCase = true)
             
+            // Determina se deve ter ida e volta para este confronto específico
+            val deveTerVolta = if (ehFinal) idaEVoltaFinal else idaEVoltaMataMata
+
             // Jogo de Ida
             partidas.add(Partida(
                 id = idContador++, 
                 mandanteId = -1, 
                 visitanteId = -1, 
                 fase = faseInfo.first,
-                nomeConfronto = faseInfo.second, // Ex: "Oitavas 1"
+                nomeConfronto = faseInfo.second,
                 labelMandante = par.first, 
                 labelVisitante = par.second, 
-                local = "A DEFINIR (IDA)"
+                local = if (ehFinal) "A DEFINIR (FINAL)" else "A DEFINIR (IDA)"
             ))
             
             // Jogo de Volta
-            if (idaEVoltaMataMata) {
+            if (deveTerVolta) {
                 partidas.add(Partida(
                     id = idContador++, 
                     mandanteId = -1, 
                     visitanteId = -1, 
                     fase = faseInfo.first,
-                    nomeConfronto = faseInfo.second, // Mesmo nome para agrupar ida e volta
-                    labelMandante = par.second,
+                    nomeConfronto = faseInfo.second,
+                    labelMandante = par.second, 
                     labelVisitante = par.first,
-                    local = "A DEFINIR (VOLTA)"
+                    local = if (ehFinal) "A DEFINIR (FINAL VOLTA)" else "A DEFINIR (VOLTA)"
                 ))
             }
             indexConfronto++

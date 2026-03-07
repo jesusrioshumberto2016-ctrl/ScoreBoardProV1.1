@@ -41,6 +41,11 @@ fun TelaPainelLibertadores(
     val gruposFinalizados by remember {
         derivedStateOf { verificarFaseGruposFinalizada(partidas) }
     }
+    
+    // Verifica se alguma partida do campeonato foi finalizada
+    val algumaPartidaFinalizada by remember {
+        derivedStateOf { partidas.any { it.finalizada } }
+    }
 
     Scaffold(
         snackbarHost = { SnackbarHost(snackbarHostState) },
@@ -146,6 +151,7 @@ fun TelaPainelLibertadores(
                                 7 -> {
                                     ConfigLibertadores(
                                         configs = configsIniciais,
+                                        bloquearCriterios = algumaPartidaFinalizada, // Agora passa o estado dinâmico
                                         onSalvar = { novasConfigs ->
                                             onSalvarGeral(idCamp, novasConfigs)
                                             scope.launch {

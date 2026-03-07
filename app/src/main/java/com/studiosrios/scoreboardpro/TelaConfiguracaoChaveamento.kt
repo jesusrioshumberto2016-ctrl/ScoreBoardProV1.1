@@ -20,9 +20,10 @@ import androidx.compose.ui.unit.sp
 fun TelaConfiguracaoChaveamento(
     listaGrupos: List<ConfigGrupo>,
     onVoltar: () -> Unit,
-    onConfirmar: (Boolean, List<Pair<String, String>>) -> Unit
+    onConfirmar: (Boolean, Boolean, List<Pair<String, String>>) -> Unit
 ) {
     var idaEVolta by remember { mutableStateOf(true) }
+    var finalIdaEVolta by remember { mutableStateOf(false) } // Nova config para a Final
     val totalVagas = listaGrupos.sumOf { it.qtdClassificados }
     
     val slotsReais = remember(listaGrupos) {
@@ -83,13 +84,21 @@ fun TelaConfiguracaoChaveamento(
         Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(vertical = 8.dp)) {
             Icon(Icons.Default.Info, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(16.dp))
             Spacer(Modifier.width(4.dp))
-            Text("Defina todos os confrontos até a grande final.", fontSize = 12.sp, color = Color.Gray)
+            Text("Defina os confrontos e o regulamento das eliminatórias.", fontSize = 12.sp, color = Color.Gray)
         }
 
+        // Opções de Ida e Volta
         Card(modifier = Modifier.fillMaxWidth()) {
-            Row(modifier = Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
-                Text("Jogos de Ida e Volta (Mata-Mata)", fontWeight = FontWeight.Bold)
-                Switch(checked = idaEVolta, onCheckedChange = { idaEVolta = it })
+            Column(Modifier.padding(12.dp)) {
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween, modifier = Modifier.fillMaxWidth()) {
+                    Text("Mata-Mata: Ida e Volta", fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                    Switch(checked = idaEVolta, onCheckedChange = { idaEVolta = it })
+                }
+                HorizontalDivider(Modifier.padding(vertical = 8.dp))
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween, modifier = Modifier.fillMaxWidth()) {
+                    Text("Grande Final: Ida e Volta", fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                    Switch(checked = finalIdaEVolta, onCheckedChange = { finalIdaEVolta = it })
+                }
             }
         }
 
@@ -127,7 +136,7 @@ fun TelaConfiguracaoChaveamento(
             TextButton(onClick = onVoltar, modifier = Modifier.weight(1f)) {
                 Text("VOLTAR")
             }
-            Button(onClick = { onConfirmar(idaEVolta, confrontos.toList()) }, modifier = Modifier.weight(2f), enabled = totalVagas > 0) {
+            Button(onClick = { onConfirmar(idaEVolta, finalIdaEVolta, confrontos.toList()) }, modifier = Modifier.weight(2f), enabled = totalVagas > 0) {
                 Text("CONFIRMAR")
             }
         }

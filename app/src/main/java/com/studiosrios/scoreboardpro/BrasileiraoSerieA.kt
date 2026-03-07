@@ -8,7 +8,8 @@ class BrasileiraoSerieA : FormatoCampeonato {
         turnoEReturno: Boolean,
         configsGrupos: List<ConfigGrupo>,
         confrontosMataMata: List<Pair<String, String>>,
-        idaEVoltaMataMata: Boolean
+        idaEVoltaMataMata: Boolean,
+        idaEVoltaFinal: Boolean
     ): List<Partida> {
         val partidasGeradas = mutableListOf<Partida>()
         var idContador = 1
@@ -19,7 +20,8 @@ class BrasileiraoSerieA : FormatoCampeonato {
                     Partida(
                         id = idContador++,
                         mandanteId = equipes[i].id,
-                        visitanteId = equipes[j].id
+                        visitanteId = equipes[j].id,
+                        fase = "Rodada"
                     )
                 )
             }
@@ -27,7 +29,7 @@ class BrasileiraoSerieA : FormatoCampeonato {
 
         if (turnoEReturno) {
             val returno = partidasGeradas.toList().map { p ->
-                Partida(id = idContador++, mandanteId = p.visitanteId, visitanteId = p.mandanteId)
+                Partida(id = idContador++, mandanteId = p.visitanteId, visitanteId = p.mandanteId, fase = "Rodada")
             }
             partidasGeradas.addAll(returno)
         }
