@@ -12,6 +12,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExposedDropdownMenuBox
@@ -28,6 +29,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshots.SnapshotStateList
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
@@ -46,7 +48,6 @@ fun TelaCadastroJogador(
     var dataNasc by remember { mutableStateOf("Selecionar") }
     var idadeS by remember { mutableStateOf("") }
     var expanded by remember { mutableStateOf(false) }
-    // Adicionada a posição ALA na lista
     val posicoes = listOf("GOL", "ZAG", "LAT", "ALA", "VOL", "MEI", "MAT", "PT", "CA")
     var posSel by remember { mutableStateOf(posicoes[0]) }
     val ctx = LocalContext.current
@@ -99,10 +100,11 @@ fun TelaCadastroJogador(
                     onVoltar()
                 }
             }, 
-            modifier = Modifier.fillMaxWidth().height(55.dp)
+            modifier = Modifier.fillMaxWidth().height(55.dp),
+            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF2E7D32))
         ) { Text("SALVAR") }
         Spacer(modifier = Modifier.height(8.dp))
-        TextButton(onClick = onVoltar, modifier = Modifier.fillMaxWidth()) { Text("VOLTAR") }
+        TextButton(onClick = onVoltar, modifier = Modifier.fillMaxWidth(), colors = ButtonDefaults.textButtonColors(contentColor = Color.Red)) { Text("VOLTAR / SAIR") }
     }
 }
 
@@ -162,9 +164,10 @@ fun TelaCadastroEquipe(
                     onVoltar()
                 }
             }, 
-            modifier = Modifier.fillMaxWidth().height(55.dp)
+            modifier = Modifier.fillMaxWidth().height(55.dp),
+            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF2E7D32))
         ) { Text("SALVAR EQUIPE") }
         Spacer(modifier = Modifier.height(8.dp))
-        TextButton(onClick = onVoltar, modifier = Modifier.fillMaxWidth()) { Text("VOLTAR") }
+        TextButton(onClick = onVoltar, modifier = Modifier.fillMaxWidth(), colors = ButtonDefaults.textButtonColors(contentColor = Color.Red)) { Text("VOLTAR / SAIR") }
     }
 }
