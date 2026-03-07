@@ -34,8 +34,8 @@ data class Partida(
     val id: Int,
     val mandanteId: Int,
     val visitanteId: Int,
-    val fase: String = "", // Nome da Fase (ex: OITAVAS DE FINAL)
-    val nomeConfronto: String = "", // Identificador único do confronto (ex: Oitavas 1)
+    val fase: String = "", 
+    val nomeConfronto: String = "",
     val labelMandante: String = "", 
     val labelVisitante: String = "",
     val data: String = "",
@@ -57,6 +57,9 @@ data class Partida(
     val reservasMandante: List<Int> = emptyList(),
     val titularesVisitante: List<Int> = emptyList(),
     val reservasVisitante: List<Int> = emptyList(),
+    
+    // Mapeia jogadorId para a posição que ele está ocupando NESTA partida
+    val posicoesNoJogo: Map<Int, String> = emptyMap(),
 
     val arbitroPrincipal: String = "",
     val assistente1: String = "",
@@ -89,7 +92,7 @@ data class LinhaTabela(
 data class ConfiguracoesCampeonato(
     val modoReturno: Boolean = false, 
     val modoIdaEVoltaMataMata: Boolean = true,
-    val modoIdaEVoltaFinal: Boolean = false, // Adicionado para a final
+    val modoIdaEVoltaFinal: Boolean = false,
     val criteriosDesempate: List<String> = listOf("Selecionar", "Selecionar", "Selecionar", "Selecionar", "Selecionar", "Selecionar"),
     val exibirCartoesNaTabela: Boolean = false
 )

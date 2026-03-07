@@ -34,6 +34,10 @@ fun TelaPainelLibertadores(
 
     var partidaParaVerPreJogo by remember { mutableStateOf<Partida?>(null) }
     var partidaParaVerDetalhes by remember { mutableStateOf<Partida?>(null) }
+    
+    // Novos estados para saber se estamos DENTRO da edição de uma súmula ou pré-jogo (aba principal)
+    var editandoSumulaId by remember { mutableStateOf<Int?>(null) }
+    var editandoPreJogoId by remember { mutableStateOf<Int?>(null) }
 
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
@@ -42,15 +46,20 @@ fun TelaPainelLibertadores(
         derivedStateOf { verificarFaseGruposFinalizada(partidas) }
     }
     
-    // Verifica se alguma partida do campeonato foi finalizada
     val algumaPartidaFinalizada by remember {
         derivedStateOf { partidas.any { it.finalizada } }
     }
 
+    // Determina se a navegação deve ser OCULTA
+    val ocultarNavegacao = partidaParaVerPreJogo != null || 
+                          partidaParaVerDetalhes != null || 
+                          editandoSumulaId != null || 
+                          editandoPreJogoId != null
+
     Scaffold(
         snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
-            if (partidaParaVerPreJogo == null && partidaParaVerDetalhes == null) {
+            if (!ocultarNavegacao) {
                 Column {
                     CenterAlignedTopAppBar(
                         title = { Text("Painel Libertadores", fontWeight = FontWeight.Bold) },
@@ -85,7 +94,7 @@ fun TelaPainelLibertadores(
             }
         }
     ) { paddingValues ->
-        Box(modifier = Modifier.padding(paddingValues).fillMaxSize()) {
+        Box(modifier = Modifier.padding(if (ocultarNavegacao) PaddingValues(0.dp) else paddingValues).fillMaxSize()) {
             when {
                 partidaParaVerPreJogo != null -> {
                     TelaPreJogoDetalhada(
@@ -134,24 +143,29 @@ fun TelaPainelLibertadores(
                                         somenteMataMata = false
                                     )
                                 }
-                                4 -> SumulaTab(partidas, equipes, listaGlobalJogadores)
-                                5 -> {
-                                    val partidasOrdenadas = partidas.sortedWith(
-                                        compareBy<Partida> { it.data.split("/").reversed().joinToString("") }
-                                            .thenBy { it.horario }
+                                4 -> {
+                                    SumulaTab(
+                                        partidas = partidas,
+                                        equipes = equipes,
+                                        todosJogadores = listaGlobalJogadores,
+                                        onEntrarEdicao = { id -> editandoSumulaId = id },
+                                        onSairEdicao = { editandoSumulaId = null }
                                     )
-                                    val listaCastada = remember(partidasOrdenadas) {
-                                        val novaLista = SnapshotStateList<Partida>()
-                                        novaLista.addAll(partidasOrdenadas)
-                                        novaLista
-                                    }
-                                    PreJogoTab(equipes, listaCastada, listaGlobalJogadores)
+                                }
+                                5 -> {
+                                    PreJogoTab(
+                                        equipes = equipes,
+                                        partidas = partidas,
+                                        listaGlobalJogadores = listaGlobalJogadores,
+                                        onEntrarEdicao = { id -> editandoPreJogoId = id },
+                                        onSairEdicao = { editandoPreJogoId = null }
+                                    )
                                 }
                                 6 -> TelaArtilharia(equipes, partidas, listaGlobalJogadores)
                                 7 -> {
                                     ConfigLibertadores(
                                         configs = configsIniciais,
-                                        bloquearCriterios = algumaPartidaFinalizada, // Agora passa o estado dinâmico
+                                        bloquearCriterios = algumaPartidaFinalizada,
                                         onSalvar = { novasConfigs ->
                                             onSalvarGeral(idCamp, novasConfigs)
                                             scope.launch {
@@ -163,36 +177,38 @@ fun TelaPainelLibertadores(
                             }
                         }
 
-                        Surface(
-                            modifier = Modifier.fillMaxWidth(),
-                            color = MaterialTheme.colorScheme.surface,
-                            shadowElevation = 12.dp
-                        ) {
-                            Button(
-                                onClick = { 
-                                    promoverClassificadosMataMata(partidas, equipes, listaGruposConfig, configsIniciais)
-                                    scope.launch {
-                                        snackbarHostState.showSnackbar("Classificados definidos! Verifique a aba Mata-Mata.")
-                                    }
-                                },
-                                enabled = gruposFinalizados,
-                                modifier = Modifier.fillMaxWidth().padding(16.dp),
-                                colors = ButtonDefaults.buttonColors(
-                                    containerColor = if (gruposFinalizados) Color(0xFF2E7D32) else Color.Gray,
-                                    disabledContainerColor = Color.LightGray.copy(alpha = 0.6f)
-                                )
+                        if (!ocultarNavegacao) {
+                            Surface(
+                                modifier = Modifier.fillMaxWidth(),
+                                color = MaterialTheme.colorScheme.surface,
+                                shadowElevation = 12.dp
                             ) {
-                                Icon(
-                                    imageVector = Icons.Default.CheckCircle, 
-                                    contentDescription = null,
-                                    tint = if (gruposFinalizados) Color.White else Color.DarkGray
-                                )
-                                Spacer(Modifier.width(8.dp))
-                                Text(
-                                    text = "CONCLUIR FASE DE GRUPOS", 
-                                    fontWeight = FontWeight.Bold,
-                                    color = if (gruposFinalizados) Color.White else Color.DarkGray
-                                )
+                                Button(
+                                    onClick = { 
+                                        promoverClassificadosMataMata(partidas, equipes, listaGruposConfig, configsIniciais)
+                                        scope.launch {
+                                            snackbarHostState.showSnackbar("Classificados definidos! Verifique a aba Mata-Mata.")
+                                        }
+                                    },
+                                    enabled = gruposFinalizados,
+                                    modifier = Modifier.fillMaxWidth().padding(16.dp),
+                                    colors = ButtonDefaults.buttonColors(
+                                        containerColor = if (gruposFinalizados) Color(0xFF2E7D32) else Color.Gray,
+                                        disabledContainerColor = Color.LightGray.copy(alpha = 0.6f)
+                                    )
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.CheckCircle, 
+                                        contentDescription = null,
+                                        tint = if (gruposFinalizados) Color.White else Color.DarkGray
+                                    )
+                                    Spacer(Modifier.width(8.dp))
+                                    Text(
+                                        text = "CONCLUIR FASE DE GRUPOS", 
+                                        fontWeight = FontWeight.Bold,
+                                        color = if (gruposFinalizados) Color.White else Color.DarkGray
+                                    )
+                                }
                             }
                         }
                     }

@@ -46,6 +46,7 @@ fun TelaCadastroJogador(
     var dataNasc by remember { mutableStateOf("Selecionar") }
     var idadeS by remember { mutableStateOf("") }
     var expanded by remember { mutableStateOf(false) }
+    // Adicionada a posição ALA na lista
     val posicoes = listOf("GOL", "ZAG", "LAT", "ALA", "VOL", "MEI", "MAT", "PT", "CA")
     var posSel by remember { mutableStateOf(posicoes[0]) }
     val ctx = LocalContext.current

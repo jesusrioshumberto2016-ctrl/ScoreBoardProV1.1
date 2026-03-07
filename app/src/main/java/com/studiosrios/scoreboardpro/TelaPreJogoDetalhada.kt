@@ -2,17 +2,16 @@ package com.studiosrios.scoreboardpro
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.*
-import androidx.compose.runtime.Composable
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ArrowBack
 
 @Composable
 fun TelaPreJogoDetalhada(
@@ -21,62 +20,93 @@ fun TelaPreJogoDetalhada(
     todosJogadores: List<JogadorExemplo>,
     onVoltar: () -> Unit
 ) {
-    val mandante = equipes.find { it.id == partida.mandanteId }?.nome ?: partida.labelMandante.ifBlank { "TBD" }
-    val visitante = equipes.find { it.id == partida.visitanteId }?.nome ?: partida.labelVisitante.ifBlank { "TBD" }
+    var abaSelecionada by remember { mutableIntStateOf(0) }
+    val titulos = listOf("CAMPO", "ÁRBITROS")
 
-    Column(modifier = Modifier.fillMaxSize().background(Color.White).padding(16.dp)) {
-        Text("INFORMAÇÕES PRÉ-JOGO", fontSize = 20.sp, fontWeight = FontWeight.Black, color = MaterialTheme.colorScheme.primary)
-        Spacer(Modifier.height(16.dp))
+    Column(modifier = Modifier.fillMaxSize().background(Color.White)) {
+        // Cabeçalho
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            IconButton(onClick = onVoltar) { Icon(Icons.Default.ArrowBack, "Voltar") }
+            Text(
+                text = "INFORMAÇÕES DA PARTIDA",
+                fontSize = 18.sp,
+                fontWeight = FontWeight.Black,
+                color = MaterialTheme.colorScheme.primary
+            )
+        }
 
-        // Card de Informações Gerais (Árbitros)
-        Card(modifier = Modifier.fillMaxWidth()) {
-            Column(Modifier.padding(16.dp)) {
-                Text(partida.fase.uppercase(), fontWeight = FontWeight.Black, color = MaterialTheme.colorScheme.secondary, fontSize = 12.sp)
-                Spacer(Modifier.height(4.dp))
-                Text("EQUIPE DE ARBITRAGEM", fontWeight = FontWeight.Bold, fontSize = 14.sp)
-                Divider(Modifier.padding(vertical = 8.dp))
-                Text("Árbitro: ${partida.arbitroPrincipal.ifBlank { "A definir" }}")
-                Text("Assistentes: ${partida.assistente1.ifBlank { "-" }} / ${partida.assistente2.ifBlank { "-" }}")
+        // Seletor de Abas
+        TabRow(selectedTabIndex = abaSelecionada, containerColor = Color(0xFFF5F5F5)) {
+            titulos.forEachIndexed { index, titulo ->
+                Tab(
+                    selected = abaSelecionada == index,
+                    onClick = { abaSelecionada = index },
+                    text = { Text(titulo, fontSize = 12.sp, fontWeight = FontWeight.Bold) }
+                )
             }
         }
 
-        Spacer(Modifier.height(16.dp))
-
-        // Exibição das Escalações
-        Row(Modifier.fillMaxWidth().weight(1f)) {
-            // Coluna Mandante
-            Column(Modifier.weight(1f).padding(4.dp)) {
-                Text(mandante, fontWeight = FontWeight.Bold, fontSize = 12.sp, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth())
-                Text("Técnico: ${partida.tecnicoMandante.ifBlank { "-" }}", fontSize = 10.sp, color = Color.Gray)
-                Spacer(Modifier.height(8.dp))
-                Text("TITULARES", fontWeight = FontWeight.Bold, fontSize = 10.sp)
-                LazyColumn {
-                    items(partida.titularesMandante) { id ->
-                        val jog = todosJogadores.find { it.id == id }
-                        Text("• ${jog?.nome ?: "Desconhecido"}", fontSize = 11.sp)
-                    }
+        Box(modifier = Modifier.weight(1f)) {
+            when (abaSelecionada) {
+                0 -> {
+                    // Reutiliza o componente de campo tático
+                    CampoVisualEstiloSofa(partida, equipes, todosJogadores)
                 }
-            }
-
-            Divider(modifier = Modifier.fillMaxHeight().width(1.dp))
-
-            // Coluna Visitante
-            Column(Modifier.weight(1f).padding(4.dp)) {
-                Text(visitante, fontWeight = FontWeight.Bold, fontSize = 12.sp, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth())
-                Text("Técnico: ${partida.tecnicoVisitante.ifBlank { "-" }}", fontSize = 10.sp, color = Color.Gray)
-                Spacer(Modifier.height(8.dp))
-                Text("TITULARES", fontWeight = FontWeight.Bold, fontSize = 10.sp)
-                LazyColumn {
-                    items(partida.titularesVisitante) { id ->
-                        val jog = todosJogadores.find { it.id == id }
-                        Text("• ${jog?.nome ?: "Desconhecido"}", fontSize = 11.sp)
+                1 -> {
+                    // Visualização de Arbitragem em modo leitura
+                    Column(Modifier.fillMaxSize().padding(24.dp)) {
+                        Text(
+                            text = "EQUIPE DE ARBITRAGEM",
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.secondary,
+                            modifier = Modifier.padding(bottom = 16.dp)
+                        )
+                        
+                        InfoItemLeitura("Árbitro Principal", partida.arbitroPrincipal)
+                        InfoItemLeitura("Assistente 1", partida.assistente1)
+                        InfoItemLeitura("Assistente 2", partida.assistente2)
+                        
+                        Spacer(Modifier.height(24.dp))
+                        
+                        Text(
+                            text = "COMISSÃO TÉCNICA",
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.secondary,
+                            modifier = Modifier.padding(bottom = 16.dp)
+                        )
+                        InfoItemLeitura("Técnico (Mandante)", partida.tecnicoMandante)
+                        InfoItemLeitura("Técnico (Visitante)", partida.tecnicoVisitante)
                     }
                 }
             }
         }
 
-        Button(onClick = onVoltar, modifier = Modifier.fillMaxWidth().padding(top = 16.dp)) {
+        Button(
+            onClick = onVoltar, 
+            modifier = Modifier.fillMaxWidth().padding(16.dp).height(50.dp)
+        ) {
             Text("VOLTAR PARA PARTIDAS")
+        }
+    }
+}
+
+@Composable
+fun InfoItemLeitura(label: String, valor: String) {
+    Card(
+        modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
+        colors = CardDefaults.cardColors(containerColor = Color(0xFFF9F9F9))
+    ) {
+        Column(Modifier.padding(12.dp)) {
+            Text(label, fontSize = 10.sp, color = Color.Gray, fontWeight = FontWeight.Bold)
+            Text(
+                text = valor.ifBlank { "A definir" },
+                fontSize = 14.sp,
+                fontWeight = FontWeight.Medium,
+                color = if (valor.isBlank()) Color.LightGray else Color.Black
+            )
         }
     }
 }

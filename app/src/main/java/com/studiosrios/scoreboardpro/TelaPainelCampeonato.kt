@@ -15,6 +15,7 @@ fun TelaPainelCampeonato(
     onSalvarGeral: (Int, ConfiguracoesCampeonato) -> Unit,
     onVoltar: () -> Unit
 ) {
+    // Roteador de Painéis: Identifica o modelo e abre a tela correspondente
     when {
         modelo.contains("Libertadores", ignoreCase = true) -> {
             TelaPainelLibertadores(
