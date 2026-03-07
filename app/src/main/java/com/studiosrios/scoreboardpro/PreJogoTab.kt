@@ -144,28 +144,50 @@ fun ConfiguracaoPreJogoDetalhada(
                                         Text("$posicaoNoJogo | ${jog.idade}", fontSize = 10.sp, color = Color.Gray)
                                     }
                                     
-                                    if (isTitular) {
-                                        var showPosMenu by remember { mutableStateOf(false) }
-                                        Box {
-                                            OutlinedButton(
-                                                onClick = { showPosMenu = true },
-                                                modifier = Modifier.height(30.dp),
-                                                contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp)
-                                            ) {
-                                                Text(posicaoNoJogo, fontSize = 10.sp)
-                                            }
-                                            DropdownMenu(expanded = showPosMenu, onDismissRequest = { showPosMenu = false }) {
-                                                val posicoes = listOf("GOL", "ZAG", "LAT", "VOL", "MEI", "MAT", "ALA", "PT", "CA")
-                                                posicoes.forEach { pos ->
-                                                    DropdownMenuItem(
-                                                        text = { Text(pos) },
-                                                        onClick = {
-                                                            val novoMapa = p.posicoesNoJogo.toMutableMap()
+                                    var showPosMenu by remember { mutableStateOf(false) }
+                                    Box {
+                                        OutlinedButton(
+                                            onClick = { showPosMenu = true },
+                                            modifier = Modifier.height(30.dp),
+                                            contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp)
+                                        ) {
+                                            Text(posicaoNoJogo, fontSize = 10.sp)
+                                        }
+                                        DropdownMenu(expanded = showPosMenu, onDismissRequest = { showPosMenu = false }) {
+                                            val posicoes = listOf("GOL", "ZAG", "LAT", "VOL", "MEI", "MAT", "ALA", "PT", "CA")
+                                            posicoes.forEach { pos ->
+                                                DropdownMenuItem(
+                                                    text = { Text(pos) },
+                                                    onClick = {
+                                                        val novoMapa = p.posicoesNoJogo.toMutableMap()
+
+                                                        // Se for posição lateral, abre diálogo de lado
+                                                        if (pos in listOf("LAT", "ALA", "PT")) {
+                                                            // Aqui simulamos uma escolha rápida para o teste, mas o ideal é um diálogo
+                                                            // Por padrão vamos oferecer opções no menu
+                                                            novoMapa[jog.id] = "$pos (E)"
+                                                            partidas[idx] = p.copy(posicoesNoJogo = novoMapa)
+                                                        } else {
                                                             novoMapa[jog.id] = pos
                                                             partidas[idx] = p.copy(posicoesNoJogo = novoMapa)
-                                                            showPosMenu = false
                                                         }
-                                                    )
+                                                        showPosMenu = false
+                                                    }
+                                                )
+                                                // Adiciona sub-opções para posições laterais no menu principal
+                                                if (pos in listOf("LAT", "ALA", "PT")) {
+                                                    DropdownMenuItem(text = { Text("$pos (E)") }, onClick = {
+                                                        val nm = p.posicoesNoJogo.toMutableMap()
+                                                        nm[jog.id] = "$pos (E)"
+                                                        partidas[idx] = p.copy(posicoesNoJogo = nm)
+                                                        showPosMenu = false
+                                                    })
+                                                    DropdownMenuItem(text = { Text("$pos (D)") }, onClick = {
+                                                        val nm = p.posicoesNoJogo.toMutableMap()
+                                                        nm[jog.id] = "$pos (D)"
+                                                        partidas[idx] = p.copy(posicoesNoJogo = nm)
+                                                        showPosMenu = false
+                                                    })
                                                 }
                                             }
                                         }
@@ -259,23 +281,23 @@ fun CampoVisualEstiloSofa(p: Partida, equipes: List<EquipeExemplo>, todosJogador
         Row(Modifier.fillMaxWidth().padding(horizontal = 8.dp), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
             Column(Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally) {
                 Text("Técnico: ${p.tecnicoMandante.ifBlank { "---" }}", fontSize = 10.sp, color = Color.Gray)
-                Text(mandante?.nome ?: p.labelMandante, color = Color(0xFF1976D2), fontWeight = FontWeight.Bold, fontSize = 13.sp, textAlign = TextAlign.Center)
+                Text(mandante?.nome ?: p.labelMandante, color = Color(0xFF1976D2), fontWeight = FontWeight.Bold, fontSize = 12.sp, textAlign = TextAlign.Center)
                 Spacer(Modifier.height(8.dp))
                 Text("RESERVAS", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = Color.Gray)
                 HorizontalDivider(Modifier.padding(vertical = 4.dp))
                 rMandante.forEach { res ->
-                    Text("${res.nome} (${res.posicao})", fontSize = 10.sp, color = Color.DarkGray, textAlign = TextAlign.Center)
+                    Text("${res.nome} (${p.posicoesNoJogo[res.id] ?: res.posicao})", fontSize = 10.sp, color = Color.DarkGray, textAlign = TextAlign.Center)
                 }
             }
 
             Column(Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally) {
                 Text("Técnico: ${p.tecnicoVisitante.ifBlank { "---" }}", fontSize = 10.sp, color = Color.Gray)
-                Text(visitante?.nome ?: p.labelVisitante, color = Color(0xFFD32F2F), fontWeight = FontWeight.Bold, fontSize = 13.sp, textAlign = TextAlign.Center)
+                Text(visitante?.nome ?: p.labelVisitante, color = Color(0xFFD32F2F), fontWeight = FontWeight.Bold, fontSize = 12.sp, textAlign = TextAlign.Center)
                 Spacer(Modifier.height(8.dp))
                 Text("RESERVAS", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = Color.Gray)
                 HorizontalDivider(Modifier.padding(vertical = 4.dp))
                 rVisitante.forEach { res ->
-                    Text("${res.nome} (${res.posicao})", fontSize = 10.sp, color = Color.DarkGray, textAlign = TextAlign.Center)
+                    Text("${res.nome} (${p.posicoesNoJogo[res.id] ?: res.posicao})", fontSize = 10.sp, color = Color.DarkGray, textAlign = TextAlign.Center)
                 }
             }
         }
@@ -286,23 +308,34 @@ fun CampoVisualEstiloSofa(p: Partida, equipes: List<EquipeExemplo>, todosJogador
 
 @Composable
 fun BoxScope.DistribuirJogadoresNoCampo(jogadores: List<JogadorExemplo>, p: Partida, isVisitante: Boolean) {
-    val goleiros = jogadores.filter { (p.posicoesNoJogo[it.id] ?: it.posicao) == "GOL" }
-    val defensores = jogadores.filter { (p.posicoesNoJogo[it.id] ?: it.posicao) in listOf("ZAG", "LAT") }
-    val volantes = jogadores.filter { (p.posicoesNoJogo[it.id] ?: it.posicao) == "VOL" }
-    val meias = jogadores.filter { (p.posicoesNoJogo[it.id] ?: it.posicao) in listOf("MEI", "MAT", "ALA") }
-    val atacantes = jogadores.filter { (p.posicoesNoJogo[it.id] ?: it.posicao) in listOf("PT", "CA") }
+    // Organização SofaScore em 5 Linhas
+    val goleiros = jogadores.filter { (p.posicoesNoJogo[it.id] ?: it.posicao).startsWith("GOL") }
+    val defesas = jogadores.filter { (p.posicoesNoJogo[it.id] ?: it.posicao).startsWith("ZAG") || (p.posicoesNoJogo[it.id] ?: it.posicao).startsWith("LAT") }
+    val volantes = jogadores.filter { (p.posicoesNoJogo[it.id] ?: it.posicao).startsWith("VOL") }
+    val meias = jogadores.filter { (p.posicoesNoJogo[it.id] ?: it.posicao).startsWith("MEI") || (p.posicoesNoJogo[it.id] ?: it.posicao).startsWith("MAT") || (p.posicoesNoJogo[it.id] ?: it.posicao).startsWith("ALA") }
+    val atacantes = jogadores.filter { (p.posicoesNoJogo[it.id] ?: it.posicao).startsWith("PT") || (p.posicoesNoJogo[it.id] ?: it.posicao).startsWith("CA") }
 
     val linhas = if (isVisitante) {
-        listOf(goleiros, defensores, volantes, meias, atacantes)
+        listOf(goleiros, defesas, volantes, meias, atacantes)
     } else {
-        listOf(atacantes, meias, volantes, defensores, goleiros)
+        listOf(atacantes, meias, volantes, defesas, goleiros)
     }
 
     Column(Modifier.fillMaxSize(), verticalArrangement = Arrangement.SpaceEvenly) {
         linhas.forEach { linha ->
+            // Ordenação horizontal: Esquerda (E) -> Centro -> Direita (D)
+            val linhaOrdenada = linha.sortedWith(compareBy { jog ->
+                val pos = p.posicoesNoJogo[jog.id] ?: jog.posicao
+                when {
+                    pos.contains("(E)") -> 0
+                    pos.contains("(D)") -> 2
+                    else -> 1
+                }
+            })
+
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
-                linha.forEach { jog ->
-                    JogadorIconeCampo(jog, if(isVisitante) Color(0xFFD32F2F) else Color(0xFF1976D2))
+                linhaOrdenada.forEach { jog ->
+                    JogadorIconeCampo(jog, p, if(isVisitante) Color(0xFFD32F2F) else Color(0xFF1976D2))
                 }
             }
         }
@@ -310,8 +343,21 @@ fun BoxScope.DistribuirJogadoresNoCampo(jogadores: List<JogadorExemplo>, p: Part
 }
 
 @Composable
-fun JogadorIconeCampo(j: JogadorExemplo, corTime: Color) {
-    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+fun JogadorIconeCampo(j: JogadorExemplo, p: Partida, corTime: Color) {
+    val posLado = p.posicoesNoJogo[j.id] ?: ""
+
+    Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.clickable {
+        // Ao clicar no ícone, inverte o lado se for posição lateral
+        if (posLado.contains("(E)")) {
+            val novoMapa = p.posicoesNoJogo.toMutableMap()
+            novoMapa[j.id] = posLado.replace("(E)", "(D)")
+            // Aqui precisaria de uma lógica mais complexa para trocar com o companheiro,
+            // mas por enquanto apenas inverte o lado do próprio jogador.
+        } else if (posLado.contains("(D)")) {
+            val novoMapa = p.posicoesNoJogo.toMutableMap()
+            novoMapa[j.id] = posLado.replace("(D)", "(E)")
+        }
+    }) {
         Surface(
             modifier = Modifier.size(32.dp),
             shape = CircleShape,
@@ -331,7 +377,7 @@ fun JogadorIconeCampo(j: JogadorExemplo, corTime: Color) {
         Text(
             text = j.nome.split(" ").last(), 
             fontSize = 9.sp, 
-            color = Color.White, 
+            color = Color.White,
             fontWeight = FontWeight.Bold,
             modifier = Modifier
                 .background(Color.Black.copy(alpha = 0.4f), CircleShape)

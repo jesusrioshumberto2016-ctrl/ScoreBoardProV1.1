@@ -34,8 +34,8 @@ data class Partida(
     val id: Int,
     val mandanteId: Int,
     val visitanteId: Int,
-    val fase: String = "", 
-    val nomeConfronto: String = "",
+    val fase: String = "", // Nome da Fase (ex: OITAVAS DE FINAL)
+    val nomeConfronto: String = "", // Identificador único do confronto (ex: Oitavas 1)
     val labelMandante: String = "", 
     val labelVisitante: String = "",
     val data: String = "",
@@ -58,8 +58,9 @@ data class Partida(
     val titularesVisitante: List<Int> = emptyList(),
     val reservasVisitante: List<Int> = emptyList(),
     
-    // Mapeia jogadorId para a posição que ele está ocupando NESTA partida
     val posicoesNoJogo: Map<Int, String> = emptyMap(),
+    val formacaoMandante: String = "4-4-2",
+    val formacaoVisitante: String = "4-4-2",
 
     val arbitroPrincipal: String = "",
     val assistente1: String = "",
@@ -110,5 +111,6 @@ data class CampeonatoSalvo(
     val equipes: List<EquipeExemplo>,
     val partidas: List<Partida>,
     val configs: ConfiguracoesCampeonato = ConfiguracoesCampeonato(),
-    val gruposConfig: List<ConfigGrupo> = emptyList()
+    val gruposConfig: List<ConfigGrupo> = emptyList(),
+    val fotoUri: String = "" // Adicionado para salvar a foto do campeonato
 )

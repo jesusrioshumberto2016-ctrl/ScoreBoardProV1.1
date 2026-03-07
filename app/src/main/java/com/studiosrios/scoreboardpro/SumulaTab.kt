@@ -138,7 +138,6 @@ fun ConteudoRegistrarEventos(
                             showDialogMinuto = false
                             showDialogSubstituicaoEntrada = true
                         } else {
-                            // CORREÇÃO: Função salvarEvento movida para baixo para ser visível
                             salvarEventoImpl(p, partidas, equipes, jog, tipoAtual, minutoInput)
                             showDialogMinuto = false
                             minutoInput = ""
@@ -210,7 +209,7 @@ fun ConteudoRegistrarEventos(
         )
     }
 
-    // DIÁLOGO DE SELEÇÃO DE JOGADOR (BOTÕES PRINCIPAIS)
+    // DIÁLOGO DE SELEÇÃO DE JOGADOR
     if (showDialog) {
         AlertDialog(
             onDismissRequest = { showDialog = false },
@@ -272,11 +271,26 @@ fun ConteudoRegistrarEventos(
         Text("Placar: $pM x $pV", fontSize = 14.sp, color = Color.Gray)
         Spacer(Modifier.height(16.dp))
 
+        // RESTAURADOS: BOTÕES DE MARCO DA PARTIDA
+        Row(Modifier.fillMaxWidth().padding(bottom = 8.dp), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+            val btnMod = Modifier.weight(1f)
+            val addMarco = { tipo: String ->
+                val idx = partidas.indexOfFirst { it.id == p.id }
+                if (idx != -1) {
+                    val marco = EventoPartida(jogadorNome = "Partida", equipeNome = "Geral", tipo = tipo)
+                    partidas[idx] = partidas[idx].copy(eventos = partidas[idx].eventos + marco)
+                }
+            }
+            Button(onClick = { addMarco("INÍCIO") }, modifier = btnMod, colors = ButtonDefaults.buttonColors(containerColor = Color.Black)) { Text("INÍCIO", fontSize = 9.sp) }
+            Button(onClick = { addMarco("INTERVALO") }, modifier = btnMod, colors = ButtonDefaults.buttonColors(containerColor = Color.DarkGray)) { Text("INTERVALO", fontSize = 8.sp) }
+            Button(onClick = { addMarco("FIM DE JOGO") }, modifier = btnMod, colors = ButtonDefaults.buttonColors(containerColor = Color.Red)) { Text("FIM", fontSize = 9.sp) }
+        }
+
         Card(Modifier.fillMaxWidth().padding(bottom = 16.dp), colors = CardDefaults.cardColors(containerColor = Color(0xFFFFFDE7))) {
             Row(Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
                 Icon(Icons.Default.Star, null, tint = Color(0xFFB79400))
                 Spacer(Modifier.width(8.dp))
-                Text("Melhor da Partida: ${p.melhorJogador.ifBlank { "Não definido" }}", Modifier.weight(1f), fontWeight = FontWeight.Bold)
+                Text("Melhor: ${p.melhorJogador.ifBlank { "Não definido" }}", Modifier.weight(1f), fontWeight = FontWeight.Bold)
                 Button(onClick = { showDialogMelhor = true }, colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFB79400))) {
                     Text("DEFINIR", fontSize = 10.sp)
                 }
@@ -363,7 +377,6 @@ fun ConteudoRegistrarEventos(
     }
 }
 
-// RENOMEADO PARA EVITAR CONFLITO E MOVIDO PARA O TOPO DA VISIBILIDADE
 fun salvarEventoImpl(
     p: Partida,
     partidas: SnapshotStateList<Partida>,

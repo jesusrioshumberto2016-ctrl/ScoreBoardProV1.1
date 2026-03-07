@@ -74,6 +74,8 @@ fun ScoreBoardNavigation(
     var jogadorSelecionado by remember { mutableStateOf<JogadorExemplo?>(null) }
     var equipeSelecionada by remember { mutableStateOf<EquipeExemplo?>(null) }
     var modeloCampeonatoEscolhido by remember { mutableStateOf("") }
+    var nomeCampeonatoEscolhido by remember { mutableStateOf("") }
+    var fotoCampeonatoEscolhida by remember { mutableStateOf("") }
     var idCampeonatoAtual by remember { mutableIntStateOf(-1) }
     var configuracaoFinalGrupos by remember { mutableStateOf<List<ConfigGrupo>>(emptyList()) }
     var confrontosDefinidos by remember { mutableStateOf<List<Pair<String, String>>>(emptyList()) }
@@ -126,8 +128,10 @@ fun ScoreBoardNavigation(
 
         "cadastrar_campeonato" -> TelaModeloCampeonato(
             onVoltar = { telaAtual = "menu" },
-            onSelecionarModelo = { modelo: String ->
+            onSelecionar = { modelo: String, nome: String, foto: String ->
                 modeloCampeonatoEscolhido = modelo
+                nomeCampeonatoEscolhido = nome
+                fotoCampeonatoEscolhida = foto
                 idCampeonatoAtual = -1
                 configsCampeonatoAtual = ConfiguracoesCampeonato()
                 confrontosDefinidos = emptyList()
@@ -196,12 +200,13 @@ fun ScoreBoardNavigation(
                             idCampeonatoAtual = novoId
                             listaC.add(CampeonatoSalvo(
                                 id = novoId,
-                                nomeExibicao = "Campeonato $novoId",
+                                nomeExibicao = nomeCampeonatoEscolhido,
                                 modelo = modeloCampeonatoEscolhido,
                                 equipes = equipesNoCampeonato.toList(),
                                 partidas = listaPartidasCampeonato.toList(),
                                 configs = configsCampeonatoAtual,
-                                gruposConfig = configuracaoFinalGrupos
+                                gruposConfig = configuracaoFinalGrupos,
+                                fotoUri = fotoCampeonatoEscolhida
                             ))
                         }
                         
@@ -236,12 +241,13 @@ fun ScoreBoardNavigation(
                         idCampeonatoAtual = novoId
                         listaC.add(CampeonatoSalvo(
                             id = novoId,
-                            nomeExibicao = "Campeonato $novoId",
+                            nomeExibicao = nomeCampeonatoEscolhido,
                             modelo = modeloCampeonatoEscolhido,
                             equipes = equipesNoCampeonato.toList(),
                             partidas = listaPartidasCampeonato.toList(),
                             configs = configsCampeonatoAtual,
-                            gruposConfig = configuracaoFinalGrupos
+                            gruposConfig = configuracaoFinalGrupos,
+                            fotoUri = fotoCampeonatoEscolhida
                         ))
                     }
 
@@ -250,10 +256,11 @@ fun ScoreBoardNavigation(
             )
         }
         "painel_campeonato" -> {
-            TelaPainelLibertadores(
+            TelaPainelCampeonato(
                 idCamp = idCampeonatoAtual,
                 equipes = equipesNoCampeonato,
                 partidas = listaPartidasCampeonato,
+                modelo = modeloCampeonatoEscolhido,
                 listaGlobalJogadores = listaJ,
                 configsIniciais = configsCampeonatoAtual,
                 listaGruposConfig = configuracaoFinalGrupos,

@@ -1,48 +1,35 @@
 package com.studiosrios.scoreboardpro
 
+import android.net.Uri
 import android.widget.Toast
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.AddAPhoto
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Search
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.ExposedDropdownMenuBox
-import androidx.compose.material3.ExposedDropdownMenuDefaults
-import androidx.compose.material3.Icon
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateListOf
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
 import androidx.compose.runtime.snapshots.SnapshotStateList
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import coil.compose.AsyncImage
 
 @Composable
 fun TelaListaCampeonatos(lista: List<CampeonatoSalvo>, onVoltar: () -> Unit, onAbrir: (CampeonatoSalvo) -> Unit) {
@@ -58,6 +45,14 @@ fun TelaListaCampeonatos(lista: List<CampeonatoSalvo>, onVoltar: () -> Unit, onA
                 items(lista) { camp ->
                     Card(modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp)) {
                         Row(modifier = Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
+                            // Miniatura da foto do campeonato
+                            AsyncImage(
+                                model = camp.fotoUri.ifBlank { R.drawable.ic_launcher_background },
+                                contentDescription = null,
+                                modifier = Modifier.size(40.dp).clip(CircleShape).background(Color.LightGray),
+                                contentScale = ContentScale.Crop
+                            )
+                            Spacer(Modifier.width(12.dp))
                             Column(Modifier.weight(1f)) {
                                 Text(camp.nomeExibicao, fontWeight = FontWeight.Bold)
                                 Text("${camp.modelo} - ${camp.equipes.size} Equipes", fontSize = 12.sp, color = Color.Gray)
@@ -72,6 +67,95 @@ fun TelaListaCampeonatos(lista: List<CampeonatoSalvo>, onVoltar: () -> Unit, onA
     }
 }
 
+@Composable
+fun TelaModeloCampeonato(onVoltar: () -> Unit, onSelecionar: (String, String, String) -> Unit) {
+    var nomeCamp by remember { mutableStateOf("") }
+    var fotoUri by remember { mutableStateOf("") }
+    var modeloSelecionado by remember { mutableStateOf("") }
+    val modelos = listOf("Brasileirão Série A", "Mata Mata", "Copa Libertadores")
+
+    val launcher = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri: Uri? ->
+        uri?.let { fotoUri = it.toString() }
+    }
+
+    Column(modifier = Modifier.fillMaxSize().padding(24.dp).verticalScroll(rememberScrollState())) {
+        Text("NOVO CAMPEONATO", fontSize = 24.sp, fontWeight = FontWeight.Bold)
+        Text("Configure as informações básicas", color = Color.Gray)
+        Spacer(modifier = Modifier.height(24.dp))
+
+        // SEÇÃO DE FOTO
+        Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+            Box(
+                modifier = Modifier
+                    .size(120.dp)
+                    .clip(CircleShape)
+                    .background(MaterialTheme.colorScheme.primaryContainer)
+                    .border(2.dp, MaterialTheme.colorScheme.primary, CircleShape)
+                    .clickable { launcher.launch("image/*") },
+                contentAlignment = Alignment.Center
+            ) {
+                if (fotoUri.isBlank()) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Icon(Icons.Default.AddAPhoto, null, tint = MaterialTheme.colorScheme.primary)
+                        Text("Adicionar Foto", fontSize = 10.sp, color = MaterialTheme.colorScheme.primary)
+                    }
+                } else {
+                    AsyncImage(
+                        model = fotoUri,
+                        contentDescription = null,
+                        modifier = Modifier.fillMaxSize(),
+                        contentScale = ContentScale.Crop
+                    )
+                }
+            }
+        }
+
+        Spacer(modifier = Modifier.height(24.dp))
+
+        // CAMPO DE NOME
+        OutlinedTextField(
+            value = nomeCamp,
+            onValueChange = { nomeCamp = it },
+            label = { Text("Nome do Campeonato") },
+            modifier = Modifier.fillMaxWidth(),
+            singleLine = true
+        )
+
+        Spacer(modifier = Modifier.height(24.dp))
+
+        // SELEÇÃO DE FORMATO
+        Text("Escolha o formato da competição", fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
+        Spacer(Modifier.height(8.dp))
+
+        modelos.forEach { modelo ->
+            Button(
+                onClick = { modeloSelecionado = modelo },
+                modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp).height(55.dp),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = if (modeloSelecionado == modelo) MaterialTheme.colorScheme.primary else Color.LightGray.copy(0.3f),
+                    contentColor = if (modeloSelecionado == modelo) Color.White else Color.Black
+                )
+            ) {
+                Text(modelo.uppercase(), fontWeight = FontWeight.Bold)
+            }
+        }
+
+        Spacer(modifier = Modifier.weight(1f))
+
+        Button(
+            onClick = { onSelecionar(modeloSelecionado, nomeCamp, fotoUri) },
+            modifier = Modifier.fillMaxWidth().height(55.dp).padding(top = 16.dp),
+            enabled = modeloSelecionado.isNotEmpty() && nomeCamp.isNotBlank()
+        ) {
+            Text("PRÓXIMO PASSO")
+        }
+        TextButton(onClick = onVoltar, modifier = Modifier.align(Alignment.CenterHorizontally)) {
+            Text("CANCELAR")
+        }
+    }
+}
+
+// ... Restante das funções (TelaDetalhesEquipe, etc) permanecem iguais ...
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun TelaDetalhesEquipe(equipe: EquipeExemplo, listaJogadores: SnapshotStateList<JogadorExemplo>, onAdicionar: () -> Unit, onVoltar: () -> Unit) {
@@ -248,44 +332,6 @@ fun TelaSelecaoEquipesCampeonato(listaEquipes: List<EquipeExemplo>, onVoltar: ()
             enabled = selecionadas.size in 2..32
         ) {
             Text("INICIAR CAMPEONATO")
-        }
-        TextButton(onClick = onVoltar, modifier = Modifier.align(Alignment.CenterHorizontally)) {
-            Text("VOLTAR")
-        }
-    }
-}
-
-@Composable
-fun TelaModeloCampeonato(onVoltar: () -> Unit, onSelecionarModelo: (String) -> Unit) {
-    var modeloSelecionado by remember { mutableStateOf("") }
-    val modelos = listOf("Brasileirão Série A", "Mata Mata", "Copa Libertadores")
-
-    Column(modifier = Modifier.fillMaxSize().padding(24.dp)) {
-        Text("NOVO CAMPEONATO", fontSize = 24.sp, fontWeight = FontWeight.Bold)
-        Text("Escolha o formato da competição", color = Color.Gray)
-        Spacer(modifier = Modifier.height(32.dp))
-
-        modelos.forEach { modelo ->
-            Button(
-                onClick = { modeloSelecionado = modelo },
-                modifier = Modifier.fillMaxWidth().padding(vertical = 6.dp).height(60.dp),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = if (modeloSelecionado == modelo) MaterialTheme.colorScheme.primary else Color.LightGray.copy(0.3f),
-                    contentColor = if (modeloSelecionado == modelo) Color.White else Color.Black
-                )
-            ) {
-                Text(modelo.uppercase(), fontWeight = FontWeight.Bold)
-            }
-        }
-
-        Spacer(modifier = Modifier.weight(1f))
-
-        Button(
-            onClick = { onSelecionarModelo(modeloSelecionado) },
-            modifier = Modifier.fillMaxWidth().height(55.dp),
-            enabled = modeloSelecionado.isNotEmpty()
-        ) {
-            Text("SELECIONAR MODELO")
         }
         TextButton(onClick = onVoltar, modifier = Modifier.align(Alignment.CenterHorizontally)) {
             Text("VOLTAR")
