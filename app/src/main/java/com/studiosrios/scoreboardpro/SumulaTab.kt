@@ -8,6 +8,7 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Save
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.filled.SyncAlt
 import androidx.compose.material3.*
@@ -271,7 +272,7 @@ fun ConteudoRegistrarEventos(
         Text("Placar: $pM x $pV", fontSize = 14.sp, color = Color.Gray)
         Spacer(Modifier.height(16.dp))
 
-        // RESTAURADOS: BOTÕES DE MARCO DA PARTIDA
+        // BOTÕES DE MARCO DA PARTIDA
         Row(Modifier.fillMaxWidth().padding(bottom = 8.dp), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
             val btnMod = Modifier.weight(1f)
             val addMarco = { tipo: String ->
@@ -373,7 +374,27 @@ fun ConteudoRegistrarEventos(
         }
 
         Spacer(Modifier.height(24.dp))
-        Button(onClick = onVoltar, modifier = Modifier.fillMaxWidth()) { Text("VOLTAR") }
+        
+        // BOTÕES FINAIS: SALVAR (Verde) e VOLTAR (Vermelho)
+        Button(
+            onClick = onVoltar, 
+            modifier = Modifier.fillMaxWidth().height(55.dp),
+            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF2E7D32))
+        ) {
+            Icon(Icons.Default.Save, null)
+            Spacer(Modifier.width(8.dp))
+            Text("SALVAR ALTERAÇÕES", fontWeight = FontWeight.Bold)
+        }
+        
+        Spacer(Modifier.height(8.dp))
+        
+        TextButton(
+            onClick = onVoltar, 
+            modifier = Modifier.fillMaxWidth(),
+            colors = ButtonDefaults.textButtonColors(contentColor = Color.Red)
+        ) {
+            Text("VOLTAR / SAIR")
+        }
     }
 }
 
