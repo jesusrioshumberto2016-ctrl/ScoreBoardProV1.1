@@ -1,16 +1,24 @@
 package com.studiosrios.scoreboardpro
 
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Person
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import coil.compose.AsyncImage
 
 @Composable
 fun TelaArtilharia(
@@ -85,17 +93,39 @@ fun CardEstatistica(item: ItemEstatistica, equipes: List<EquipeExemplo>, unidade
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Column {
-                Text(item.nomeJogador, style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.Bold)
-                val nomeEquipe = equipes.find { it.nome == item.nomeEquipe }?.nome ?: item.nomeEquipe
-                Text(nomeEquipe, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.primary)
+            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.weight(1f)) {
+                // Foto do Jogador
+                AsyncImage(
+                    model = item.fotoUri.ifBlank { R.drawable.ic_launcher_background },
+                    contentDescription = null,
+                    modifier = Modifier
+                        .size(40.dp)
+                        .clip(CircleShape)
+                        .background(Color.LightGray)
+                        .border(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.3f), CircleShape),
+                    contentScale = ContentScale.Crop
+                )
+                
+                Spacer(Modifier.width(12.dp))
+                
+                Column {
+                    // PRIORIZA O APELIDO NA EXIBIÇÃO
+                    Text(
+                        text = item.apelido.ifBlank { item.nomeJogador }, 
+                        style = MaterialTheme.typography.bodyLarge, 
+                        fontWeight = FontWeight.Bold
+                    )
+                    val nomeEquipe = equipes.find { it.nome == item.nomeEquipe }?.nome ?: item.nomeEquipe
+                    Text(nomeEquipe, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.primary)
+                }
             }
             Text("${item.quantidade} $unidade", fontWeight = FontWeight.ExtraBold, color = MaterialTheme.colorScheme.primary)
         }
     }
 }
 
-data class ItemEstatistica(val nomeJogador: String, val nomeEquipe: String, val quantidade: Int)
+data class ItemEstatistica(val nomeJogador: String, val apelido: String, val nomeEquipe: String, val quantidade: Int, val fotoUri: String)
+
 data class EstatisticasGerais(
     val artilheiros: List<ItemEstatistica>,
     val assistentes: List<ItemEstatistica>,
@@ -136,7 +166,10 @@ fun processarEstatisticas(partidas: List<Partida>, jogadores: List<JogadorExempl
     }
 
     fun converter(mapa: Map<String, Int>) = mapa.map { 
-        ItemEstatistica(it.key, mapaEquipe[it.key] ?: "S/E", it.value) 
+        val jog = jogadores.find { j -> j.nome == it.key }
+        val foto = jog?.fotoUri ?: ""
+        val apelido = jog?.apelido ?: ""
+        ItemEstatistica(it.key, apelido, mapaEquipe[it.key] ?: "S/E", it.value, foto)
     }.sortedByDescending { it.quantidade }
 
     return EstatisticasGerais(

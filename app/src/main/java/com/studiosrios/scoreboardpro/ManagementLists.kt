@@ -237,9 +237,10 @@ fun TelaDetalhesEquipe(
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun TelaDetalhesJogador(jogador: JogadorExemplo, onSalvar: (String, String) -> Unit, onVoltar: () -> Unit) {
+fun TelaDetalhesJogador(jogador: JogadorExemplo, onSalvar: (String, String, String) -> Unit, onVoltar: () -> Unit) {
     var novaPosicao by remember { mutableStateOf(jogador.posicao) }
     var novaFotoUri by remember { mutableStateOf(jogador.fotoUri) }
+    var novoApelido by remember { mutableStateOf(jogador.apelido) } // Adicionado apelido editável
     var expanded by remember { mutableStateOf(false) }
     val posicoes = listOf("GOL", "ZAG", "LAT", "ALA", "VOL", "MEI", "MAT", "PT", "CA")
 
@@ -281,8 +282,20 @@ fun TelaDetalhesJogador(jogador: JogadorExemplo, onSalvar: (String, String) -> U
 
         Spacer(modifier = Modifier.height(24.dp))
 
-        OutlinedTextField(value = jogador.nome, onValueChange = {}, label = { Text("Nome") }, readOnly = true, modifier = Modifier.fillMaxWidth())
+        OutlinedTextField(value = jogador.nome, onValueChange = {}, label = { Text("Nome Completo") }, readOnly = true, modifier = Modifier.fillMaxWidth())
         Spacer(modifier = Modifier.height(12.dp))
+        
+        // NOVO CAMPO: APELIDO EDITÁVEL
+        OutlinedTextField(
+            value = novoApelido, 
+            onValueChange = { if (it.length <= 16) novoApelido = it }, 
+            label = { Text("Apelido (Nome de Guerra)") }, 
+            modifier = Modifier.fillMaxWidth(),
+            supportingText = { Text("${novoApelido.length}/16", modifier = Modifier.fillMaxWidth(), textAlign = androidx.compose.ui.text.style.TextAlign.End) },
+            singleLine = true
+        )
+        Spacer(modifier = Modifier.height(12.dp))
+        
         OutlinedTextField(value = jogador.altura, onValueChange = {}, label = { Text("Altura") }, readOnly = true, modifier = Modifier.fillMaxWidth())
         Spacer(modifier = Modifier.height(12.dp))
         OutlinedTextField(value = jogador.idade, onValueChange = {}, label = { Text("Idade") }, readOnly = true, modifier = Modifier.fillMaxWidth())
@@ -308,7 +321,7 @@ fun TelaDetalhesJogador(jogador: JogadorExemplo, onSalvar: (String, String) -> U
 
         Spacer(modifier = Modifier.height(32.dp))
         Button(
-            onClick = { onSalvar(novaPosicao, novaFotoUri) }, 
+            onClick = { onSalvar(novaPosicao, novaFotoUri, novoApelido) },
             modifier = Modifier.fillMaxWidth().height(55.dp),
             colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF2E7D32))
         ) {

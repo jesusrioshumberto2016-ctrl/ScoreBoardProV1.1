@@ -12,7 +12,8 @@ data class JogadorExemplo(
     val idade: String = "",
     var equipeId: Int = -1,
     var gols: Int = 0,
-    val fotoUri: String = "" 
+    val fotoUri: String = "",
+    val apelido: String = ""
 )
 
 data class Patrocinador(
@@ -54,6 +55,7 @@ data class Partida(
     var golsVisitante: Int? = null,
     var finalizada: Boolean = false,
     
+    // Disputa de pênaltis
     var penaltisMandante: Int? = null,
     var penaltisVisitante: Int? = null,
 
@@ -105,7 +107,8 @@ data class ConfiguracoesCampeonato(
     val modoReturno: Boolean = false, 
     val modoIdaEVoltaMataMata: Boolean = true,
     val modoIdaEVoltaFinal: Boolean = false,
-    val criteriosDesempate: List<String> = listOf("Selecionar", "Saldo de Gols", "Gols Marcados", "Cartões Amarelos", "Cartões Vermelhos"),
+    // Corrigido para ter 6 slots de critérios de desempate
+    val criteriosDesempate: List<String> = listOf("Selecionar", "Selecionar", "Selecionar", "Selecionar", "Selecionar", "Selecionar"),
     val exibirCartoesNaTabela: Boolean = false
 )
 

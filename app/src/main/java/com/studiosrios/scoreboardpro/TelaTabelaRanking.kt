@@ -1,18 +1,23 @@
 package com.studiosrios.scoreboardpro
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import coil.compose.AsyncImage
 
 @Composable
 fun TelaTabelaRanking(
@@ -38,7 +43,8 @@ fun TelaTabelaRanking(
                     .padding(vertical = 8.dp, horizontal = 4.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Text("Equipe", modifier = Modifier.width(120.dp), fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                Text("#", modifier = Modifier.width(30.dp), textAlign = TextAlign.Center, fontWeight = FontWeight.Bold, fontSize = 11.sp)
+                Text("Equipe", modifier = Modifier.width(150.dp), fontWeight = FontWeight.Bold, fontSize = 12.sp)
                 ColunaCabecalho("P")
                 ColunaCabecalho("J")
                 ColunaCabecalho("V")
@@ -54,20 +60,52 @@ fun TelaTabelaRanking(
             }
 
             // LINHAS DA TABELA
-            ranking.forEach { linha ->
+            ranking.forEachIndexed { index, linha ->
+                val equipeOriginal = equipes.find { it.id == linha.equipeId }
+                
                 Row(
                     modifier = Modifier
                         .padding(vertical = 10.dp, horizontal = 4.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    // Nome da Equipe
+                    // Posição
                     Text(
-                        text = linha.nome,
-                        modifier = Modifier.width(120.dp),
-                        fontSize = 13.sp,
-                        fontWeight = FontWeight.Medium,
-                        maxLines = 1
+                        text = "${index + 1}º",
+                        modifier = Modifier.width(30.dp),
+                        textAlign = TextAlign.Center,
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = when(index) {
+                            0 -> Color(0xFFB79400) // Ouro
+                            1 -> Color(0xFF757575) // Prata
+                            2 -> Color(0xFF8D6E63) // Bronze
+                            else -> Color.DarkGray
+                        }
                     )
+
+                    // Escudo + Nome da Equipe
+                    Row(
+                        modifier = Modifier.width(150.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        AsyncImage(
+                            model = equipeOriginal?.escudoUri?.ifBlank { R.drawable.ic_launcher_background } ?: R.drawable.ic_launcher_background,
+                            contentDescription = null,
+                            modifier = Modifier
+                                .size(24.dp)
+                                .clip(CircleShape)
+                                .background(Color.White)
+                                .border(0.5.dp, Color.LightGray, CircleShape),
+                            contentScale = ContentScale.Crop
+                        )
+                        Spacer(Modifier.width(8.dp))
+                        Text(
+                            text = linha.nome,
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.Medium,
+                            maxLines = 1
+                        )
+                    }
 
                     ColunaDados("${linha.pontos}", bold = true)
                     ColunaDados("${linha.jogos}")
@@ -83,7 +121,7 @@ fun TelaTabelaRanking(
                         ColunaDados("${linha.vermelhos}", color = Color.Red)
                     }
                 }
-                Divider(thickness = 0.5.dp, color = MaterialTheme.colorScheme.outlineVariant)
+                HorizontalDivider(thickness = 0.5.dp, color = MaterialTheme.colorScheme.outlineVariant)
             }
         }
     }

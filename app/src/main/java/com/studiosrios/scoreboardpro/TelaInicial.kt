@@ -31,7 +31,7 @@ fun TelaInicialTelespectador(
 ) {
     var busca by remember { mutableStateOf("") }
     val campeonatosFiltrados = listaC.filter { 
-        it.nomeExibicao.contains(busca, ignoreCase = true) || it.modelo.contains(busca, ignoreCase = true)
+        it.nomeExibicao.contains(busca, ignoreCase = true)
     }
 
     Scaffold(
@@ -111,36 +111,20 @@ fun CardTelespectador(camp: CampeonatoSalvo, onClick: () -> Unit) {
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .height(220.dp)
+            .height(200.dp)
             .clickable { onClick() },
         elevation = CardDefaults.cardElevation(4.dp),
         colors = CardDefaults.cardColors(containerColor = Color.White)
     ) {
         Column {
-            Box {
-                AsyncImage(
-                    model = camp.fotoUri.ifBlank { R.drawable.ic_launcher_background },
-                    contentDescription = null,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(120.dp),
-                    contentScale = ContentScale.Crop
-                )
-                // Badge de Modelo
-                Surface(
-                    modifier = Modifier.padding(8.dp).align(Alignment.TopStart),
-                    color = MaterialTheme.colorScheme.primary,
-                    shape = RoundedCornerShape(4.dp)
-                ) {
-                    Text(
-                        camp.modelo.take(15),
-                        color = Color.White,
-                        fontSize = 8.sp,
-                        modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp),
-                        fontWeight = FontWeight.Bold
-                    )
-                }
-            }
+            AsyncImage(
+                model = camp.fotoUri.ifBlank { R.drawable.ic_launcher_background },
+                contentDescription = null,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(130.dp),
+                contentScale = ContentScale.Crop
+            )
             
             Column(Modifier.padding(12.dp)) {
                 Text(

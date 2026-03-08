@@ -1,8 +1,11 @@
 package com.studiosrios.scoreboardpro
 
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
@@ -13,11 +16,14 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import coil.compose.AsyncImage
 
 @Composable
 fun PartidasTab(
@@ -27,7 +33,6 @@ fun PartidasTab(
     onDetalhesClick: (Partida) -> Unit,
     somenteMataMata: Boolean = false
 ) {
-    // 1. Filtrar as partidas por tipo (Grupos vs Mata-Mata)
     val partidasFiltradas = remember(partidas, somenteMataMata) {
         if (somenteMataMata) {
             partidas.filter { 
@@ -38,30 +43,22 @@ fun PartidasTab(
                 it.fase.contains("PF", true)
             }
         } else {
-            // Inclui Rodadas de grupo
-            partidas.filter { 
-                it.fase.contains("RODADA", true) || 
-                it.fase.contains("ÚNICA", true) || 
-                it.fase.isBlank() 
-            }
+            partidas.filter { it.fase.contains("RODADA", true) || it.fase.contains("ÚNICA", true) || it.fase.isBlank() }
         }
     }
 
-    // 2. Obter lista única de fases e manter ordem crescente (ex: 1ª Rodada, 2ª Rodada...)
     val fasesDisponiveis = remember(partidasFiltradas) {
         partidasFiltradas.map { it.fase.ifBlank { "Rodada" } }.distinct()
     }
 
     var indiceFaseAtual by remember { mutableIntStateOf(0) }
     
-    // Garante que o índice não fique fora se a lista mudar
     LaunchedEffect(fasesDisponiveis) {
         if (indiceFaseAtual >= fasesDisponiveis.size) indiceFaseAtual = 0
     }
 
     val faseExibida = if (fasesDisponiveis.isNotEmpty()) fasesDisponiveis[indiceFaseAtual] else "Nenhum jogo"
     
-    // 3. Ordenação CRESCENTE das partidas dentro da fase (mais antigas no topo)
     val partidasDaFase = remember(partidasFiltradas, faseExibida) {
         val lista = partidasFiltradas.filter { (it.fase.ifBlank { "Rodada" }) == faseExibida }
         lista.sortedWith(
@@ -71,7 +68,6 @@ fun PartidasTab(
     }
 
     Column(Modifier.fillMaxSize()) {
-        // NAVEGAÇÃO DE RODADAS/FASES
         if (fasesDisponiveis.size > 1) {
             Card(
                 modifier = Modifier.fillMaxWidth().padding(16.dp),
@@ -106,7 +102,6 @@ fun PartidasTab(
             }
         }
 
-        // LISTA DE PARTIDAS DA FASE ATUAL
         LazyColumn(Modifier.weight(1f).padding(horizontal = 16.dp)) {
             if (partidasDaFase.isEmpty()) {
                 item {
@@ -130,13 +125,20 @@ fun ItemPartidaCard(
     onPreJogoClick: (Partida) -> Unit,
     onDetalhesClick: (Partida) -> Unit
 ) {
-    val mandante = equipes.find { it.id == partida.mandanteId }?.nome ?: partida.labelMandante
-    val visitante = equipes.find { it.id == partida.visitanteId }?.nome ?: partida.labelVisitante
+    val equipeMandante = equipes.find { it.id == partida.mandanteId }
+    val equipeVisitante = equipes.find { it.id == partida.visitanteId }
+    
+    val mandante = equipeMandante?.nome ?: partida.labelMandante
+    val visitante = equipeVisitante?.nome ?: partida.labelVisitante
     
     val placarTexto = if (partida.golsMandante == null && partida.golsVisitante == null) {
         " VS "
     } else {
-        " ${partida.golsMandante ?: 0} x ${partida.golsVisitante ?: 0} "
+        val pM = partida.golsMandante ?: 0
+        val pV = partida.golsVisitante ?: 0
+        val penStr = if (partida.penaltisMandante != null) " (${partida.penaltisMandante}) $pM x $pV (${partida.penaltisVisitante}) " 
+                     else " $pM x $pV "
+        penStr
     }
 
     Card(
@@ -151,9 +153,51 @@ fun ItemPartidaCard(
             Spacer(Modifier.height(8.dp))
 
             Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
-                Text(mandante, Modifier.weight(1f), textAlign = TextAlign.End, fontWeight = FontWeight.Bold, fontSize = 14.sp)
-                Text(placarTexto, Modifier.padding(horizontal = 12.dp), fontWeight = FontWeight.Black, fontSize = 16.sp, color = if (partida.finalizada) Color.Blue else Color.Gray)
-                Text(visitante, Modifier.weight(1f), fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                // Mandante Shield + Name
+                Row(modifier = Modifier.weight(1f), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.End) {
+                    Text(
+                        text = mandante, 
+                        modifier = Modifier.weight(1f),
+                        textAlign = TextAlign.End, 
+                        fontWeight = FontWeight.Bold, 
+                        fontSize = 13.sp, 
+                        maxLines = 1
+                    )
+                    Spacer(Modifier.width(8.dp))
+                    AsyncImage(
+                        model = equipeMandante?.escudoUri?.ifBlank { R.drawable.ic_launcher_background } ?: R.drawable.ic_launcher_background,
+                        contentDescription = null,
+                        modifier = Modifier.size(24.dp).clip(CircleShape).background(Color.White).border(0.5.dp, Color.LightGray, CircleShape),
+                        contentScale = ContentScale.Crop
+                    )
+                }
+
+                Text(
+                    text = placarTexto, 
+                    modifier = Modifier.padding(horizontal = 8.dp), 
+                    fontWeight = FontWeight.Black, 
+                    fontSize = 14.sp, 
+                    color = if (partida.finalizada) Color.Blue else Color.Gray, 
+                    textAlign = TextAlign.Center
+                )
+
+                // Visitante Shield + Name
+                Row(modifier = Modifier.weight(1f), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.Start) {
+                    AsyncImage(
+                        model = equipeVisitante?.escudoUri?.ifBlank { R.drawable.ic_launcher_background } ?: R.drawable.ic_launcher_background,
+                        contentDescription = null,
+                        modifier = Modifier.size(24.dp).clip(CircleShape).background(Color.White).border(0.5.dp, Color.LightGray, CircleShape),
+                        contentScale = ContentScale.Crop
+                    )
+                    Spacer(Modifier.width(8.dp))
+                    Text(
+                        text = visitante, 
+                        modifier = Modifier.weight(1f),
+                        fontWeight = FontWeight.Bold, 
+                        fontSize = 13.sp, 
+                        maxLines = 1
+                    )
+                }
             }
 
             if (partida.finalizada) {

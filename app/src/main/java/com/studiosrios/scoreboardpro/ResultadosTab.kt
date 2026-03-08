@@ -2,16 +2,21 @@ package com.studiosrios.scoreboardpro
 
 import android.app.DatePickerDialog
 import android.app.TimePickerDialog
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.snapshots.SnapshotStateList
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
@@ -19,6 +24,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import coil.compose.AsyncImage
 import java.util.*
 
 @Composable
@@ -69,8 +75,11 @@ fun ItemResultadoCard(
     equipes: List<EquipeExemplo>
 ) {
     val contexto = LocalContext.current
-    val m = equipes.find { it.id == partida.mandanteId }?.nome ?: partida.labelMandante.ifBlank { "M" }
-    val v = equipes.find { it.id == partida.visitanteId }?.nome ?: partida.labelVisitante.ifBlank { "V" }
+    val equipeM = equipes.find { it.id == partida.mandanteId }
+    val equipeV = equipes.find { it.id == partida.visitanteId }
+
+    val m = equipeM?.nome ?: partida.labelMandante.ifBlank { "M" }
+    val v = equipeV?.nome ?: partida.labelVisitante.ifBlank { "V" }
     
     var mostrarDialogoLocal by remember { mutableStateOf(false) }
     var localTemporario by remember { mutableStateOf(partida.local) }
@@ -106,7 +115,7 @@ fun ItemResultadoCard(
                 TextButton(onClick = { 
                     if(!partida.finalizada){ 
                         val c = Calendar.getInstance()
-                        DatePickerDialog(contexto, { _, y, month, d -> 
+                        DatePickerDialog(contexto, { _, _, month, d -> 
                             val idx = listaGeral.indexOfFirst { it.id == partida.id }
                             if(idx != -1) {
                                 val dataFormatada = "%02d/%02d".format(d, month + 1)
@@ -132,57 +141,77 @@ fun ItemResultadoCard(
                     Text("LOCAL: ${partida.local}", fontSize = 10.sp) 
                 }
             }
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                // Placar de Pênaltis Mandante
-                if (partida.penaltisMandante != null) {
-                    Text("(${partida.penaltisMandante})", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = Color.Gray)
-                    Spacer(Modifier.width(4.dp))
+
+            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
+                // Mandante Shield + Name
+                Row(modifier = Modifier.weight(1f), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.End) {
+                    if (partida.penaltisMandante != null) {
+                        Text("(${partida.penaltisMandante})", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = Color.Gray)
+                        Spacer(Modifier.width(4.dp))
+                    }
+                    Text(m, textAlign = TextAlign.End, fontWeight = FontWeight.Bold, fontSize = 13.sp, maxLines = 1)
+                    Spacer(Modifier.width(8.dp))
+                    AsyncImage(
+                        model = equipeM?.escudoUri?.ifBlank { R.drawable.ic_launcher_background } ?: R.drawable.ic_launcher_background,
+                        contentDescription = null,
+                        modifier = Modifier.size(24.dp).clip(CircleShape).background(Color.White).border(0.5.dp, Color.LightGray, CircleShape),
+                        contentScale = ContentScale.Crop
+                    )
                 }
 
-                Text(m, Modifier.weight(1f), textAlign = TextAlign.Center, fontWeight = FontWeight.Bold, fontSize = 14.sp)
-                
-                OutlinedTextField(
-                    value = partida.golsMandante?.toString() ?: "", 
-                    onValueChange = { input -> 
-                        if(!partida.finalizada) { 
-                            val idx = listaGeral.indexOfFirst { it.id == partida.id }
-                            if(idx != -1) { 
-                                val num = input.filter { it.isDigit() }.toIntOrNull()
-                                listaGeral[idx] = listaGeral[idx].copy(golsMandante = num) 
+                // Inputs de Placar
+                Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(horizontal = 8.dp)) {
+                    OutlinedTextField(
+                        value = partida.golsMandante?.toString() ?: "",
+                        onValueChange = { input ->
+                            if(!partida.finalizada) {
+                                val idx = listaGeral.indexOfFirst { it.id == partida.id }
+                                if(idx != -1) {
+                                    val num = input.filter { it.isDigit() }.toIntOrNull()
+                                    listaGeral[idx] = listaGeral[idx].copy(golsMandante = num)
+                                }
                             } 
-                        } 
-                    }, 
-                    modifier = Modifier.width(60.dp), 
-                    enabled = !partida.finalizada, 
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number), 
-                    textStyle = TextStyle(textAlign = TextAlign.Center)
-                )
-                
-                Text(" X ", fontWeight = FontWeight.Black)
-                
-                OutlinedTextField(
-                    value = partida.golsVisitante?.toString() ?: "", 
-                    onValueChange = { input -> 
-                        if(!partida.finalizada) { 
-                            val idx = listaGeral.indexOfFirst { it.id == partida.id }
-                            if(idx != -1) { 
-                                val num = input.filter { it.isDigit() }.toIntOrNull()
-                                listaGeral[idx] = listaGeral[idx].copy(golsVisitante = num) 
-                            } 
-                        } 
-                    }, 
-                    modifier = Modifier.width(60.dp), 
-                    enabled = !partida.finalizada, 
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number), 
-                    textStyle = TextStyle(textAlign = TextAlign.Center)
-                )
-                
-                Text(v, Modifier.weight(1f), textAlign = TextAlign.Center, fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                        },
+                        modifier = Modifier.width(55.dp),
+                        enabled = !partida.finalizada,
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                        textStyle = TextStyle(textAlign = TextAlign.Center, fontSize = 14.sp)
+                    )
 
-                // Placar de Pênaltis Visitante
-                if (partida.penaltisVisitante != null) {
-                    Spacer(Modifier.width(4.dp))
-                    Text("(${partida.penaltisVisitante})", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = Color.Gray)
+                    Text(" x ", fontWeight = FontWeight.Black)
+
+                    OutlinedTextField(
+                        value = partida.golsVisitante?.toString() ?: "",
+                        onValueChange = { input ->
+                            if(!partida.finalizada) {
+                                val idx = listaGeral.indexOfFirst { it.id == partida.id }
+                                if(idx != -1) {
+                                    val num = input.filter { it.isDigit() }.toIntOrNull()
+                                    listaGeral[idx] = listaGeral[idx].copy(golsVisitante = num)
+                                }
+                            } 
+                        },
+                        modifier = Modifier.width(55.dp),
+                        enabled = !partida.finalizada,
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                        textStyle = TextStyle(textAlign = TextAlign.Center, fontSize = 14.sp)
+                    )
+                }
+
+                // Visitante Shield + Name
+                Row(modifier = Modifier.weight(1f), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.Start) {
+                    AsyncImage(
+                        model = equipeV?.escudoUri?.ifBlank { R.drawable.ic_launcher_background } ?: R.drawable.ic_launcher_background,
+                        contentDescription = null,
+                        modifier = Modifier.size(24.dp).clip(CircleShape).background(Color.White).border(0.5.dp, Color.LightGray, CircleShape),
+                        contentScale = ContentScale.Crop
+                    )
+                    Spacer(Modifier.width(8.dp))
+                    Text(v, fontWeight = FontWeight.Bold, fontSize = 13.sp, maxLines = 1)
+                    if (partida.penaltisVisitante != null) {
+                        Spacer(Modifier.width(4.dp))
+                        Text("(${partida.penaltisVisitante})", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = Color.Gray)
+                    }
                 }
             }
             

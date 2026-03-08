@@ -70,8 +70,8 @@ fun ScoreBoardNavigation(
     listaE: SnapshotStateList<EquipeExemplo>,
     listaC: SnapshotStateList<CampeonatoSalvo>
 ) {
-    // A tela inicial agora é a 'telespectador'
     var telaAtual by remember { mutableStateOf("telespectador") }
+    var isOrganizador by remember { mutableStateOf(false) }
     
     var jogadorSelecionado by remember { mutableStateOf<JogadorExemplo?>(null) }
     var equipeSelecionada by remember { mutableStateOf<EquipeExemplo?>(null) }
@@ -98,7 +98,9 @@ fun ScoreBoardNavigation(
                 else "cadastrar_campeonato"
             }
             "distribuicao_grupos" -> "selecao_equipes_campeonato"
-            "painel_campeonato" -> "telespectador"
+            "painel_campeonato" -> {
+                if (isOrganizador) "menu" else "telespectador"
+            }
             "cadastrar_jogador" -> "menu"
             "gerenciar_jogador" -> "menu"
             "detalhes_jogador" -> "gerenciar_jogador"
@@ -114,11 +116,14 @@ fun ScoreBoardNavigation(
         "telespectador" -> TelaInicialTelespectador(
             listaC = listaC,
             onAbrirCampeonato = { camp ->
+                isOrganizador = false
                 equipesNoCampeonato.clear()
                 equipesNoCampeonato.addAll(camp.equipes)
                 listaPartidasCampeonato.clear()
                 listaPartidasCampeonato.addAll(camp.partidas)
                 modeloCampeonatoEscolhido = camp.modelo
+                nomeCampeonatoEscolhido = camp.nomeExibicao 
+                fotoCampeonatoEscolhida = camp.fotoUri
                 idCampeonatoAtual = camp.id
                 configsCampeonatoAtual = camp.configs.copy()
                 configuracaoFinalGrupos = camp.gruposConfig
@@ -130,28 +135,37 @@ fun ScoreBoardNavigation(
         "menu" -> TelaInicialMenu(
             listaC = listaC,
             onAbrirCamp = { camp ->
+                isOrganizador = true
                 equipesNoCampeonato.clear()
                 equipesNoCampeonato.addAll(camp.equipes)
                 listaPartidasCampeonato.clear()
                 listaPartidasCampeonato.addAll(camp.partidas)
                 modeloCampeonatoEscolhido = camp.modelo
+                nomeCampeonatoEscolhido = camp.nomeExibicao
+                fotoCampeonatoEscolhida = camp.fotoUri
                 idCampeonatoAtual = camp.id
                 configsCampeonatoAtual = camp.configs.copy()
                 configuracaoFinalGrupos = camp.gruposConfig
                 telaAtual = "painel_campeonato"
             },
-            onNavegar = { destino: String -> telaAtual = destino }
+            onNavegar = { destino: String -> 
+                if (destino == "cadastrar_campeonato") isOrganizador = true
+                telaAtual = destino 
+            }
         )
 
         "gerenciar_campeonato" -> TelaListaCampeonatos(
             lista = listaC,
             onVoltar = { telaAtual = "menu" },
             onAbrir = { camp: CampeonatoSalvo ->
+                isOrganizador = true
                 equipesNoCampeonato.clear()
                 equipesNoCampeonato.addAll(camp.equipes)
                 listaPartidasCampeonato.clear()
                 listaPartidasCampeonato.addAll(camp.partidas)
                 modeloCampeonatoEscolhido = camp.modelo
+                nomeCampeonatoEscolhido = camp.nomeExibicao
+                fotoCampeonatoEscolhida = camp.fotoUri
                 idCampeonatoAtual = camp.id
                 configsCampeonatoAtual = camp.configs.copy()
                 configuracaoFinalGrupos = camp.gruposConfig
@@ -165,6 +179,7 @@ fun ScoreBoardNavigation(
                 modeloCampeonatoEscolhido = modelo
                 nomeCampeonatoEscolhido = nome
                 fotoCampeonatoEscolhida = foto
+                isOrganizador = true
                 idCampeonatoAtual = -1
                 configsCampeonatoAtual = ConfiguracoesCampeonato()
                 confrontosDefinidos = emptyList()
@@ -289,13 +304,17 @@ fun ScoreBoardNavigation(
             )
         }
         "painel_campeonato" -> {
-            TelaPainelLibertadores(
+            TelaPainelCampeonato(
                 idCamp = idCampeonatoAtual,
+                nomeCamp = nomeCampeonatoEscolhido, 
+                fotoCamp = fotoCampeonatoEscolhida,
                 equipes = equipesNoCampeonato,
                 partidas = listaPartidasCampeonato,
+                modelo = modeloCampeonatoEscolhido,
                 listaGlobalJogadores = listaJ,
                 configsIniciais = configsCampeonatoAtual,
                 listaGruposConfig = configuracaoFinalGrupos,
+                isOrganizador = isOrganizador,
                 onSalvarGeral = { idExistente: Int, novasConfigs: ConfiguracoesCampeonato ->
                     configsCampeonatoAtual = novasConfigs
 
@@ -309,7 +328,7 @@ fun ScoreBoardNavigation(
                     }
                 },
                 onVoltar = {
-                    telaAtual = "telespectador"
+                    telaAtual = if (isOrganizador) "menu" else "telespectador"
                 }
             )
         }
@@ -317,9 +336,9 @@ fun ScoreBoardNavigation(
         "gerenciar_jogador" -> TelaListaJogadores(lista = listaJ, onVoltar = { telaAtual = "menu" }, onGerenciar = { jogador: JogadorExemplo -> jogadorSelecionado = jogador; telaAtual = "detalhes_jogador" })
         "detalhes_jogador" -> {
             jogadorSelecionado?.let { jogador ->
-                TelaDetalhesJogador(jogador = jogador, onSalvar = { novaPos: String, novaFoto: String ->
+                TelaDetalhesJogador(jogador = jogador, onSalvar = { novaPos: String, novaFoto: String, novoApelido: String ->
                     val index = listaJ.indexOfFirst { it.id == jogador.id }
-                    if (index != -1) listaJ[index] = listaJ[index].copy(posicao = novaPos, fotoUri = novaFoto)
+                    if (index != -1) listaJ[index] = listaJ[index].copy(posicao = novaPos, fotoUri = novaFoto, apelido = novoApelido)
                     telaAtual = "gerenciar_jogador"
                 }, onVoltar = { telaAtual = "gerenciar_jogador" })
             }

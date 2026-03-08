@@ -9,6 +9,8 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -41,6 +43,7 @@ fun TelaCadastroJogador(
     onVoltar: () -> Unit
 ) {
     var nome by remember { mutableStateOf("") }
+    var apelido by remember { mutableStateOf("") } // Novo estado para apelido
     var altura by remember { mutableStateOf("") }
     var fotoUri by remember { mutableStateOf("") }
     var dataNasc by remember { mutableStateOf("Selecionar") }
@@ -82,18 +85,24 @@ fun TelaCadastroJogador(
                         Text("Foto", fontSize = 10.sp, color = MaterialTheme.colorScheme.primary)
                     }
                 } else {
-                    AsyncImage(
-                        model = fotoUri,
-                        contentDescription = null,
-                        modifier = Modifier.fillMaxSize(),
-                        contentScale = ContentScale.Crop
-                    )
+                    AsyncImage(model = fotoUri, contentDescription = null, modifier = Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
                 }
             }
         }
         Spacer(Modifier.height(24.dp))
 
         OutlinedTextField(value = nome, onValueChange = { nome = it }, label = { Text("Nome Completo") }, modifier = Modifier.fillMaxWidth())
+        Spacer(modifier = Modifier.height(16.dp))
+
+        // NOVO CAMPO: APELIDO (MÁXIMO 16 CARACTERES)
+        OutlinedTextField(
+            value = apelido,
+            onValueChange = { if (it.length <= 16) apelido = it },
+            label = { Text("Apelido (Nome de Guerra)") },
+            modifier = Modifier.fillMaxWidth(),
+            supportingText = { Text("${apelido.length}/16", modifier = Modifier.fillMaxWidth(), textAlign = androidx.compose.ui.text.style.TextAlign.End) },
+            singleLine = true
+        )
         Spacer(modifier = Modifier.height(16.dp))
 
         ExposedDropdownMenuBox(expanded = expanded, onExpandedChange = { expanded = !expanded }) {
@@ -124,7 +133,7 @@ fun TelaCadastroJogador(
             onClick = {
                 if (nome.isNotBlank()) {
                     val novoId = (listaGlobalJogadores.maxOfOrNull { it.id } ?: 0) + 1
-                    listaGlobalJogadores.add(JogadorExemplo(novoId, nome, posSel, altura, idadeS, -1, 0, fotoUri))
+                    listaGlobalJogadores.add(JogadorExemplo(novoId, nome, posSel, altura, idadeS, -1, 0, fotoUri, apelido))
                     Toast.makeText(ctx, "Jogador salvo!", Toast.LENGTH_SHORT).show()
                     onVoltar()
                 }
@@ -175,12 +184,7 @@ fun TelaCadastroEquipe(
                 if (escudoUri.isBlank()) {
                     Icon(Icons.Default.AddAPhoto, null, tint = MaterialTheme.colorScheme.primary)
                 } else {
-                    AsyncImage(
-                        model = escudoUri,
-                        contentDescription = null,
-                        modifier = Modifier.fillMaxSize(),
-                        contentScale = ContentScale.Crop
-                    )
+                    AsyncImage(model = escudoUri, contentDescription = null, modifier = Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
                 }
             }
         }
@@ -264,7 +268,8 @@ fun TelaCadastroEquipe(
             onClick = {
                 if (nome.isNotBlank() && iden.isNotBlank()) {
                     val novoId = (listaGlobalEquipes.maxOfOrNull { it.id } ?: 0) + 1
-                    listaGlobalEquipes.add(EquipeExemplo(novoId, iden, nome, cid, emptyList(), listaPatrocinadores.toList(), escudoUri))
+                    val patrocinadoresParaSalvar = listaPatrocinadores.map { it }
+                    listaGlobalEquipes.add(EquipeExemplo(novoId, iden, nome, cid, emptyList(), patrocinadoresParaSalvar, escudoUri))
                     Toast.makeText(ctx, "Equipe salva!", Toast.LENGTH_SHORT).show()
                     onVoltar()
                 }
