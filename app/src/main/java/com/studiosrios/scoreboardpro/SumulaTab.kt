@@ -54,17 +54,20 @@ fun SumulaTab(
                         Button(onClick = { 
                             partidaFocadaId = p.id 
                             onEntrarEdicao(p.id)
-                        }) { Text("ABRIR SÚMULA") }
+                        }, colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF2E7D32))) { 
+                            Text("ABRIR SÚMULA") 
+                        }
                     }
                 }
             }
         }
     } else {
-        val partidaAtualizada = partidas.find { it.id == partidaFocadaId }
+        val idx = partidas.indexOfFirst { it.id == partidaFocadaId }
 
-        if (partidaAtualizada != null) {
+        if (idx != -1) {
             ConteudoRegistrarEventos(
-                p = partidaAtualizada,
+                p = partidas[idx],
+                idxPartida = idx,
                 partidas = partidas,
                 equipes = equipes,
                 todosJogadores = todosJogadores,
@@ -83,6 +86,7 @@ fun SumulaTab(
 @Composable
 fun ConteudoRegistrarEventos(
     p: Partida,
+    idxPartida: Int,
     partidas: SnapshotStateList<Partida>,
     equipes: List<EquipeExemplo>,
     todosJogadores: List<JogadorExemplo>,
@@ -106,9 +110,66 @@ fun ConteudoRegistrarEventos(
     var minutoDoGol by remember { mutableStateOf("") }
     var tipoDoGol by remember { mutableStateOf("") }
 
-    // Estado para Substituição
     var showDialogSubstituicaoEntrada by remember { mutableStateOf(false) }
     var jogadorSaindo by remember { mutableStateOf<JogadorExemplo?>(null) }
+
+    var showDialogPenaltis by remember { mutableStateOf(false) }
+    var penMandanteInput by remember { mutableStateOf(p.penaltisMandante?.toString() ?: "") }
+    var penVisitanteInput by remember { mutableStateOf(p.penaltisVisitante?.toString() ?: "") }
+
+    // DIÁLOGO DE PÊNALTIS
+    if (showDialogPenaltis) {
+        AlertDialog(
+            onDismissRequest = { showDialogPenaltis = false },
+            title = { Text("Disputa de Pênaltis") },
+            text = {
+                Column(Modifier.verticalScroll(rememberScrollState())) {
+                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceEvenly, modifier = Modifier.fillMaxWidth()) {
+                        OutlinedTextField(
+                            value = penMandanteInput,
+                            onValueChange = { penMandanteInput = it.filter { c -> c.isDigit() } },
+                            label = { Text(mNome.take(5)) },
+                            modifier = Modifier.width(80.dp),
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
+                        )
+                        Text("X", fontWeight = FontWeight.Bold)
+                        OutlinedTextField(
+                            value = penVisitanteInput,
+                            onValueChange = { penVisitanteInput = it.filter { c -> c.isDigit() } },
+                            label = { Text(vNome.take(5)) },
+                            modifier = Modifier.width(80.dp),
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
+                        )
+                    }
+                    
+                    Spacer(Modifier.height(16.dp))
+                    Text("Registrar Cobrança Individual:", fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                    
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
+                        Button(
+                            onClick = { tipoAtual = "CONVERTEU PÊNALTI"; showDialog = true },
+                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF2E7D32)),
+                            modifier = Modifier.weight(1f).padding(2.dp)
+                        ) { Text("CONVERTEU", fontSize = 9.sp) }
+                        
+                        Button(
+                            onClick = { tipoAtual = "PERDEU PÊNALTI"; showDialog = true },
+                            colors = ButtonDefaults.buttonColors(containerColor = Color.Red),
+                            modifier = Modifier.weight(1f).padding(2.dp)
+                        ) { Text("PERDEU", fontSize = 10.sp) }
+                    }
+                }
+            },
+            confirmButton = {
+                Button(onClick = {
+                    val pM = penMandanteInput.toIntOrNull()
+                    val pV = penVisitanteInput.toIntOrNull()
+                    partidas[idxPartida] = p.copy(penaltisMandante = pM, penaltisVisitante = pV)
+                    showDialogPenaltis = false
+                }, colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF2E7D32))) { Text("SALVAR PLACAR") }
+            }
+        )
+    }
 
     // DIÁLOGO DE MINUTO
     if (showDialogMinuto) {
@@ -252,10 +313,7 @@ fun ConteudoRegistrarEventos(
                 Column(Modifier.verticalScroll(rememberScrollState())) {
                     jogadoresDaPartida.forEach { jog ->
                         TextButton(onClick = {
-                            val idx = partidas.indexOfFirst { it.id == p.id }
-                            if (idx != -1) {
-                                partidas[idx] = partidas[idx].copy(melhorJogador = jog.nome)
-                            }
+                            partidas[idxPartida] = partidas[idxPartida].copy(melhorJogador = jog.nome)
                             showDialogMelhor = false
                         }) { Text(jog.nome) }
                     }
@@ -269,22 +327,30 @@ fun ConteudoRegistrarEventos(
         Text("SÚMULA: $mNome x $vNome", fontSize = 18.sp, fontWeight = FontWeight.Black)
         val pM = if(p.golsMandante == null) "-" else p.golsMandante.toString()
         val pV = if(p.golsVisitante == null) "-" else p.golsVisitante.toString()
-        Text("Placar: $pM x $pV", fontSize = 14.sp, color = Color.Gray)
+        val penStr = if (p.penaltisMandante != null) " (Pen: ${p.penaltisMandante} x ${p.penaltisVisitante})" else ""
+        Text("Placar: $pM x $pV$penStr", fontSize = 14.sp, color = Color.Gray)
         Spacer(Modifier.height(16.dp))
 
-        // BOTÕES DE MARCO DA PARTIDA
         Row(Modifier.fillMaxWidth().padding(bottom = 8.dp), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
             val btnMod = Modifier.weight(1f)
             val addMarco = { tipo: String ->
-                val idx = partidas.indexOfFirst { it.id == p.id }
-                if (idx != -1) {
-                    val marco = EventoPartida(jogadorNome = "Partida", equipeNome = "Geral", tipo = tipo)
-                    partidas[idx] = partidas[idx].copy(eventos = partidas[idx].eventos + marco)
-                }
+                val marco = EventoPartida(jogadorNome = "Partida", equipeNome = "Geral", tipo = tipo)
+                partidas[idxPartida] = p.copy(eventos = p.eventos + marco)
             }
             Button(onClick = { addMarco("INÍCIO") }, modifier = btnMod, colors = ButtonDefaults.buttonColors(containerColor = Color.Black)) { Text("INÍCIO", fontSize = 9.sp) }
             Button(onClick = { addMarco("INTERVALO") }, modifier = btnMod, colors = ButtonDefaults.buttonColors(containerColor = Color.DarkGray)) { Text("INTERVALO", fontSize = 8.sp) }
             Button(onClick = { addMarco("FIM DE JOGO") }, modifier = btnMod, colors = ButtonDefaults.buttonColors(containerColor = Color.Red)) { Text("FIM", fontSize = 9.sp) }
+        }
+
+        val ehMataMata = !p.fase.contains("RODADA", ignoreCase = true) && !p.fase.contains("ÚNICA", ignoreCase = true)
+        if (ehMataMata) {
+            Button(
+                onClick = { showDialogPenaltis = true },
+                modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp),
+                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF546E7A))
+            ) {
+                Text("DISPUTA DE PÊNALTIS", fontWeight = FontWeight.Bold)
+            }
         }
 
         Card(Modifier.fillMaxWidth().padding(bottom = 16.dp), colors = CardDefaults.cardColors(containerColor = Color(0xFFFFFDE7))) {
@@ -330,6 +396,8 @@ fun ConteudoRegistrarEventos(
                 ev.tipo == "YELLOW CARD" -> Color(0xFFB79400)
                 ev.tipo == "RED CARD" -> Color.Red
                 ev.tipo == "GOL CONTRA" -> Color(0xFFD32F2F)
+                ev.tipo.contains("CONVERTEU") -> Color(0xFF2E7D32)
+                ev.tipo.contains("PERDEU") -> Color.Red
                 else -> Color(0xFF2E7D32)
             }
             Row(
@@ -340,33 +408,30 @@ fun ConteudoRegistrarEventos(
                 val minStr = if(ev.minuto.isNotBlank()) "${ev.minuto}' " else ""
                 Text("$minStr${ev.tipo}: ${ev.jogadorNome}", color = cor, fontWeight = FontWeight.Medium, modifier = Modifier.weight(1f), fontSize = 12.sp)
                 IconButton(onClick = {
-                    val idxPartida = partidas.indexOfFirst { it.id == p.id }
-                    if (idxPartida != -1) {
-                        val pEd = partidas[idxPartida]
-                        var novosGolsMandante = pEd.golsMandante
-                        var novosGolsVisitante = pEd.golsVisitante
+                    val pEd = partidas[idxPartida]
+                    var novosGolsMandante = pEd.golsMandante
+                    var novosGolsVisitante = pEd.golsVisitante
 
-                        if (ev.tipo == "GOL" || ev.tipo == "GOL (PÊNALTI)" || ev.tipo == "CONVERTEU PÊNALTI") {
-                            val jog = todosJogadores.find { it.nome == ev.jogadorNome }
-                            if (jog != null) {
-                                if (jog.equipeId == pEd.mandanteId) novosGolsMandante = (novosGolsMandante ?: 0) - 1
-                                else novosGolsVisitante = (novosGolsVisitante ?: 0) - 1
-                            }
-                        } else if (ev.tipo == "GOL CONTRA") {
-                            val jog = todosJogadores.find { it.nome == ev.jogadorNome }
-                            if (jog != null) {
-                                if (jog.equipeId == pEd.mandanteId) novosGolsVisitante = (novosGolsVisitante ?: 0) - 1
-                                else novosGolsMandante = (novosGolsMandante ?: 0) - 1
-                            }
+                    if (ev.tipo == "GOL" || ev.tipo == "GOL (PÊNALTI)" || ev.tipo == "CONVERTEU PÊNALTI") {
+                        val jog = todosJogadores.find { it.nome == ev.jogadorNome }
+                        if (jog != null) {
+                            if (jog.equipeId == pEd.mandanteId) novosGolsMandante = (novosGolsMandante ?: 0) - 1
+                            else novosGolsVisitante = (novosGolsVisitante ?: 0) - 1
                         }
-
-                        val novaLista = pEd.eventos.toMutableList().apply { remove(ev) }
-                        partidas[idxPartida] = pEd.copy(
-                            eventos = novaLista,
-                            golsMandante = if ((novosGolsMandante ?: 0) < 0) 0 else novosGolsMandante,
-                            golsVisitante = if ((novosGolsVisitante ?: 0) < 0) 0 else novosGolsVisitante
-                        )
+                    } else if (ev.tipo == "GOL CONTRA") {
+                        val jog = todosJogadores.find { it.nome == ev.jogadorNome }
+                        if (jog != null) {
+                            if (jog.equipeId == pEd.mandanteId) novosGolsVisitante = (novosGolsVisitante ?: 0) - 1
+                            else novosGolsMandante = (novosGolsMandante ?: 0) - 1
+                        }
                     }
+
+                    val novaLista = pEd.eventos.toMutableList().apply { remove(ev) }
+                    partidas[idxPartida] = pEd.copy(
+                        eventos = novaLista,
+                        golsMandante = if ((novosGolsMandante ?: 0) < 0) 0 else novosGolsMandante,
+                        golsVisitante = if ((novosGolsVisitante ?: 0) < 0) 0 else novosGolsVisitante
+                    )
                 }) {
                     Icon(Icons.Default.Delete, contentDescription = "Excluir", tint = Color.Gray)
                 }
@@ -375,7 +440,6 @@ fun ConteudoRegistrarEventos(
 
         Spacer(Modifier.height(24.dp))
         
-        // BOTÕES FINAIS: SALVAR (Verde) e VOLTAR (Vermelho)
         Button(
             onClick = onVoltar, 
             modifier = Modifier.fillMaxWidth().height(55.dp),
@@ -414,7 +478,10 @@ fun salvarEventoImpl(
         var novosGolsMandante = pEd.golsMandante
         var novosGolsVisitante = pEd.golsVisitante
 
-        if (tipo == "GOL" || tipo == "GOL (PÊNALTI)" || tipo == "CONVERTEU PÊNALTI") {
+        // --- LÓGICA DE CONTABILIZAÇÃO DE GOLS ---
+        // Apenas GOL e GOL (PÊNALTI) somam no placar principal e artilharia
+        // CONVERTEU PÊNALTI e PERDEU PÊNALTI são apenas registros históricos para a disputa final
+        if (tipo == "GOL" || tipo == "GOL (PÊNALTI)") {
             if (jog.equipeId == pEd.mandanteId) novosGolsMandante = (novosGolsMandante ?: 0) + 1
             else novosGolsVisitante = (novosGolsVisitante ?: 0) + 1
         } else if (tipo == "GOL CONTRA") {

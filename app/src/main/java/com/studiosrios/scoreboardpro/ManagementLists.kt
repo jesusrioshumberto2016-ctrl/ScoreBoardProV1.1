@@ -9,13 +9,17 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AddAPhoto
 import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -45,7 +49,6 @@ fun TelaListaCampeonatos(lista: List<CampeonatoSalvo>, onVoltar: () -> Unit, onA
                 items(lista) { camp ->
                     Card(modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp)) {
                         Row(modifier = Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
-                            // Miniatura da foto do campeonato
                             AsyncImage(
                                 model = camp.fotoUri.ifBlank { R.drawable.ic_launcher_background },
                                 contentDescription = null,
@@ -63,105 +66,35 @@ fun TelaListaCampeonatos(lista: List<CampeonatoSalvo>, onVoltar: () -> Unit, onA
                 }
             }
         }
-        Button(onClick = onVoltar, modifier = Modifier.fillMaxWidth()) { Text("VOLTAR") }
+        Button(onClick = onVoltar, modifier = Modifier.fillMaxWidth(), colors = ButtonDefaults.buttonColors(containerColor = Color.Red)) { Text("VOLTAR") }
     }
 }
 
-@Composable
-fun TelaModeloCampeonato(onVoltar: () -> Unit, onSelecionar: (String, String, String) -> Unit) {
-    var nomeCamp by remember { mutableStateOf("") }
-    var fotoUri by remember { mutableStateOf("") }
-    var modeloSelecionado by remember { mutableStateOf("") }
-    val modelos = listOf("Brasileirão Série A", "Mata Mata", "Copa Libertadores")
-
-    val launcher = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri: Uri? ->
-        uri?.let { fotoUri = it.toString() }
-    }
-
-    Column(modifier = Modifier.fillMaxSize().padding(24.dp).verticalScroll(rememberScrollState())) {
-        Text("NOVO CAMPEONATO", fontSize = 24.sp, fontWeight = FontWeight.Bold)
-        Text("Configure as informações básicas", color = Color.Gray)
-        Spacer(modifier = Modifier.height(24.dp))
-
-        // SEÇÃO DE FOTO
-        Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
-            Box(
-                modifier = Modifier
-                    .size(120.dp)
-                    .clip(CircleShape)
-                    .background(MaterialTheme.colorScheme.primaryContainer)
-                    .border(2.dp, MaterialTheme.colorScheme.primary, CircleShape)
-                    .clickable { launcher.launch("image/*") },
-                contentAlignment = Alignment.Center
-            ) {
-                if (fotoUri.isBlank()) {
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Icon(Icons.Default.AddAPhoto, null, tint = MaterialTheme.colorScheme.primary)
-                        Text("Adicionar Foto", fontSize = 10.sp, color = MaterialTheme.colorScheme.primary)
-                    }
-                } else {
-                    AsyncImage(
-                        model = fotoUri,
-                        contentDescription = null,
-                        modifier = Modifier.fillMaxSize(),
-                        contentScale = ContentScale.Crop
-                    )
-                }
-            }
-        }
-
-        Spacer(modifier = Modifier.height(24.dp))
-
-        // CAMPO DE NOME
-        OutlinedTextField(
-            value = nomeCamp,
-            onValueChange = { nomeCamp = it },
-            label = { Text("Nome do Campeonato") },
-            modifier = Modifier.fillMaxWidth(),
-            singleLine = true
-        )
-
-        Spacer(modifier = Modifier.height(24.dp))
-
-        // SELEÇÃO DE FORMATO
-        Text("Escolha o formato da competição", fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
-        Spacer(Modifier.height(8.dp))
-
-        modelos.forEach { modelo ->
-            Button(
-                onClick = { modeloSelecionado = modelo },
-                modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp).height(55.dp),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = if (modeloSelecionado == modelo) MaterialTheme.colorScheme.primary else Color.LightGray.copy(0.3f),
-                    contentColor = if (modeloSelecionado == modelo) Color.White else Color.Black
-                )
-            ) {
-                Text(modelo.uppercase(), fontWeight = FontWeight.Bold)
-            }
-        }
-
-        Spacer(modifier = Modifier.weight(1f))
-
-        Button(
-            onClick = { onSelecionar(modeloSelecionado, nomeCamp, fotoUri) },
-            modifier = Modifier.fillMaxWidth().height(55.dp).padding(top = 16.dp),
-            enabled = modeloSelecionado.isNotEmpty() && nomeCamp.isNotBlank()
-        ) {
-            Text("PRÓXIMO PASSO")
-        }
-        TextButton(onClick = onVoltar, modifier = Modifier.align(Alignment.CenterHorizontally)) {
-            Text("CANCELAR")
-        }
-    }
-}
-
-// ... Restante das funções (TelaDetalhesEquipe, etc) permanecem iguais ...
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun TelaDetalhesEquipe(equipe: EquipeExemplo, listaJogadores: SnapshotStateList<JogadorExemplo>, onAdicionar: () -> Unit, onVoltar: () -> Unit) {
+fun TelaDetalhesEquipe(
+    equipe: EquipeExemplo, 
+    listaGlobalEquipes: SnapshotStateList<EquipeExemplo>,
+    listaJogadores: SnapshotStateList<JogadorExemplo>, 
+    onAdicionar: () -> Unit, 
+    onVoltar: () -> Unit
+) {
     val elenco = listaJogadores.filter { it.equipeId == equipe.id }
     var mostrarDialogo by remember { mutableStateOf(false) }
     var jogadorParaRemover by remember { mutableStateOf<JogadorExemplo?>(null) }
+    
+    // Novo estado para o escudo editável
+    var novoEscudoUri by remember { mutableStateOf(equipe.escudoUri) }
+    val launcherEscudo = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri: Uri? ->
+        uri?.let { 
+            novoEscudoUri = it.toString()
+            // Atualiza na lista global
+            val idx = listaGlobalEquipes.indexOfFirst { e -> e.id == equipe.id }
+            if (idx != -1) {
+                listaGlobalEquipes[idx] = listaGlobalEquipes[idx].copy(escudoUri = it.toString())
+            }
+        }
+    }
 
     if (mostrarDialogo && jogadorParaRemover != null) {
         AlertDialog(
@@ -191,7 +124,67 @@ fun TelaDetalhesEquipe(equipe: EquipeExemplo, listaJogadores: SnapshotStateList<
     }
 
     Column(modifier = Modifier.fillMaxSize().padding(24.dp)) {
-        Text("EQUIPE: ${equipe.nome}", fontSize = 22.sp, fontWeight = FontWeight.Bold)
+        Text("GERENCIAR EQUIPE", fontSize = 22.sp, fontWeight = FontWeight.Bold)
+        Spacer(modifier = Modifier.height(16.dp))
+
+        // CARD DE DADOS CADASTRAIS (Com Escudo Editável)
+        Card(modifier = Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))) {
+            Column(Modifier.padding(16.dp)) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Box(contentAlignment = Alignment.BottomEnd) {
+                        AsyncImage(
+                            model = novoEscudoUri.ifBlank { R.drawable.ic_launcher_background },
+                            contentDescription = null,
+                            modifier = Modifier
+                                .size(70.dp)
+                                .clip(CircleShape)
+                                .background(Color.White)
+                                .border(2.dp, MaterialTheme.colorScheme.primary, CircleShape)
+                                .clickable { launcherEscudo.launch("image/*") },
+                            contentScale = ContentScale.Crop
+                        )
+                        Surface(
+                            color = MaterialTheme.colorScheme.primary,
+                            shape = CircleShape,
+                            modifier = Modifier.size(24.dp).offset(x = 4.dp, y = 4.dp)
+                        ) {
+                            Icon(Icons.Default.Edit, null, modifier = Modifier.padding(4.dp), tint = Color.White)
+                        }
+                    }
+
+                    Spacer(Modifier.width(16.dp))
+                    Column {
+                        Text(equipe.nome, fontSize = 20.sp, fontWeight = FontWeight.Black, color = MaterialTheme.colorScheme.primary)
+                        Text("Sigla: ${equipe.identificacao}", fontSize = 14.sp, fontWeight = FontWeight.Medium)
+                        Text("Cidade: ${equipe.city}", fontSize = 14.sp, color = Color.Gray)
+                    }
+                }
+                
+                HorizontalDivider(Modifier.padding(vertical = 12.dp))
+                
+                Text("PATROCINADORES:", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = Color.DarkGray)
+                Spacer(Modifier.height(8.dp))
+                
+                if (equipe.patrocinadores.isEmpty()) {
+                    Text("Nenhum cadastrado", fontSize = 12.sp, color = Color.LightGray)
+                } else {
+                    LazyRow(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                        items(equipe.patrocinadores) { pat ->
+                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                AsyncImage(
+                                    model = pat.fotoUri.ifBlank { R.drawable.ic_launcher_background },
+                                    contentDescription = null,
+                                    modifier = Modifier.size(45.dp).clip(RoundedCornerShape(8.dp)).background(Color.White).border(0.5.dp, Color.LightGray, RoundedCornerShape(8.dp)),
+                                    contentScale = ContentScale.Crop
+                                )
+                                Text(pat.nome.take(10), fontSize = 10.sp, color = Color.Gray)
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
         Spacer(modifier = Modifier.height(24.dp))
 
         Button(
@@ -199,7 +192,7 @@ fun TelaDetalhesEquipe(equipe: EquipeExemplo, listaJogadores: SnapshotStateList<
             modifier = Modifier.fillMaxWidth().height(50.dp),
             colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF2E7D32))
         ) {
-            Text("ADICIONAR JOGADOR")
+            Text("ADICIONAR JOGADOR AO ELENCO")
         }
 
         Spacer(modifier = Modifier.height(20.dp))
@@ -209,6 +202,13 @@ fun TelaDetalhesEquipe(equipe: EquipeExemplo, listaJogadores: SnapshotStateList<
             items(elenco) { j ->
                 Card(modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp)) {
                     Row(Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
+                        AsyncImage(
+                            model = j.fotoUri.ifBlank { R.drawable.ic_launcher_background },
+                            contentDescription = null,
+                            modifier = Modifier.size(35.dp).clip(CircleShape).background(Color.LightGray),
+                            contentScale = ContentScale.Crop
+                        )
+                        Spacer(Modifier.width(12.dp))
                         Column(Modifier.weight(1f)) {
                             Text(j.nome, fontWeight = FontWeight.Bold)
                             Text(j.posicao, fontSize = 12.sp)
@@ -226,20 +226,60 @@ fun TelaDetalhesEquipe(equipe: EquipeExemplo, listaJogadores: SnapshotStateList<
                 }
             }
         }
-        Button(onClick = onVoltar, modifier = Modifier.fillMaxWidth()) { Text("VOLTAR") }
+        
+        Button(
+            onClick = onVoltar, 
+            modifier = Modifier.fillMaxWidth().padding(top = 16.dp),
+            colors = ButtonDefaults.buttonColors(containerColor = Color.Red)
+        ) { Text("VOLTAR") }
     }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun TelaDetalhesJogador(jogador: JogadorExemplo, onSalvar: (String) -> Unit, onVoltar: () -> Unit) {
+fun TelaDetalhesJogador(jogador: JogadorExemplo, onSalvar: (String, String) -> Unit, onVoltar: () -> Unit) {
     var novaPosicao by remember { mutableStateOf(jogador.posicao) }
+    var novaFotoUri by remember { mutableStateOf(jogador.fotoUri) }
     var expanded by remember { mutableStateOf(false) }
     val posicoes = listOf("GOL", "ZAG", "LAT", "ALA", "VOL", "MEI", "MAT", "PT", "CA")
 
-    Column(modifier = Modifier.fillMaxSize().padding(24.dp)) {
+    val launcher = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri: Uri? ->
+        uri?.let { novaFotoUri = it.toString() }
+    }
+
+    Column(modifier = Modifier.fillMaxSize().padding(24.dp).verticalScroll(rememberScrollState())) {
         Text("DETALHES DO JOGADOR", fontSize = 22.sp, fontWeight = FontWeight.Bold)
         Spacer(modifier = Modifier.height(20.dp))
+
+        Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+            Box(
+                modifier = Modifier
+                    .size(120.dp)
+                    .clip(CircleShape)
+                    .background(MaterialTheme.colorScheme.surfaceVariant)
+                    .border(2.dp, MaterialTheme.colorScheme.primary, CircleShape)
+                    .clickable { launcher.launch("image/*") },
+                contentAlignment = Alignment.Center
+            ) {
+                if (novaFotoUri.isBlank()) {
+                    Icon(Icons.Default.Person, null, modifier = Modifier.size(50.dp), tint = MaterialTheme.colorScheme.primary)
+                } else {
+                    AsyncImage(
+                        model = novaFotoUri,
+                        contentDescription = null,
+                        modifier = Modifier.fillMaxSize(),
+                        contentScale = ContentScale.Crop
+                    )
+                }
+                Box(modifier = Modifier.fillMaxSize().padding(8.dp), contentAlignment = Alignment.BottomEnd) {
+                    Surface(color = MaterialTheme.colorScheme.primary, shape = CircleShape, modifier = Modifier.size(30.dp)) {
+                        Icon(Icons.Default.AddAPhoto, null, modifier = Modifier.padding(6.dp), tint = Color.White)
+                    }
+                }
+            }
+        }
+
+        Spacer(modifier = Modifier.height(24.dp))
 
         OutlinedTextField(value = jogador.nome, onValueChange = {}, label = { Text("Nome") }, readOnly = true, modifier = Modifier.fillMaxWidth())
         Spacer(modifier = Modifier.height(12.dp))
@@ -266,12 +306,16 @@ fun TelaDetalhesJogador(jogador: JogadorExemplo, onSalvar: (String) -> Unit, onV
             }
         }
 
-        Spacer(modifier = Modifier.weight(1f))
-        Button(onClick = { onSalvar(novaPosicao) }, modifier = Modifier.fillMaxWidth().height(55.dp)) {
+        Spacer(modifier = Modifier.height(32.dp))
+        Button(
+            onClick = { onSalvar(novaPosicao, novaFotoUri) }, 
+            modifier = Modifier.fillMaxWidth().height(55.dp),
+            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF2E7D32))
+        ) {
             Text("SALVAR ALTERAÇÕES")
         }
-        TextButton(onClick = onVoltar, modifier = Modifier.align(Alignment.CenterHorizontally)) {
-            Text("VOLTAR")
+        TextButton(onClick = onVoltar, modifier = Modifier.align(Alignment.CenterHorizontally), colors = ButtonDefaults.textButtonColors(contentColor = Color.Red)) {
+            Text("VOLTAR / CANCELAR")
         }
     }
 }
@@ -316,6 +360,13 @@ fun TelaSelecaoEquipesCampeonato(listaEquipes: List<EquipeExemplo>, onVoltar: ()
                     colors = CardDefaults.cardColors(containerColor = if (isSelected) MaterialTheme.colorScheme.primaryContainer else Color.White)
                 ) {
                     Row(Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
+                        AsyncImage(
+                            model = equipe.escudoUri.ifBlank { R.drawable.ic_launcher_background },
+                            contentDescription = null,
+                            modifier = Modifier.size(35.dp).clip(CircleShape).background(Color.White).border(1.dp, Color.Gray, CircleShape),
+                            contentScale = ContentScale.Crop
+                        )
+                        Spacer(Modifier.width(12.dp))
                         Column(Modifier.weight(1f)) {
                             Text(equipe.nome, fontWeight = FontWeight.Bold)
                             Text(equipe.city, fontSize = 12.sp)
@@ -329,12 +380,99 @@ fun TelaSelecaoEquipesCampeonato(listaEquipes: List<EquipeExemplo>, onVoltar: ()
         Button(
             onClick = { onFinalizar(selecionadas.toList()) },
             modifier = Modifier.fillMaxWidth().height(55.dp),
-            enabled = selecionadas.size in 2..32
+            enabled = selecionadas.size in 2..32,
+            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF2E7D32))
         ) {
             Text("INICIAR CAMPEONATO")
         }
-        TextButton(onClick = onVoltar, modifier = Modifier.align(Alignment.CenterHorizontally)) {
+        TextButton(onClick = onVoltar, modifier = Modifier.align(Alignment.CenterHorizontally), colors = ButtonDefaults.textButtonColors(contentColor = Color.Red)) {
             Text("VOLTAR")
+        }
+    }
+}
+
+@Composable
+fun TelaModeloCampeonato(onVoltar: () -> Unit, onSelecionar: (String, String, String) -> Unit) {
+    var nomeCamp by remember { mutableStateOf("") }
+    var fotoUri by remember { mutableStateOf("") }
+    var modeloSelecionado by remember { mutableStateOf("") }
+    val modelos = listOf("Brasileirão Série A", "Mata Mata", "Copa Libertadores")
+    
+    val launcher = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri: Uri? ->
+        uri?.let { fotoUri = it.toString() }
+    }
+
+    Column(modifier = Modifier.fillMaxSize().padding(24.dp).verticalScroll(rememberScrollState())) {
+        Text("NOVO CAMPEONATO", fontSize = 24.sp, fontWeight = FontWeight.Bold)
+        Text("Configure as informações básicas", color = Color.Gray)
+        Spacer(modifier = Modifier.height(24.dp))
+
+        Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+            Box(
+                modifier = Modifier
+                    .size(120.dp)
+                    .clip(CircleShape)
+                    .background(MaterialTheme.colorScheme.primaryContainer)
+                    .border(2.dp, MaterialTheme.colorScheme.primary, CircleShape)
+                    .clickable { launcher.launch("image/*") },
+                contentAlignment = Alignment.Center
+            ) {
+                if (fotoUri.isBlank()) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Icon(Icons.Default.AddAPhoto, null, tint = MaterialTheme.colorScheme.primary)
+                        Text("Adicionar Foto", fontSize = 10.sp, color = MaterialTheme.colorScheme.primary)
+                    }
+                } else {
+                    AsyncImage(
+                        model = fotoUri,
+                        contentDescription = null,
+                        modifier = Modifier.fillMaxSize(),
+                        contentScale = ContentScale.Crop
+                    )
+                }
+            }
+        }
+
+        Spacer(modifier = Modifier.height(24.dp))
+
+        OutlinedTextField(
+            value = nomeCamp,
+            onValueChange = { nomeCamp = it },
+            label = { Text("Nome do Campeonato") },
+            modifier = Modifier.fillMaxWidth(),
+            singleLine = true
+        )
+
+        Spacer(modifier = Modifier.height(24.dp))
+
+        Text("Escolha o formato da competição", fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
+        Spacer(Modifier.height(8.dp))
+        
+        modelos.forEach { modelo ->
+            Button(
+                onClick = { modeloSelecionado = modelo },
+                modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp).height(55.dp),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = if (modeloSelecionado == modelo) MaterialTheme.colorScheme.primary else Color.LightGray.copy(0.3f),
+                    contentColor = if (modeloSelecionado == modelo) Color.White else Color.Black
+                )
+            ) {
+                Text(modelo.uppercase(), fontWeight = FontWeight.Bold)
+            }
+        }
+
+        Spacer(modifier = Modifier.weight(1f))
+
+        Button(
+            onClick = { onSelecionar(modeloSelecionado, nomeCamp, fotoUri) },
+            modifier = Modifier.fillMaxWidth().height(55.dp).padding(top = 16.dp),
+            enabled = modeloSelecionado.isNotEmpty() && nomeCamp.isNotBlank(),
+            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF2E7D32))
+        ) {
+            Text("PRÓXIMO PASSO")
+        }
+        TextButton(onClick = onVoltar, modifier = Modifier.align(Alignment.CenterHorizontally), colors = ButtonDefaults.textButtonColors(contentColor = Color.Red)) {
+            Text("CANCELAR")
         }
     }
 }
@@ -362,6 +500,13 @@ fun TelaSelecaoJogador(equipeAlvo: EquipeExemplo, listaTotal: SnapshotStateList<
                     colors = CardDefaults.cardColors(containerColor = if (ja) Color.LightGray.copy(0.4f) else Color.White)
                 ) {
                     Row(Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
+                        AsyncImage(
+                            model = j.fotoUri.ifBlank { R.drawable.ic_launcher_background },
+                            contentDescription = null,
+                            modifier = Modifier.size(35.dp).clip(CircleShape).background(Color.LightGray),
+                            contentScale = ContentScale.Crop
+                        )
+                        Spacer(Modifier.width(12.dp))
                         Column(Modifier.weight(1f)) {
                             Text(j.nome, fontWeight = FontWeight.Bold, color = if (ja) Color.Gray else Color.Black)
                             Text(if (ja) "Já possui equipe" else "Disponível", fontSize = 12.sp)
@@ -371,7 +516,8 @@ fun TelaSelecaoJogador(equipeAlvo: EquipeExemplo, listaTotal: SnapshotStateList<
                                 val idx = listaTotal.indexOfFirst { it.id == j.id }
                                 if (idx != -1) listaTotal[idx] = listaTotal[idx].copy(equipeId = equipeAlvo.id)
                             },
-                            enabled = !ja
+                            enabled = !ja,
+                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF2E7D32))
                         ) {
                             Text("ADICIONAR", fontSize = 10.sp)
                         }
@@ -379,7 +525,7 @@ fun TelaSelecaoJogador(equipeAlvo: EquipeExemplo, listaTotal: SnapshotStateList<
                 }
             }
         }
-        Button(onClick = onFinalizar, modifier = Modifier.fillMaxWidth()) { Text("CONCLUÍDO") }
+        Button(onClick = onFinalizar, modifier = Modifier.fillMaxWidth(), colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF2E7D32))) { Text("CONCLUÍDO") }
     }
 }
 
@@ -397,6 +543,13 @@ fun TelaListaEquipes(lista: List<EquipeExemplo>, onVoltar: () -> Unit, onGerenci
             items(filt) { e ->
                 Card(modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp)) {
                     Row(modifier = Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
+                        AsyncImage(
+                            model = e.escudoUri.ifBlank { R.drawable.ic_launcher_background },
+                            contentDescription = null,
+                            modifier = Modifier.size(35.dp).clip(CircleShape).background(Color.White).border(1.dp, Color.Gray, CircleShape),
+                            contentScale = ContentScale.Crop
+                        )
+                        Spacer(Modifier.width(12.dp))
                         Column(Modifier.weight(1f)) {
                             Text(e.nome, fontWeight = FontWeight.Bold)
                             Text("ID: ${e.identificacao}", color = Color.Gray)
@@ -406,7 +559,7 @@ fun TelaListaEquipes(lista: List<EquipeExemplo>, onVoltar: () -> Unit, onGerenci
                 }
             }
         }
-        Button(onClick = onVoltar, modifier = Modifier.fillMaxWidth()) { Text("VOLTAR") }
+        Button(onClick = onVoltar, modifier = Modifier.fillMaxWidth(), colors = ButtonDefaults.buttonColors(containerColor = Color.Red)) { Text("VOLTAR") }
     }
 }
 
@@ -424,6 +577,13 @@ fun TelaListaJogadores(lista: List<JogadorExemplo>, onVoltar: () -> Unit, onGere
             items(f) { j ->
                 Card(modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp)) {
                     Row(modifier = Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
+                        AsyncImage(
+                            model = j.fotoUri.ifBlank { R.drawable.ic_launcher_background },
+                            contentDescription = null,
+                            modifier = Modifier.size(35.dp).clip(CircleShape).background(Color.LightGray),
+                            contentScale = ContentScale.Crop
+                        )
+                        Spacer(Modifier.width(12.dp))
                         Column(Modifier.weight(1f)) {
                             Text(j.nome, fontWeight = FontWeight.Bold)
                             Text(j.posicao, color = MaterialTheme.colorScheme.primary)
@@ -433,6 +593,6 @@ fun TelaListaJogadores(lista: List<JogadorExemplo>, onVoltar: () -> Unit, onGere
                 }
             }
         }
-        Button(onClick = onVoltar, modifier = Modifier.fillMaxWidth()) { Text("VOLTAR") }
+        Button(onClick = onVoltar, modifier = Modifier.fillMaxWidth(), colors = ButtonDefaults.buttonColors(containerColor = Color.Red)) { Text("VOLTAR") }
     }
 }

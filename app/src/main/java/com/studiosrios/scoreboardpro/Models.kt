@@ -11,7 +11,13 @@ data class JogadorExemplo(
     val altura: String = "",
     val idade: String = "",
     var equipeId: Int = -1,
-    var gols: Int = 0 
+    var gols: Int = 0,
+    val fotoUri: String = "" 
+)
+
+data class Patrocinador(
+    val nome: String = "",
+    val fotoUri: String = ""
 )
 
 data class EquipeExemplo(
@@ -19,7 +25,9 @@ data class EquipeExemplo(
     val identificacao: String,
     val nome: String,
     val city: String,
-    val jogadores: List<JogadorExemplo> = emptyList()
+    val jogadores: List<JogadorExemplo> = emptyList(),
+    val patrocinadores: List<Patrocinador> = emptyList(),
+    val escudoUri: String = "" 
 )
 
 data class EventoPartida(
@@ -45,6 +53,9 @@ data class Partida(
     var golsMandante: Int? = null,
     var golsVisitante: Int? = null,
     var finalizada: Boolean = false,
+    
+    var penaltisMandante: Int? = null,
+    var penaltisVisitante: Int? = null,
 
     val melhorJogador: String = "",
     val cartoesAmarelosMandante: Int = 0,
@@ -63,7 +74,7 @@ data class Partida(
     val formacaoVisitante: String = "4-4-2",
 
     val arbitroPrincipal: String = "",
-    val assistente1: String = "",
+    val assistente1: String = "", 
     val assistente2: String = "",
     val tecnicoMandante: String = "",
     val auxiliar1Mandante: String = "",
@@ -94,7 +105,7 @@ data class ConfiguracoesCampeonato(
     val modoReturno: Boolean = false, 
     val modoIdaEVoltaMataMata: Boolean = true,
     val modoIdaEVoltaFinal: Boolean = false,
-    val criteriosDesempate: List<String> = listOf("Selecionar", "Selecionar", "Selecionar", "Selecionar", "Selecionar", "Selecionar"),
+    val criteriosDesempate: List<String> = listOf("Selecionar", "Saldo de Gols", "Gols Marcados", "Cartões Amarelos", "Cartões Vermelhos"),
     val exibirCartoesNaTabela: Boolean = false
 )
 
@@ -112,5 +123,5 @@ data class CampeonatoSalvo(
     val partidas: List<Partida>,
     val configs: ConfiguracoesCampeonato = ConfiguracoesCampeonato(),
     val gruposConfig: List<ConfigGrupo> = emptyList(),
-    val fotoUri: String = "" // Adicionado para salvar a foto do campeonato
+    val fotoUri: String = ""
 )

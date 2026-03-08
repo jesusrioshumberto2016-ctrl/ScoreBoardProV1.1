@@ -77,7 +77,7 @@ fun TelaPreJogoDetalhada(
             }
         }
 
-        Button(onClick = onVoltar, modifier = Modifier.fillMaxWidth().padding(16.dp).height(50.dp)) {
+        Button(onClick = onVoltar, modifier = Modifier.fillMaxWidth().padding(16.dp).height(50.dp), colors = ButtonDefaults.buttonColors(containerColor = Color.Red)) {
             Text("VOLTAR PARA PARTIDAS")
         }
     }
@@ -142,7 +142,6 @@ fun VisualizacaoCampoLeitura(p: Partida, equipes: List<EquipeExemplo>, todosJoga
 
 @Composable
 fun BoxScope.DistribuirLeituraNoCampo(jogadores: List<JogadorExemplo>, p: Partida, isVisitante: Boolean) {
-    // Agora lê a posição do mapa 'posicoesNoJogo' considerando os lados (E)/(D)
     fun filtrar(lista: List<String>) = jogadores.filter { (p.posicoesNoJogo[it.id] ?: it.posicao).split(" ").first() in lista }
 
     val goleiros = filtrar(listOf("GOL"))
@@ -156,12 +155,11 @@ fun BoxScope.DistribuirLeituraNoCampo(jogadores: List<JogadorExemplo>, p: Partid
 
     Column(Modifier.fillMaxSize(), verticalArrangement = Arrangement.SpaceEvenly) {
         linhas.forEach { linha ->
-            // Ordenação lateral inteligente: Esquerda -> Centro -> Direita
             val linhaOrdenada = linha.sortedWith(compareBy { jog ->
-                val pFull = p.posicoesNoJogo[jog.id] ?: jog.posicao
+                val pos = p.posicoesNoJogo[jog.id] ?: jog.posicao
                 when {
-                    pFull.contains("(E)") -> 0
-                    pFull.contains("(D)") -> 2
+                    pos.contains("(E)") -> 0
+                    pos.contains("(D)") -> 2
                     else -> 1
                 }
             })

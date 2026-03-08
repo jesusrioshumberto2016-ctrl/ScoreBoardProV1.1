@@ -35,10 +35,25 @@ fun TelaSumulaDetalhada(partida: Partida, equipes: List<EquipeExemplo>, onVoltar
                 Text("Local: ${partida.local}")
                 Spacer(Modifier.height(10.dp))
                 Row(verticalAlignment = Alignment.CenterVertically) {
+                    if (partida.penaltisMandante != null) {
+                        Text("(${partida.penaltisMandante})", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = Color.Gray)
+                        Spacer(Modifier.width(8.dp))
+                    }
+                    
                     Text(mandante, Modifier.weight(1f), textAlign = TextAlign.Center, fontSize = 16.sp, fontWeight = FontWeight.Bold)
                     Text(" $gM X $gV ", fontSize = 22.sp, fontWeight = FontWeight.Black)
                     Text(visitante, Modifier.weight(1f), textAlign = TextAlign.Center, fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                    
+                    if (partida.penaltisVisitante != null) {
+                        Spacer(Modifier.width(8.dp))
+                        Text("(${partida.penaltisVisitante})", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = Color.Gray)
+                    }
                 }
+                
+                if (partida.penaltisMandante != null || partida.penaltisVisitante != null) {
+                    Text("VENCIDO NOS PÊNALTIS", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = Color.Gray, modifier = Modifier.padding(top = 4.dp))
+                }
+
                 if (partida.finalizada) {
                     Spacer(Modifier.height(10.dp))
                     Row(verticalAlignment = Alignment.CenterVertically) {
@@ -93,7 +108,7 @@ fun TelaSumulaDetalhada(partida: Partida, equipes: List<EquipeExemplo>, onVoltar
             }
         }
 
-        Button(onClick = onVoltar, modifier = Modifier.fillMaxWidth().padding(top = 16.dp)) {
+        Button(onClick = onVoltar, modifier = Modifier.fillMaxWidth().padding(top = 16.dp), colors = ButtonDefaults.buttonColors(containerColor = Color.Red)) {
             Text("VOLTAR PARA PARTIDAS")
         }
     }
