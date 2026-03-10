@@ -30,7 +30,8 @@ import java.util.*
 @Composable
 fun ResultadosTab(
     partidas: SnapshotStateList<Partida>,
-    equipes: List<EquipeExemplo>
+    equipes: List<EquipeExemplo>,
+    onConfirmarResultado: (Partida) -> Unit // Adicionado callback
 ) {
     var subAbaSelecionada by remember { mutableIntStateOf(0) }
     val titulosSubAbas = listOf("Fase de Grupos", "Mata-Mata")
@@ -61,7 +62,7 @@ fun ResultadosTab(
         } else {
             LazyColumn(Modifier.padding(16.dp)) {
                 items(partidasOrdenadas, key = { it.id }) { partida ->
-                    ItemResultadoCard(partida, partidas, equipes)
+                    ItemResultadoCard(partida, partidas, equipes, onConfirmarResultado)
                 }
             }
         }
@@ -72,7 +73,8 @@ fun ResultadosTab(
 fun ItemResultadoCard(
     partida: Partida,
     listaGeral: SnapshotStateList<Partida>,
-    equipes: List<EquipeExemplo>
+    equipes: List<EquipeExemplo>,
+    onConfirmar: (Partida) -> Unit
 ) {
     val contexto = LocalContext.current
     val equipeM = equipes.find { it.id == partida.mandanteId }
@@ -149,7 +151,7 @@ fun ItemResultadoCard(
                         Text("(${partida.penaltisMandante})", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = Color.Gray)
                         Spacer(Modifier.width(4.dp))
                     }
-                    Text(m, textAlign = TextAlign.End, fontWeight = FontWeight.Bold, fontSize = 13.sp, maxLines = 1)
+                    Text(text = m, modifier = Modifier.weight(1f), textAlign = TextAlign.End, fontWeight = FontWeight.Bold, fontSize = 13.sp, maxLines = 1)
                     Spacer(Modifier.width(8.dp))
                     AsyncImage(
                         model = equipeM?.escudoUri?.ifBlank { R.drawable.ic_launcher_background } ?: R.drawable.ic_launcher_background,
@@ -163,7 +165,7 @@ fun ItemResultadoCard(
                 Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(horizontal = 8.dp)) {
                     OutlinedTextField(
                         value = partida.golsMandante?.toString() ?: "",
-                        onValueChange = { input ->
+                        onValueChange = { input: String ->
                             if(!partida.finalizada) {
                                 val idx = listaGeral.indexOfFirst { it.id == partida.id }
                                 if(idx != -1) {
@@ -182,7 +184,7 @@ fun ItemResultadoCard(
 
                     OutlinedTextField(
                         value = partida.golsVisitante?.toString() ?: "",
-                        onValueChange = { input ->
+                        onValueChange = { input: String ->
                             if(!partida.finalizada) {
                                 val idx = listaGeral.indexOfFirst { it.id == partida.id }
                                 if(idx != -1) {
@@ -207,7 +209,7 @@ fun ItemResultadoCard(
                         contentScale = ContentScale.Crop
                     )
                     Spacer(Modifier.width(8.dp))
-                    Text(v, fontWeight = FontWeight.Bold, fontSize = 13.sp, maxLines = 1)
+                    Text(text = v, modifier = Modifier.weight(1f), fontWeight = FontWeight.Bold, fontSize = 13.sp, maxLines = 1)
                     if (partida.penaltisVisitante != null) {
                         Spacer(Modifier.width(4.dp))
                         Text("(${partida.penaltisVisitante})", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = Color.Gray)
@@ -221,11 +223,15 @@ fun ItemResultadoCard(
                     if (idx != -1) {
                         val gM = listaGeral[idx].golsMandante ?: 0
                         val gV = listaGeral[idx].golsVisitante ?: 0
+                        val partidaFinalizada = !partida.finalizada
                         listaGeral[idx] = listaGeral[idx].copy(
-                            finalizada = !partida.finalizada, 
+                            finalizada = partidaFinalizada, 
                             golsMandante = gM, 
                             golsVisitante = gV
                         )
+                        if (partidaFinalizada) {
+                            onConfirmar(listaGeral[idx])
+                        }
                     }
                 }, 
                 modifier = Modifier.fillMaxWidth().padding(top = 8.dp), 

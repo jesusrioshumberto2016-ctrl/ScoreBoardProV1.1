@@ -9,6 +9,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Save
 import androidx.compose.material3.*
@@ -45,7 +46,7 @@ fun TelaPainelLibertadores(
     val titulosAbas = if (isOrganizador) {
         listOf("Grupos", "Mata-Mata", "Resultados", "Partidas", "Súmula", "Pré-Jogo", "Artilharia", "Configs")
     } else {
-        listOf("Grupos", "Mata-Mata", "Equipes", "Partidas", "Artilharia")
+        listOf("Grupos", "Mata", "Partidas", "Artilharia", "Equipes")
     }
 
     var partidaParaVerPreJogo by remember { mutableStateOf<Partida?>(null) }
@@ -93,7 +94,8 @@ fun TelaPainelLibertadores(
                                 Text(
                                     text = if (isOrganizador) "Painel Libertadores" else nomeCamp, 
                                     fontWeight = FontWeight.Bold,
-                                    fontSize = if (isOrganizador) 18.sp else 16.sp
+                                    fontSize = if (isOrganizador) 18.sp else 16.sp,
+                                    maxLines = 1
                                 ) 
                             }
                         },
@@ -135,7 +137,14 @@ fun TelaPainelLibertadores(
                                 Tab(
                                     selected = abaSelecionada == index,
                                     onClick = { abaSelecionada = index },
-                                    text = { Text(titulo, fontSize = 11.sp, fontWeight = FontWeight.Bold) }
+                                    text = { 
+                                        Text(
+                                            text = titulo, 
+                                            fontSize = 10.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            maxLines = 1
+                                        ) 
+                                    }
                                 )
                             }
                         }
@@ -167,9 +176,11 @@ fun TelaPainelLibertadores(
                         Box(modifier = Modifier.weight(1f)) {
                             when (abaNome) {
                                 "Grupos" -> PainelGruposLibertadores(equipes, partidas, configsIniciais, listaGruposConfig)
-                                "Mata-Mata" -> {
+                                "Mata", "Mata-Mata" -> { 
                                     val partidasMataMata = partidas.filter { 
-                                        !it.fase.contains("RODADA", ignoreCase = true) && !it.fase.contains("ÚNICA", ignoreCase = true) && it.fase.isNotBlank() 
+                                        !it.fase.contains("RODADA", ignoreCase = true) && 
+                                        !it.fase.contains("ÚNICA", ignoreCase = true) && 
+                                        it.fase.isNotBlank() 
                                     }.sortedWith(compareBy<Partida> { it.data.split("/").reversed().joinToString("") }.thenBy { it.horario })
                                     
                                     ConteudoChaveamentoLibertadores(
@@ -180,7 +191,15 @@ fun TelaPainelLibertadores(
                                     )
                                 }
                                 "Equipes" -> AbaEquipesTelespectador(equipes)
-                                "Resultados" -> ResultadosTab(partidas, equipes)
+                                "Resultados" -> ResultadosTab(
+                                    partidas = partidas, 
+                                    equipes = equipes,
+                                    onConfirmarResultado = { p ->
+                                        if (!p.fase.contains("RODADA", ignoreCase = true) && !p.fase.contains("ÚNICA", ignoreCase = true)) {
+                                            promoverClassificadosMataMata(partidas, equipes, listaGruposConfig, configsIniciais)
+                                        }
+                                    }
+                                )
                                 "Partidas" -> PartidasTab(partidas, equipes, {p -> partidaParaVerPreJogo = p}, {p -> partidaParaVerDetalhes = p}, false)
                                 "Súmula" -> SumulaTab(partidas, equipes, listaGlobalJogadores, {id -> editandoSumulaId = id}, {editandoSumulaId = null})
                                 "Pré-Jogo" -> PreJogoTab(equipes, partidas, listaGlobalJogadores, {id -> editandoPreJogoId = id}, {editandoPreJogoId = null})

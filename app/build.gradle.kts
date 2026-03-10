@@ -40,7 +40,8 @@ android {
         compose = true
     }
     composeOptions {
-        kotlinCompilerExtensionVersion = "1.5.4"
+        // Versão estável para Kotlin 1.9.x
+        kotlinCompilerExtensionVersion = "1.5.11"
     }
     packaging {
         resources {
@@ -50,25 +51,22 @@ android {
 }
 
 dependencies {
-    // AndroidX Core e Lifecycle
     implementation("androidx.core:core-ktx:1.12.0")
     implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.7.0")
     implementation("androidx.activity:activity-compose:1.8.2")
 
-    // Jetpack Compose (O coração da sua interface)
-    implementation(platform("androidx.compose:compose-bom:2024.02.01"))
+    // Versão BOM sincronizada
+    implementation(platform("androidx.compose:compose-bom:2024.04.01"))
     implementation("androidx.compose.ui:ui")
     implementation("androidx.compose.ui:ui-graphics")
     implementation("androidx.compose.ui:ui-tooling-preview")
     implementation("androidx.compose.material3:material3")
-    implementation("androidx.compose.material:material-icons-extended:1.6.7")
+    implementation("androidx.compose.material:material-icons-extended")
 
-    // Coil (Carregamento de imagens)
-    implementation("io.coil-kt:coil-compose:2.5.0")
+    // Coil para imagens
+    implementation("io.coil-kt:coil-compose:2.6.0")
 
-    // Testes
     testImplementation("junit:junit:4.13.2")
     androidTestImplementation("androidx.test.ext:junit:1.1.5")
     androidTestImplementation("androidx.test.espresso:espresso-core:3.5.1")
-    implementation("androidx.compose.material:material-icons-extended")
 }
