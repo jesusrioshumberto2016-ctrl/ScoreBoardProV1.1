@@ -2,6 +2,7 @@ package com.studiosrios.scoreboardpro
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -23,7 +24,8 @@ import coil.compose.AsyncImage
 fun TelaTabelaRanking(
     equipes: List<EquipeExemplo>,
     partidas: List<Partida>,
-    configs: ConfiguracoesCampeonato
+    configs: ConfiguracoesCampeonato,
+    onEquipeClick: (EquipeExemplo) -> Unit = {}
 ) {
     // Realiza o cálculo do ranking usando a lógica do Brasileirão
     val ranking = BrasileiraoSerieA().calcularRanking(equipes, partidas, configs)
@@ -65,7 +67,8 @@ fun TelaTabelaRanking(
                 
                 Row(
                     modifier = Modifier
-                        .padding(vertical = 10.dp, horizontal = 4.dp),
+                        .padding(vertical = 10.dp, horizontal = 4.dp)
+                        .clickable { equipeOriginal?.let { onEquipeClick(it) } },
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     // Posição

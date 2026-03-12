@@ -3,13 +3,10 @@ package com.studiosrios.scoreboardpro
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Save
 import androidx.compose.material3.*
@@ -51,6 +48,7 @@ fun TelaPainelLibertadores(
 
     var partidaParaVerPreJogo by remember { mutableStateOf<Partida?>(null) }
     var partidaParaVerDetalhes by remember { mutableStateOf<Partida?>(null) }
+    var equipeSelecionada by remember { mutableStateOf<EquipeExemplo?>(null) }
     
     var editandoSumulaId by remember { mutableStateOf<Int?>(null) }
     var editandoPreJogoId by remember { mutableStateOf<Int?>(null) }
@@ -68,6 +66,7 @@ fun TelaPainelLibertadores(
 
     val ocultarNavegacao = partidaParaVerPreJogo != null || 
                           partidaParaVerDetalhes != null || 
+                          equipeSelecionada != null ||
                           editandoSumulaId != null || 
                           editandoPreJogoId != null
 
@@ -170,12 +169,19 @@ fun TelaPainelLibertadores(
                         onVoltar = { partidaParaVerDetalhes = null }
                     )
                 }
+                equipeSelecionada != null -> {
+                    TelaDetalhesEquipe(
+                        equipe = equipeSelecionada!!,
+                        partidas = partidas,
+                        onVoltar = { equipeSelecionada = null }
+                    )
+                }
                 else -> {
                     val abaNome = titulosAbas[abaSelecionada]
                     Column(Modifier.fillMaxSize()) {
                         Box(modifier = Modifier.weight(1f)) {
                             when (abaNome) {
-                                "Grupos" -> PainelGruposLibertadores(equipes, partidas, configsIniciais, listaGruposConfig)
+                                "Grupos" -> PainelGruposLibertadores(equipes, partidas, configsIniciais, listaGruposConfig, onEquipeClick = { e -> equipeSelecionada = e })
                                 "Mata", "Mata-Mata" -> { 
                                     val partidasMataMata = partidas.filter { 
                                         !it.fase.contains("RODADA", ignoreCase = true) && 
@@ -190,7 +196,7 @@ fun TelaPainelLibertadores(
                                         onDetalhes = { p -> partidaParaVerDetalhes = p }
                                     )
                                 }
-                                "Equipes" -> AbaEquipesTelespectador(equipes)
+                                "Equipes" -> AbaEquipesTelespectador(equipes, onEquipeClick = { e -> equipeSelecionada = e })
                                 "Resultados" -> ResultadosTab(
                                     partidas = partidas, 
                                     equipes = equipes,
@@ -236,42 +242,6 @@ fun TelaPainelLibertadores(
 }
 
 @Composable
-fun AbaEquipesTelespectador(equipes: List<EquipeExemplo>) {
-    val equipesOrdenadas = equipes.sortedBy { it.nome }
-    
-    LazyColumn(modifier = Modifier.fillMaxSize().padding(16.dp)) {
-        items(equipesOrdenadas) { equipe ->
-            Card(
-                modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
-                colors = CardDefaults.cardColors(containerColor = Color.White),
-                elevation = CardDefaults.cardElevation(2.dp)
-            ) {
-                Row(
-                    modifier = Modifier.padding(12.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    AsyncImage(
-                        model = equipe.escudoUri.ifBlank { R.drawable.ic_launcher_background },
-                        contentDescription = null,
-                        modifier = Modifier
-                            .size(40.dp)
-                            .clip(CircleShape)
-                            .background(Color.White)
-                            .border(0.5.dp, Color.LightGray, CircleShape),
-                        contentScale = ContentScale.Crop
-                    )
-                    Spacer(Modifier.width(16.dp))
-                    Column {
-                        Text(equipe.nome, fontWeight = FontWeight.Bold, fontSize = 16.sp)
-                        Text(equipe.city, fontSize = 12.sp, color = Color.Gray)
-                    }
-                }
-            }
-        }
-    }
-}
-
-@Composable
 fun ConteudoChaveamentoLibertadores(
     equipes: List<EquipeExemplo>, 
     partidas: List<Partida>,
@@ -308,7 +278,8 @@ fun PainelGruposLibertadores(
     equipes: List<EquipeExemplo>,
     partidas: List<Partida>,
     configs: ConfiguracoesCampeonato,
-    listaGrupos: List<ConfigGrupo>
+    listaGrupos: List<ConfigGrupo>,
+    onEquipeClick: (EquipeExemplo) -> Unit = {}
 ) {
     var indiceInicio = 0
     Column(modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState())) {
@@ -329,7 +300,12 @@ fun PainelGruposLibertadores(
                     val idsEquipes = equipesDesteGrupo.map { it.id }
                     val partidasDesteGrupo = partidas.filter { it.mandanteId in idsEquipes && it.visitanteId in idsEquipes }
                     
-                    TelaTabelaRanking(equipes = equipesDesteGrupo, partidas = partidasDesteGrupo, configs = configs)
+                    TelaTabelaRanking(
+                        equipes = equipesDesteGrupo, 
+                        partidas = partidasDesteGrupo, 
+                        configs = configs,
+                        onEquipeClick = onEquipeClick
+                    )
                     indiceInicio += grupo.qtdTimes
                     Spacer(modifier = Modifier.height(16.dp))
                     HorizontalDivider(thickness = 1.dp, color = MaterialTheme.colorScheme.outlineVariant)

@@ -23,40 +23,56 @@ fun TelaPainelPontosCorridos(
 ) {
     var abaSelecionada by remember { mutableIntStateOf(0) }
     val titulosAbas = listOf("Tabela", "Jogos", "Artilharia", "Configs")
+    var equipeSelecionada by remember { mutableStateOf<EquipeExemplo?>(null) }
 
     Scaffold(
         topBar = {
-            Column {
-                CenterAlignedTopAppBar(
-                    title = { Text("Painel: $modelo", fontWeight = FontWeight.Bold) },
-                    navigationIcon = {
-                        TextButton(onClick = onVoltar) { Text("Sair") }
-                    }
-                )
-                TabRow(selectedTabIndex = abaSelecionada) {
-                    titulosAbas.forEachIndexed { index, titulo ->
-                        Tab(
-                            selected = abaSelecionada == index,
-                            onClick = { abaSelecionada = index },
-                            text = { Text(titulo, fontSize = 12.sp) }
-                        )
+            if (equipeSelecionada == null) {
+                Column {
+                    CenterAlignedTopAppBar(
+                        title = { Text("Painel: $modelo", fontWeight = FontWeight.Bold) },
+                        navigationIcon = {
+                            TextButton(onClick = onVoltar) { Text("Sair") }
+                        }
+                    )
+                    TabRow(selectedTabIndex = abaSelecionada) {
+                        titulosAbas.forEachIndexed { index, titulo ->
+                            Tab(
+                                selected = abaSelecionada == index,
+                                onClick = { abaSelecionada = index },
+                                text = { Text(titulo, fontSize = 12.sp) }
+                            )
+                        }
                     }
                 }
             }
         }
     ) { paddingValues ->
-        Box(modifier = Modifier.padding(paddingValues).fillMaxSize()) {
-            when (abaSelecionada) {
-                0 -> TelaTabelaRanking(equipes = equipes, partidas = partidas, configs = configsIniciais)
-                1 -> PartidasTab(partidas, equipes, {}, {})
-                2 -> TelaArtilharia(equipes, partidas, listaGlobalJogadores)
-                3 -> {
-                    TelaConfiguracoesCampeonato(
+        Box(modifier = Modifier.padding(if (equipeSelecionada != null) PaddingValues(0.dp) else paddingValues).fillMaxSize()) {
+            if (equipeSelecionada != null) {
+                TelaDetalhesEquipe(
+                    equipe = equipeSelecionada!!,
+                    partidas = partidas,
+                    onVoltar = { equipeSelecionada = null }
+                )
+            } else {
+                when (abaSelecionada) {
+                    0 -> TelaTabelaRanking(
+                        equipes = equipes, 
+                        partidas = partidas, 
                         configs = configsIniciais,
-                        onSalvar = { novasConfigs ->
-                            onSalvarGeral(idCamp, novasConfigs)
-                        }
+                        onEquipeClick = { e -> equipeSelecionada = e }
                     )
+                    1 -> PartidasTab(partidas, equipes, {}, {})
+                    2 -> TelaArtilharia(equipes, partidas, listaGlobalJogadores)
+                    3 -> {
+                        TelaConfiguracoesCampeonato(
+                            configs = configsIniciais,
+                            onSalvar = { novasConfigs ->
+                                onSalvarGeral(idCamp, novasConfigs)
+                            }
+                        )
+                    }
                 }
             }
         }
