@@ -193,7 +193,8 @@ fun TelaPainelLibertadores(
                                         equipes = equipes, 
                                         partidas = partidasMataMata,
                                         onPreJogo = { p -> partidaParaVerPreJogo = p },
-                                        onDetalhes = { p -> partidaParaVerDetalhes = p }
+                                        onDetalhes = { p -> partidaParaVerDetalhes = p },
+                                        onEquipeClick = { e -> equipeSelecionada = e }
                                     )
                                 }
                                 "Equipes" -> AbaEquipesTelespectador(equipes, onEquipeClick = { e -> equipeSelecionada = e })
@@ -206,10 +207,17 @@ fun TelaPainelLibertadores(
                                         }
                                     }
                                 )
-                                "Partidas" -> PartidasTab(partidas, equipes, {p -> partidaParaVerPreJogo = p}, {p -> partidaParaVerDetalhes = p}, false)
+                                "Partidas" -> PartidasTab(
+                                    partidas = partidas, 
+                                    equipes = equipes, 
+                                    onPreJogoClick = {p -> partidaParaVerPreJogo = p}, 
+                                    onDetalhesClick = {p -> partidaParaVerDetalhes = p}, 
+                                    somenteMataMata = false,
+                                    onEquipeClick = { e -> equipeSelecionada = e }
+                                )
                                 "Súmula" -> SumulaTab(partidas, equipes, listaGlobalJogadores, {id -> editandoSumulaId = id}, {editandoSumulaId = null})
                                 "Pré-Jogo" -> PreJogoTab(equipes, partidas, listaGlobalJogadores, {id -> editandoPreJogoId = id}, {editandoPreJogoId = null})
-                                "Artilharia" -> TelaArtilharia(equipes, partidas, listaGlobalJogadores)
+                                "Artilharia" -> TelaArtilharia(equipes, partidas, listaGlobalJogadores, onEquipeClick = { e -> equipeSelecionada = e })
                                 "Configs" -> ConfigLibertadores(configsIniciais, algumaPartidaFinalizada) { novasConfigs ->
                                     onSalvarGeral(idCamp, novasConfigs)
                                     scope.launch { snackbarHostState.showSnackbar("Configurações atualizadas!") }
@@ -246,7 +254,8 @@ fun ConteudoChaveamentoLibertadores(
     equipes: List<EquipeExemplo>, 
     partidas: List<Partida>,
     onPreJogo: (Partida) -> Unit,
-    onDetalhes: (Partida) -> Unit
+    onDetalhes: (Partida) -> Unit,
+    onEquipeClick: (EquipeExemplo) -> Unit = {}
 ) {
     Column(modifier = Modifier.fillMaxSize().padding(16.dp).verticalScroll(rememberScrollState())) {
         Text("Fase Eliminatória", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
@@ -264,7 +273,8 @@ fun ConteudoChaveamentoLibertadores(
                         partida = partida,
                         equipes = equipes,
                         onPreJogoClick = onPreJogo,
-                        onDetalhesClick = onDetalhes
+                        onDetalhesClick = onDetalhes,
+                        onEquipeClick = onEquipeClick
                     )
                 }
                 Spacer(Modifier.height(16.dp))

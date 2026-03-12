@@ -2,6 +2,7 @@ package com.studiosrios.scoreboardpro
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -24,7 +25,8 @@ import coil.compose.AsyncImage
 fun TelaArtilharia(
     equipes: List<EquipeExemplo>,
     partidas: List<Partida>,
-    listaGlobalJogadores: List<JogadorExemplo>
+    listaGlobalJogadores: List<JogadorExemplo>,
+    onEquipeClick: (EquipeExemplo) -> Unit = {}
 ) {
     var subAbaSelecionada by remember { mutableIntStateOf(0) }
     val titulosSubAbas = listOf("Artilheiros", "Assistentes", "Gols Pênalti", "Amarelos", "Vermelhos", "Gols Contra")
@@ -74,7 +76,7 @@ fun TelaArtilharia(
             } else {
                 LazyColumn {
                     items(listaExibicao) { item ->
-                        CardEstatistica(item, equipes, labelUnidade)
+                        CardEstatistica(item, equipes, labelUnidade, onEquipeClick)
                     }
                 }
             }
@@ -83,7 +85,7 @@ fun TelaArtilharia(
 }
 
 @Composable
-fun CardEstatistica(item: ItemEstatistica, equipes: List<EquipeExemplo>, unidade: String) {
+fun CardEstatistica(item: ItemEstatistica, equipes: List<EquipeExemplo>, unidade: String, onEquipeClick: (EquipeExemplo) -> Unit = {}) {
     Card(
         modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
         elevation = CardDefaults.cardElevation(1.dp)
@@ -115,8 +117,14 @@ fun CardEstatistica(item: ItemEstatistica, equipes: List<EquipeExemplo>, unidade
                         style = MaterialTheme.typography.bodyLarge, 
                         fontWeight = FontWeight.Bold
                     )
-                    val nomeEquipe = equipes.find { it.nome == item.nomeEquipe }?.nome ?: item.nomeEquipe
-                    Text(nomeEquipe, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.primary)
+                    val equipeObj = equipes.find { it.nome == item.nomeEquipe }
+                    val nomeEquipe = equipeObj?.nome ?: item.nomeEquipe
+                    Text(
+                        text = nomeEquipe, 
+                        style = MaterialTheme.typography.bodySmall, 
+                        color = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.clickable(enabled = equipeObj != null) { equipeObj?.let { onEquipeClick(it) } }
+                    )
                 }
             }
             Text("${item.quantidade} $unidade", fontWeight = FontWeight.ExtraBold, color = MaterialTheme.colorScheme.primary)

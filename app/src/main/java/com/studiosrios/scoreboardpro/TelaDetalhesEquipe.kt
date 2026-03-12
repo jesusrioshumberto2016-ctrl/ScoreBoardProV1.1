@@ -5,8 +5,10 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.*
@@ -125,16 +127,25 @@ fun AbaCadastroEquipe(equipe: EquipeExemplo) {
             Spacer(Modifier.height(24.dp))
             Text("Patrocinadores", fontWeight = FontWeight.Bold, fontSize = 18.sp)
             HorizontalDivider(Modifier.padding(vertical = 8.dp))
-            equipe.patrocinadores.forEach { pat ->
-                Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(vertical = 8.dp)) {
-                    AsyncImage(
-                        model = pat.fotoUri.ifBlank { R.drawable.ic_launcher_background },
-                        contentDescription = null,
-                        modifier = Modifier.size(48.dp).clip(CircleShape).border(1.dp, Color.LightGray, CircleShape),
-                        contentScale = ContentScale.Crop
-                    )
-                    Spacer(Modifier.width(12.dp))
-                    Text(pat.nome, fontWeight = FontWeight.Medium)
+            LazyRow(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                items(equipe.patrocinadores) { pat ->
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        AsyncImage(
+                            model = pat.fotoUri.ifBlank { R.drawable.ic_launcher_background },
+                            contentDescription = null,
+                            modifier = Modifier
+                                .size(60.dp)
+                                .clip(RoundedCornerShape(8.dp))
+                                .background(Color.White)
+                                .border(1.dp, Color.LightGray, RoundedCornerShape(8.dp)),
+                            contentScale = ContentScale.Crop
+                        )
+                        Spacer(Modifier.height(4.dp))
+                        Text(pat.nome, fontSize = 10.sp, fontWeight = FontWeight.Medium)
+                    }
                 }
             }
         }

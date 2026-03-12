@@ -16,11 +16,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.AddAPhoto
-import androidx.compose.material.icons.filled.CheckCircle
-import androidx.compose.material.icons.filled.Edit
-import androidx.compose.material.icons.filled.Person
-import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.snapshots.SnapshotStateList
@@ -79,28 +75,96 @@ fun TelaDetalhesEquipe(
     onAdicionar: () -> Unit, 
     onVoltar: () -> Unit
 ) {
-    val elenco = listaJogadores.filter { it.equipeId == equipe.id }
+    // Busca a equipe atualizada da lista global para garantir reatividade
+    val equipeAtual = listaGlobalEquipes.find { it.id == equipe.id } ?: equipe
+    val elenco = listaJogadores.filter { it.equipeId == equipeAtual.id }
+    
     var mostrarDialogo by remember { mutableStateOf(false) }
     var jogadorParaRemover by remember { mutableStateOf<JogadorExemplo?>(null) }
     
     // Novo estado para o escudo editável
-    var novoEscudoUri by remember { mutableStateOf(equipe.escudoUri) }
+    var novoEscudoUri by remember { mutableStateOf(equipeAtual.escudoUri) }
     val launcherEscudo = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri: Uri? ->
         uri?.let { 
             novoEscudoUri = it.toString()
             // Atualiza na lista global
-            val idx = listaGlobalEquipes.indexOfFirst { e -> e.id == equipe.id }
+            val idx = listaGlobalEquipes.indexOfFirst { e -> e.id == equipeAtual.id }
             if (idx != -1) {
                 listaGlobalEquipes[idx] = listaGlobalEquipes[idx].copy(escudoUri = it.toString())
             }
         }
     }
 
+    // Estados para gerenciamento de patrocinadores
+    var mostrarDialogoPatrocinador by remember { mutableStateOf(false) }
+    var nomePatrocinador by remember { mutableStateOf("") }
+    var fotoPatrocinadorUri by remember { mutableStateOf("") }
+    val launcherPatrocinador = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri: Uri? ->
+        uri?.let { fotoPatrocinadorUri = it.toString() }
+    }
+
+    if (mostrarDialogoPatrocinador) {
+        AlertDialog(
+            onDismissRequest = { mostrarDialogoPatrocinador = false },
+            title = { Text("Novo Patrocinador") },
+            text = {
+                Column {
+                    OutlinedTextField(
+                        value = nomePatrocinador,
+                        onValueChange = { nomePatrocinador = it },
+                        label = { Text("Nome do Patrocinador") },
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    Spacer(Modifier.height(16.dp))
+                    Box(
+                        modifier = Modifier
+                            .size(80.dp)
+                            .clip(RoundedCornerShape(8.dp))
+                            .background(Color.LightGray)
+                            .clickable { launcherPatrocinador.launch("image/*") }
+                            .align(Alignment.CenterHorizontally),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        if (fotoPatrocinadorUri.isBlank()) {
+                            Icon(Icons.Default.AddAPhoto, null)
+                        } else {
+                            AsyncImage(
+                                model = fotoPatrocinadorUri,
+                                contentDescription = null,
+                                modifier = Modifier.fillMaxSize(),
+                                contentScale = ContentScale.Crop
+                            )
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        if (nomePatrocinador.isNotBlank()) {
+                            val idx = listaGlobalEquipes.indexOfFirst { it.id == equipeAtual.id }
+                            if (idx != -1) {
+                                val novaLista = listaGlobalEquipes[idx].patrocinadores + Patrocinador(nomePatrocinador, fotoPatrocinadorUri)
+                                listaGlobalEquipes[idx] = listaGlobalEquipes[idx].copy(patrocinadores = novaLista)
+                            }
+                            mostrarDialogoPatrocinador = false
+                            nomePatrocinador = ""
+                            fotoPatrocinadorUri = ""
+                        }
+                    }
+                ) { Text("ADICIONAR") }
+            },
+            dismissButton = {
+                TextButton(onClick = { mostrarDialogoPatrocinador = false }) { Text("CANCELAR") }
+            }
+        )
+    }
+
     if (mostrarDialogo && jogadorParaRemover != null) {
         AlertDialog(
             onDismissRequest = { mostrarDialogo = false },
             title = { Text("Remover do Elenco?") },
-            text = { Text("Deseja remover ${jogadorParaRemover!!.nome} da equipe ${equipe.nome}?") },
+            text = { Text("Deseja remover ${jogadorParaRemover!!.nome} da equipe ${equipeAtual.nome}?") },
             confirmButton = {
                 Button(
                     onClick = {
@@ -154,29 +218,49 @@ fun TelaDetalhesEquipe(
 
                     Spacer(Modifier.width(16.dp))
                     Column {
-                        Text(equipe.nome, fontSize = 20.sp, fontWeight = FontWeight.Black, color = MaterialTheme.colorScheme.primary)
-                        Text("Sigla: ${equipe.identificacao}", fontSize = 14.sp, fontWeight = FontWeight.Medium)
-                        Text("Cidade: ${equipe.city}", fontSize = 14.sp, color = Color.Gray)
+                        Text(equipeAtual.nome, fontSize = 20.sp, fontWeight = FontWeight.Black, color = MaterialTheme.colorScheme.primary)
+                        Text("Sigla: ${equipeAtual.identificacao}", fontSize = 14.sp, fontWeight = FontWeight.Medium)
+                        Text("Cidade: ${equipeAtual.city}", fontSize = 14.sp, color = Color.Gray)
                     }
                 }
                 
                 HorizontalDivider(Modifier.padding(vertical = 12.dp))
                 
-                Text("PATROCINADORES:", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = Color.DarkGray)
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                    Text("PATROCINADORES:", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = Color.DarkGray)
+                    IconButton(onClick = { mostrarDialogoPatrocinador = true }) {
+                        Icon(Icons.Default.Add, null, tint = Color(0xFF2E7D32))
+                    }
+                }
                 Spacer(Modifier.height(8.dp))
                 
-                if (equipe.patrocinadores.isEmpty()) {
+                if (equipeAtual.patrocinadores.isEmpty()) {
                     Text("Nenhum cadastrado", fontSize = 12.sp, color = Color.LightGray)
                 } else {
                     LazyRow(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                        items(equipe.patrocinadores) { pat ->
+                        items(equipeAtual.patrocinadores) { pat ->
                             Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                AsyncImage(
-                                    model = pat.fotoUri.ifBlank { R.drawable.ic_launcher_background },
-                                    contentDescription = null,
-                                    modifier = Modifier.size(45.dp).clip(RoundedCornerShape(8.dp)).background(Color.White).border(0.5.dp, Color.LightGray, RoundedCornerShape(8.dp)),
-                                    contentScale = ContentScale.Crop
-                                )
+                                Box(contentAlignment = Alignment.TopEnd) {
+                                    AsyncImage(
+                                        model = pat.fotoUri.ifBlank { R.drawable.ic_launcher_background },
+                                        contentDescription = null,
+                                        modifier = Modifier.size(45.dp).clip(RoundedCornerShape(8.dp)).background(Color.White).border(0.5.dp, Color.LightGray, RoundedCornerShape(8.dp)),
+                                        contentScale = ContentScale.Crop
+                                    )
+                                    Surface(
+                                        modifier = Modifier.size(16.dp).offset(x = 4.dp, y = (-4).dp).clickable {
+                                            val idx = listaGlobalEquipes.indexOfFirst { it.id == equipeAtual.id }
+                                            if (idx != -1) {
+                                                val novaLista = listaGlobalEquipes[idx].patrocinadores.filter { it != pat }
+                                                listaGlobalEquipes[idx] = listaGlobalEquipes[idx].copy(patrocinadores = novaLista)
+                                            }
+                                        },
+                                        color = Color.Red,
+                                        shape = CircleShape
+                                    ) {
+                                        Icon(Icons.Default.Close, null, tint = Color.White, modifier = Modifier.padding(2.dp))
+                                    }
+                                }
                                 Text(pat.nome.take(10), fontSize = 10.sp, color = Color.Gray)
                             }
                         }

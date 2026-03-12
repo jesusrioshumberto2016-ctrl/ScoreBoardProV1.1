@@ -2,6 +2,7 @@ package com.studiosrios.scoreboardpro
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -31,7 +32,8 @@ fun PartidasTab(
     equipes: List<EquipeExemplo>,
     onPreJogoClick: (Partida) -> Unit,
     onDetalhesClick: (Partida) -> Unit,
-    somenteMataMata: Boolean = false
+    somenteMataMata: Boolean = false,
+    onEquipeClick: (EquipeExemplo) -> Unit = {}
 ) {
     val partidasFiltradas = remember(partidas, somenteMataMata) {
         if (somenteMataMata) {
@@ -76,8 +78,7 @@ fun PartidasTab(
                 Row(
                     modifier = Modifier.padding(8.dp).fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
+                    verticalAlignment = Alignment.CenterVertically) {
                     IconButton(
                         onClick = { if (indiceFaseAtual > 0) indiceFaseAtual-- },
                         enabled = indiceFaseAtual > 0
@@ -111,7 +112,7 @@ fun PartidasTab(
                 }
             } else {
                 items(partidasDaFase) { partida ->
-                    ItemPartidaCard(partida, equipes, onPreJogoClick, onDetalhesClick)
+                    ItemPartidaCard(partida, equipes, onPreJogoClick, onDetalhesClick, onEquipeClick)
                 }
             }
         }
@@ -123,7 +124,8 @@ fun ItemPartidaCard(
     partida: Partida,
     equipes: List<EquipeExemplo>,
     onPreJogoClick: (Partida) -> Unit,
-    onDetalhesClick: (Partida) -> Unit
+    onDetalhesClick: (Partida) -> Unit,
+    onEquipeClick: (EquipeExemplo) -> Unit = {}
 ) {
     val equipeMandante = equipes.find { it.id == partida.mandanteId }
     val equipeVisitante = equipes.find { it.id == partida.visitanteId }
@@ -154,7 +156,11 @@ fun ItemPartidaCard(
 
             Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
                 // Mandante Shield + Name
-                Row(modifier = Modifier.weight(1f), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.End) {
+                Row(
+                    modifier = Modifier.weight(1f).clickable(enabled = equipeMandante != null) { equipeMandante?.let { onEquipeClick(it) } }, 
+                    verticalAlignment = Alignment.CenterVertically, 
+                    horizontalArrangement = Arrangement.End
+                ) {
                     Text(
                         text = mandante, 
                         modifier = Modifier.weight(1f),
@@ -182,7 +188,11 @@ fun ItemPartidaCard(
                 )
 
                 // Visitante Shield + Name
-                Row(modifier = Modifier.weight(1f), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.Start) {
+                Row(
+                    modifier = Modifier.weight(1f).clickable(enabled = equipeVisitante != null) { equipeVisitante?.let { onEquipeClick(it) } }, 
+                    verticalAlignment = Alignment.CenterVertically, 
+                    horizontalArrangement = Arrangement.Start
+                ) {
                     AsyncImage(
                         model = equipeVisitante?.escudoUri?.ifBlank { R.drawable.ic_launcher_background } ?: R.drawable.ic_launcher_background,
                         contentDescription = null,
