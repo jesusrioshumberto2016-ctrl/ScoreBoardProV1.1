@@ -1,12 +1,13 @@
 package com.studiosrios.scoreboardpro
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ExitToApp
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Save
 import androidx.compose.material3.*
@@ -43,7 +44,7 @@ fun TelaPainelLibertadores(
     val titulosAbas = if (isOrganizador) {
         listOf("Grupos", "Mata-Mata", "Resultados", "Partidas", "Súmula", "Pré-Jogo", "Artilharia", "Configs")
     } else {
-        listOf("Grupos", "Mata", "Partidas", "Artilharia", "Equipes")
+        listOf("Grupos", "Mata-Mata", "Partidas", "Artilharia", "Equipes")
     }
 
     var partidaParaVerPreJogo by remember { mutableStateOf<Partida?>(null) }
@@ -52,6 +53,10 @@ fun TelaPainelLibertadores(
     
     var editandoSumulaId by remember { mutableStateOf<Int?>(null) }
     var editandoPreJogoId by remember { mutableStateOf<Int?>(null) }
+
+    // Controle de alterações não salvas
+    var houveAlteracao by remember { mutableStateOf(false) }
+    var mostrarDialogoConfirmacaoSair by remember { mutableStateOf(false) }
 
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
@@ -69,6 +74,35 @@ fun TelaPainelLibertadores(
                           equipeSelecionada != null ||
                           editandoSumulaId != null || 
                           editandoPreJogoId != null
+
+    // Função para tentar sair
+    val tentarSair = {
+        if (isOrganizador && houveAlteracao) {
+            mostrarDialogoConfirmacaoSair = true
+        } else {
+            onVoltar()
+        }
+    }
+
+    if (mostrarDialogoConfirmacaoSair) {
+        AlertDialog(
+            onDismissRequest = { mostrarDialogoConfirmacaoSair = false },
+            title = { Text("Alterações não salvas") },
+            text = { Text("Você fez alterações que ainda não foram salvas. Deseja realmente sair e descartar as mudanças?") },
+            confirmButton = {
+                Button(
+                    onClick = { 
+                        mostrarDialogoConfirmacaoSair = false
+                        onVoltar() 
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = Color.Red)
+                ) { Text("SAIR SEM SALVAR") }
+            },
+            dismissButton = {
+                TextButton(onClick = { mostrarDialogoConfirmacaoSair = false }) { Text("CONTINUAR EDITANDO") }
+            }
+        )
+    }
 
     Scaffold(
         snackbarHost = { SnackbarHost(snackbarHostState) },
@@ -99,16 +133,43 @@ fun TelaPainelLibertadores(
                             }
                         },
                         navigationIcon = {
-                            TextButton(onClick = onVoltar, colors = ButtonDefaults.textButtonColors(contentColor = Color.Red)) { 
-                                Text(if (isOrganizador) "Sair" else "Voltar") 
+                            Button(
+                                onClick = tentarSair,
+                                modifier = Modifier
+                                    .padding(start = 8.dp)
+                                    .height(36.dp),
+                                colors = ButtonDefaults.buttonColors(
+                                    containerColor = Color.Red.copy(alpha = 0.1f),
+                                    contentColor = Color.Red
+                                ),
+                                shape = RoundedCornerShape(8.dp),
+                                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 0.dp),
+                                border = androidx.compose.foundation.BorderStroke(1.dp, Color.Red.copy(alpha = 0.3f))
+                            ) {
+                                Icon(
+                                    Icons.AutoMirrored.Filled.ExitToApp,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(16.dp)
+                                )
+                                Spacer(Modifier.width(6.dp))
+                                Text(
+                                    text = if (isOrganizador) "SAIR" else "VOLTAR",
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.Black
+                                )
                             }
                         },
                         actions = {
                             if (isOrganizador) {
                                 IconButton(onClick = {
                                     onSalvarGeral(idCamp, configsIniciais)
-                                    scope.launch { snackbarHostState.showSnackbar("Dados salvos!") }
-                                }) { Icon(Icons.Default.Save, contentDescription = "Salvar") }
+                                    houveAlteracao = false
+                                    scope.launch { snackbarHostState.showSnackbar("Dados salvos com sucesso!") }
+                                }) { 
+                                    BadgedBox(badge = { if(houveAlteracao) Badge(containerColor = Color.Red) }) {
+                                        Icon(Icons.Default.Save, contentDescription = "Salvar") 
+                                    }
+                                }
                             }
                         }
                     )
@@ -181,8 +242,8 @@ fun TelaPainelLibertadores(
                     Column(Modifier.fillMaxSize()) {
                         Box(modifier = Modifier.weight(1f)) {
                             when (abaNome) {
-                                "Grupos" -> PainelGruposLibertadores(equipes, partidas, configsIniciais, listaGruposConfig, onEquipeClick = { e -> equipeSelecionada = e })
-                                "Mata", "Mata-Mata" -> { 
+                                "Grupos" -> PainelGruposLibertadores(equipes, partidas, configsIniciais, listaGruposConfig, onEquipeClick = { e: EquipeExemplo -> equipeSelecionada = e })
+                                "Mata-Mata" -> { 
                                     val partidasMataMata = partidas.filter { 
                                         !it.fase.contains("RODADA", ignoreCase = true) && 
                                         !it.fase.contains("ÚNICA", ignoreCase = true) && 
@@ -194,14 +255,15 @@ fun TelaPainelLibertadores(
                                         partidas = partidasMataMata,
                                         onPreJogo = { p -> partidaParaVerPreJogo = p },
                                         onDetalhes = { p -> partidaParaVerDetalhes = p },
-                                        onEquipeClick = { e -> equipeSelecionada = e }
+                                        onEquipeClick = { e: EquipeExemplo -> equipeSelecionada = e }
                                     )
                                 }
-                                "Equipes" -> AbaEquipesTelespectador(equipes, onEquipeClick = { e -> equipeSelecionada = e })
+                                "Equipes" -> AbaEquipesTelespectador(equipes, onEquipeClick = { e: EquipeExemplo -> equipeSelecionada = e })
                                 "Resultados" -> ResultadosTab(
                                     partidas = partidas, 
                                     equipes = equipes,
                                     onConfirmarResultado = { p ->
+                                        houveAlteracao = true
                                         if (!p.fase.contains("RODADA", ignoreCase = true) && !p.fase.contains("ÚNICA", ignoreCase = true)) {
                                             promoverClassificadosMataMata(partidas, equipes, listaGruposConfig, configsIniciais)
                                         }
@@ -213,13 +275,28 @@ fun TelaPainelLibertadores(
                                     onPreJogoClick = {p -> partidaParaVerPreJogo = p}, 
                                     onDetalhesClick = {p -> partidaParaVerDetalhes = p}, 
                                     somenteMataMata = false,
-                                    onEquipeClick = { e -> equipeSelecionada = e }
+                                    onEquipeClick = { e: EquipeExemplo -> equipeSelecionada = e }
                                 )
-                                "Súmula" -> SumulaTab(partidas, equipes, listaGlobalJogadores, {id -> editandoSumulaId = id}, {editandoSumulaId = null})
-                                "Pré-Jogo" -> PreJogoTab(equipes, partidas, listaGlobalJogadores, {id -> editandoPreJogoId = id}, {editandoPreJogoId = null})
-                                "Artilharia" -> TelaArtilharia(equipes, partidas, listaGlobalJogadores, onEquipeClick = { e -> equipeSelecionada = e })
+                                "Súmula" -> SumulaTab(
+                                    partidas = partidas, 
+                                    equipes = equipes, 
+                                    todosJogadores = listaGlobalJogadores,
+                                    onEntrarEdicao = {id -> editandoSumulaId = id}, 
+                                    onSairEdicao = {editandoSumulaId = null},
+                                    onAlteracao = { houveAlteracao = true }
+                                )
+                                "Pré-Jogo" -> PreJogoTab(
+                                    equipes = equipes, 
+                                    partidas = partidas, 
+                                    listaGlobalJogadores = listaGlobalJogadores, 
+                                    onEntrarEdicao = {id -> editandoPreJogoId = id}, 
+                                    onSairEdicao = {editandoPreJogoId = null},
+                                    onAlteracao = { houveAlteracao = true }
+                                )
+                                "Artilharia" -> TelaArtilharia(equipes, partidas, listaGlobalJogadores, onEquipeClick = { e: EquipeExemplo -> equipeSelecionada = e })
                                 "Configs" -> ConfigLibertadores(configsIniciais, algumaPartidaFinalizada) { novasConfigs ->
                                     onSalvarGeral(idCamp, novasConfigs)
+                                    houveAlteracao = false // Salvamento imediato nesta aba
                                     scope.launch { snackbarHostState.showSnackbar("Configurações atualizadas!") }
                                 }
                             }
@@ -230,6 +307,7 @@ fun TelaPainelLibertadores(
                                 Button(
                                     onClick = { 
                                         promoverClassificadosMataMata(partidas, equipes, listaGruposConfig, configsIniciais)
+                                        houveAlteracao = true
                                         scope.launch { snackbarHostState.showSnackbar("Classificados definidos!") }
                                     },
                                     enabled = gruposFinalizados,

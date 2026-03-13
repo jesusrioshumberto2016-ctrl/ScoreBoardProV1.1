@@ -71,33 +71,42 @@ fun TelaDetalhesEquipe(
 ) {
     var abaSelecionada by remember { mutableIntStateOf(0) }
     val titulos = listOf("Cadastro", "Jogadores", "Estatísticas")
+    var jogadorSelecionadoParaDetalhes by remember { mutableStateOf<JogadorExemplo?>(null) }
 
-    Scaffold(
-        topBar = {
-            CenterAlignedTopAppBar(
-                title = { Text(equipe.nome, fontWeight = FontWeight.Bold) },
-                navigationIcon = {
-                    IconButton(onClick = onVoltar) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Voltar")
+    if (jogadorSelecionadoParaDetalhes != null) {
+        TelaDetalhesJogadorTelespectador(
+            jogador = jogadorSelecionadoParaDetalhes!!,
+            partidas = partidas,
+            onVoltar = { jogadorSelecionadoParaDetalhes = null }
+        )
+    } else {
+        Scaffold(
+            topBar = {
+                CenterAlignedTopAppBar(
+                    title = { Text(equipe.nome, fontWeight = FontWeight.Bold) },
+                    navigationIcon = {
+                        IconButton(onClick = onVoltar) {
+                            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Voltar")
+                        }
+                    }
+                )
+            }
+        ) { padding ->
+            Column(modifier = Modifier.padding(padding)) {
+                TabRow(selectedTabIndex = abaSelecionada) {
+                    titulos.forEachIndexed { index, titulo ->
+                        Tab(
+                            selected = abaSelecionada == index,
+                            onClick = { abaSelecionada = index },
+                            text = { Text(titulo, fontSize = 12.sp, fontWeight = FontWeight.Bold) }
+                        )
                     }
                 }
-            )
-        }
-    ) { padding ->
-        Column(modifier = Modifier.padding(padding)) {
-            TabRow(selectedTabIndex = abaSelecionada) {
-                titulos.forEachIndexed { index, titulo ->
-                    Tab(
-                        selected = abaSelecionada == index,
-                        onClick = { abaSelecionada = index },
-                        text = { Text(titulo, fontSize = 12.sp, fontWeight = FontWeight.Bold) }
-                    )
+                when (abaSelecionada) {
+                    0 -> AbaCadastroEquipe(equipe)
+                    1 -> AbaJogadoresEquipe(equipe) { j -> jogadorSelecionadoParaDetalhes = j }
+                    2 -> AbaEstatisticasEquipe(equipe, partidas)
                 }
-            }
-            when (abaSelecionada) {
-                0 -> AbaCadastroEquipe(equipe)
-                1 -> AbaJogadoresEquipe(equipe)
-                2 -> AbaEstatisticasEquipe(equipe, partidas)
             }
         }
     }
@@ -162,7 +171,7 @@ fun InfoRowEquipe(label: String, value: String) {
 }
 
 @Composable
-fun AbaJogadoresEquipe(equipe: EquipeExemplo) {
+fun AbaJogadoresEquipe(equipe: EquipeExemplo, onJogadorClick: (JogadorExemplo) -> Unit) {
     if (equipe.jogadores.isEmpty()) {
         Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
             Text("Nenhum jogador cadastrado.", color = Color.Gray)
@@ -171,6 +180,7 @@ fun AbaJogadoresEquipe(equipe: EquipeExemplo) {
         LazyColumn(Modifier.fillMaxSize().padding(16.dp)) {
             items(equipe.jogadores) { jogador ->
                 ListItem(
+                    modifier = Modifier.clickable { onJogadorClick(jogador) },
                     leadingContent = {
                         AsyncImage(
                             model = jogador.fotoUri.ifBlank { R.drawable.ic_launcher_background },
@@ -250,6 +260,99 @@ fun AbaEstatisticasEquipe(equipe: EquipeExemplo, partidas: List<Partida>) {
                 Text(value, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
             }
             HorizontalDivider(thickness = 0.5.dp, color = Color.LightGray)
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun TelaDetalhesJogadorTelespectador(
+    jogador: JogadorExemplo,
+    partidas: List<Partida>,
+    onVoltar: () -> Unit
+) {
+    val stats = remember(jogador.nome, partidas) {
+        var gols = 0; var assists = 0; var amarelos = 0; var vermelhos = 0; var golsPenalti = 0
+        var participacoes = 0
+        
+        partidas.filter { it.finalizada }.forEach { p ->
+            // Verifica se o jogador teve participação efetiva no jogo:
+            // 1. Estava nos titulares
+            // 2. Ou houve um evento de substituição onde ele entrou
+            // 3. Ou ele registrou qualquer evento no jogo (gol, cartão, etc)
+            
+            val foiTitular = p.titularesMandante.contains(jogador.id) || p.titularesVisitante.contains(jogador.id)
+            val teveEvento = p.eventos.any { it.jogadorNome == jogador.nome }
+            val entrouNoJogo = p.eventos.any { it.tipo.contains("SUB") && it.tipo.contains(jogador.nome) && it.tipo.contains("Entra") }
+
+            if (foiTitular || teveEvento || entrouNoJogo) {
+                participacoes++
+            }
+
+            p.eventos.filter { it.jogadorNome == jogador.nome }.forEach { ev ->
+                when (ev.tipo) {
+                    "GOL" -> gols++
+                    "GOL (PÊNALTI)" -> { gols++; golsPenalti++ }
+                    "ASSISTÊNCIA" -> assists++
+                    "YELLOW CARD" -> amarelos++
+                    "RED CARD" -> vermelhos++
+                }
+            }
+        }
+        listOf(
+            "Jogos Participados" to participacoes,
+            "Gols Marcados" to gols,
+            "Assistências" to assists,
+            "Gols de Pênalti" to golsPenalti,
+            "Cartões Amarelos" to amarelos,
+            "Cartões Vermelhos" to vermelhos
+        )
+    }
+
+    Scaffold(
+        topBar = {
+            CenterAlignedTopAppBar(
+                title = { Text("Estatísticas do Jogador", fontWeight = FontWeight.Bold) },
+                navigationIcon = {
+                    IconButton(onClick = onVoltar) {
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Voltar")
+                    }
+                }
+            )
+        }
+    ) { padding ->
+        Column(modifier = Modifier.fillMaxSize().padding(padding).padding(16.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+            AsyncImage(
+                model = jogador.fotoUri.ifBlank { R.drawable.ic_launcher_background },
+                contentDescription = null,
+                modifier = Modifier
+                    .size(120.dp)
+                    .clip(CircleShape)
+                    .background(Color.LightGray)
+                    .border(2.dp, MaterialTheme.colorScheme.primary, CircleShape),
+                contentScale = ContentScale.Crop
+            )
+            Spacer(Modifier.height(16.dp))
+            Text(jogador.nome, fontSize = 22.sp, fontWeight = FontWeight.Black)
+            if (jogador.apelido.isNotBlank()) {
+                Text("\"${jogador.apelido}\"", fontSize = 16.sp, color = Color.Gray)
+            }
+            Text("${jogador.posicao} | ${jogador.idade} anos | ${jogador.altura}", color = MaterialTheme.colorScheme.primary)
+            
+            Spacer(Modifier.height(32.dp))
+            Text("DESEMPENHO NO CAMPEONATO", fontWeight = FontWeight.Bold, fontSize = 14.sp, color = Color.Gray)
+            HorizontalDivider(Modifier.padding(vertical = 8.dp))
+            
+            stats.forEach { (label, value) ->
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(vertical = 12.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Text(label, fontSize = 16.sp)
+                    Text("$value", fontWeight = FontWeight.Bold, fontSize = 18.sp, color = MaterialTheme.colorScheme.primary)
+                }
+                HorizontalDivider(thickness = 0.5.dp, color = Color.LightGray)
+            }
         }
     }
 }

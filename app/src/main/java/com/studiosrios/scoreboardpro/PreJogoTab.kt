@@ -34,7 +34,8 @@ fun PreJogoTab(
     partidas: SnapshotStateList<Partida>,
     listaGlobalJogadores: List<JogadorExemplo>,
     onEntrarEdicao: (Int) -> Unit = {},
-    onSairEdicao: () -> Unit = {}
+    onSairEdicao: () -> Unit = {},
+    onAlteracao: () -> Unit = {}
 ) {
     var partidaParaPreJogo by remember { mutableStateOf<Partida?>(null) }
 
@@ -80,7 +81,8 @@ fun PreJogoTab(
                 onVoltar = { 
                     partidaParaPreJogo = null 
                     onSairEdicao()
-                }
+                },
+                onAlteracao = onAlteracao
             )
         }
     }
@@ -93,15 +95,44 @@ fun ConfiguracaoPreJogoDetalhada(
     partidas: SnapshotStateList<Partida>,
     equipes: List<EquipeExemplo>,
     listaGlobalJogadores: List<JogadorExemplo>,
-    onVoltar: () -> Unit
+    onVoltar: () -> Unit,
+    onAlteracao: () -> Unit
 ) {
     val mandanteNome = equipes.find { it.id == p.mandanteId }?.nome ?: p.labelMandante
     val visitanteNome = equipes.find { it.id == p.visitanteId }?.nome ?: p.labelVisitante
     var opcaoSelecionada by remember { mutableIntStateOf(0) }
+    
+    // Controle local de alterações para aviso ao sair
+    var houveMudancaLocal by remember { mutableStateOf(false) }
+    var mostrarConfirmacaoSair by remember { mutableStateOf(false) }
+
+    if (mostrarConfirmacaoSair) {
+        AlertDialog(
+            onDismissRequest = { mostrarConfirmacaoSair = false },
+            title = { Text("Alterações pendentes") },
+            text = { Text("Você realizou alterações na escalação/dados desta partida. Deseja sair sem salvar?") },
+            confirmButton = {
+                Button(onClick = { mostrarConfirmacaoSair = false; onVoltar() }, colors = ButtonDefaults.buttonColors(containerColor = Color.Red)) {
+                    Text("SAIR SEM SALVAR")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { mostrarConfirmacaoSair = false }) { Text("CONTINUAR") }
+            }
+        )
+    }
+
+    val tentarVoltar = {
+        if (houveMudancaLocal) {
+            mostrarConfirmacaoSair = true
+        } else {
+            onVoltar()
+        }
+    }
 
     Column(modifier = Modifier.fillMaxSize().padding(16.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
-            IconButton(onClick = onVoltar) { Icon(Icons.AutoMirrored.Filled.ArrowBack, "Voltar") }
+            IconButton(onClick = tentarVoltar) { Icon(Icons.AutoMirrored.Filled.ArrowBack, "Voltar") }
             Text("CONFIGURAR PARTIDA", fontSize = 16.sp, fontWeight = FontWeight.Bold)
         }
 
@@ -125,7 +156,11 @@ fun ConfiguracaoPreJogoDetalhada(
                             HorizontalDivider(Modifier.padding(vertical = 8.dp))
                             OutlinedTextField(
                                 value = if (isMandante) p.tecnicoMandante else p.tecnicoVisitante,
-                                onValueChange = { v -> partidas[idx] = if (isMandante) p.copy(tecnicoMandante = v) else p.copy(tecnicoVisitante = v) },
+                                onValueChange = { v -> 
+                                    partidas[idx] = if (isMandante) p.copy(tecnicoMandante = v) else p.copy(tecnicoVisitante = v)
+                                    houveMudancaLocal = true
+                                    onAlteracao()
+                                },
                                 label = { Text("Técnico") }, modifier = Modifier.fillMaxWidth()
                             )
                             Spacer(Modifier.height(16.dp))
@@ -171,30 +206,13 @@ fun ConfiguracaoPreJogoDetalhada(
                                                     text = { Text(pos) },
                                                     onClick = {
                                                         val novoMapa = p.posicoesNoJogo.toMutableMap()
-                                                        if (pos in listOf("LAT", "ALA", "PT")) {
-                                                            novoMapa[jog.id] = "$pos (E)"
-                                                            partidas[idx] = p.copy(posicoesNoJogo = novoMapa)
-                                                        } else {
-                                                            novoMapa[jog.id] = pos
-                                                            partidas[idx] = p.copy(posicoesNoJogo = novoMapa)
-                                                        }
+                                                        novoMapa[jog.id] = pos
+                                                        partidas[idx] = p.copy(posicoesNoJogo = novoMapa)
+                                                        houveMudancaLocal = true
+                                                        onAlteracao()
                                                         showPosMenu = false
                                                     }
                                                 )
-                                                if (pos in listOf("LAT", "ALA", "PT")) {
-                                                    DropdownMenuItem(text = { Text("$pos (E)") }, onClick = {
-                                                        val nm = p.posicoesNoJogo.toMutableMap()
-                                                        nm[jog.id] = "$pos (E)"
-                                                        partidas[idx] = p.copy(posicoesNoJogo = nm)
-                                                        showPosMenu = false
-                                                    })
-                                                    DropdownMenuItem(text = { Text("$pos (D)") }, onClick = {
-                                                        val nm = p.posicoesNoJogo.toMutableMap()
-                                                        nm[jog.id] = "$pos (D)"
-                                                        partidas[idx] = p.copy(posicoesNoJogo = nm)
-                                                        showPosMenu = false
-                                                    })
-                                                }
                                             }
                                         }
                                     }
@@ -206,6 +224,8 @@ fun ConfiguracaoPreJogoDetalhada(
                                             } else {
                                                 p.copy(titularesVisitante = if (isTitular) p.titularesVisitante - jog.id else p.titularesVisitante + jog.id, reservasVisitante = p.reservasVisitante - jog.id)
                                             }
+                                            houveMudancaLocal = true
+                                            onAlteracao()
                                         }) { Text("TIT", color = if (isTitular) Color(0xFF2E7D32) else Color.Gray) }
 
                                         TextButton(onClick = {
@@ -214,6 +234,8 @@ fun ConfiguracaoPreJogoDetalhada(
                                             } else {
                                                 p.copy(reservasVisitante = if (isReserva) p.reservasVisitante - jog.id else p.reservasVisitante + jog.id, titularesVisitante = p.titularesVisitante - jog.id)
                                             }
+                                            houveMudancaLocal = true
+                                            onAlteracao()
                                         }) { Text("RES", color = if (isReserva) Color(0xFFEF6C00) else Color.Gray) }
                                     }
                                 }
@@ -226,15 +248,27 @@ fun ConfiguracaoPreJogoDetalhada(
                     Column(Modifier.fillMaxSize()) {
                         Text("EQUIPE DE ARBITRAGEM", fontWeight = FontWeight.Bold, color = Color.Gray)
                         HorizontalDivider(Modifier.padding(vertical = 8.dp))
-                        OutlinedTextField(value = p.arbitroPrincipal, onValueChange = { partidas[idx] = p.copy(arbitroPrincipal = it) }, label = { Text("Árbitro Principal") }, modifier = Modifier.fillMaxWidth())
-                        OutlinedTextField(value = p.assistente1, onValueChange = { partidas[idx] = p.copy(assistente1 = it) }, label = { Text("Assistente 1") }, modifier = Modifier.fillMaxWidth())
-                        OutlinedTextField(value = p.assistente2, onValueChange = { partidas[idx] = p.copy(assistente2 = it) }, label = { Text("Assistente 2") }, modifier = Modifier.fillMaxWidth())
+                        OutlinedTextField(value = p.arbitroPrincipal, onValueChange = { 
+                            partidas[idx] = p.copy(arbitroPrincipal = it)
+                            houveMudancaLocal = true
+                            onAlteracao()
+                        }, label = { Text("Árbitro Principal") }, modifier = Modifier.fillMaxWidth())
+                        OutlinedTextField(value = p.assistente1, onValueChange = { 
+                            partidas[idx] = p.copy(assistente1 = it)
+                            houveMudancaLocal = true
+                            onAlteracao()
+                        }, label = { Text("Assistente 1") }, modifier = Modifier.fillMaxWidth())
+                        OutlinedTextField(value = p.assistente2, onValueChange = { 
+                            partidas[idx] = p.copy(assistente2 = it)
+                            houveMudancaLocal = true
+                            onAlteracao()
+                        }, label = { Text("Assistente 2") }, modifier = Modifier.fillMaxWidth())
                     }
                 }
             }
         }
 
-        Button(onClick = onVoltar, modifier = Modifier.fillMaxWidth().padding(top = 8.dp), colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF2E7D32))) {
+        Button(onClick = { houveMudancaLocal = false; onVoltar() }, modifier = Modifier.fillMaxWidth().padding(top = 8.dp), colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF2E7D32))) {
             Text("SALVAR E VOLTAR")
         }
     }

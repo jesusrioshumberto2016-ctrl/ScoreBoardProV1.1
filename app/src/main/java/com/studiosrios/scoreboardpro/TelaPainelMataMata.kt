@@ -27,10 +27,11 @@ fun TelaPainelMataMata(
 
     var partidaParaVerPreJogo by remember { mutableStateOf<Partida?>(null) }
     var partidaParaVerDetalhes by remember { mutableStateOf<Partida?>(null) }
+    var equipeSelecionada by remember { mutableStateOf<EquipeExemplo?>(null) }
 
     Scaffold(
         topBar = {
-            if (partidaParaVerPreJogo == null && partidaParaVerDetalhes == null) {
+            if (partidaParaVerPreJogo == null && partidaParaVerDetalhes == null && equipeSelecionada == null) {
                 Column {
                     CenterAlignedTopAppBar(
                         title = { Text("Painel Mata-Mata", fontWeight = FontWeight.Bold) },
@@ -51,8 +52,15 @@ fun TelaPainelMataMata(
             }
         }
     ) { paddingValues ->
-        Box(modifier = Modifier.padding(paddingValues).fillMaxSize()) {
+        Box(modifier = Modifier.padding(if (equipeSelecionada != null) PaddingValues(0.dp) else paddingValues).fillMaxSize()) {
             when {
+                equipeSelecionada != null -> {
+                    TelaDetalhesEquipe(
+                        equipe = equipeSelecionada!!,
+                        partidas = partidas,
+                        onVoltar = { equipeSelecionada = null }
+                    )
+                }
                 partidaParaVerPreJogo != null -> {
                     TelaPreJogoDetalhada(
                         partida = partidaParaVerPreJogo!!,
@@ -75,7 +83,8 @@ fun TelaPainelMataMata(
                                 equipes = equipes,
                                 partidas = partidas,
                                 onPreJogo = { p -> partidaParaVerPreJogo = p },
-                                onDetalhes = { p -> partidaParaVerDetalhes = p }
+                                onDetalhes = { p -> partidaParaVerDetalhes = p },
+                                onEquipeClick = { e: EquipeExemplo -> equipeSelecionada = e }
                             )
                         }
                         1 -> {
@@ -84,10 +93,11 @@ fun TelaPainelMataMata(
                                 equipes = equipes,
                                 onPreJogoClick = { p -> partidaParaVerPreJogo = p },
                                 onDetalhesClick = { p -> partidaParaVerDetalhes = p },
-                                somenteMataMata = true
+                                somenteMataMata = true,
+                                onEquipeClick = { e: EquipeExemplo -> equipeSelecionada = e }
                             )
                         }
-                        2 -> TelaArtilharia(equipes, partidas, listaGlobalJogadores)
+                        2 -> TelaArtilharia(equipes, partidas, listaGlobalJogadores, onEquipeClick = { e: EquipeExemplo -> equipeSelecionada = e })
                         3 -> {
                             ConfigMataMata(
                                 configs = configsIniciais,
@@ -108,7 +118,8 @@ fun ConteudoChaveamentoMataMata(
     equipes: List<EquipeExemplo>,
     partidas: List<Partida>,
     onPreJogo: (Partida) -> Unit,
-    onDetalhes: (Partida) -> Unit
+    onDetalhes: (Partida) -> Unit,
+    onEquipeClick: (EquipeExemplo) -> Unit = {}
 ) {
     Column(modifier = Modifier.fillMaxSize().padding(16.dp).verticalScroll(rememberScrollState())) {
         Text("Chaveamento do Torneio", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
@@ -126,7 +137,8 @@ fun ConteudoChaveamentoMataMata(
                         partida = partida,
                         equipes = equipes,
                         onPreJogoClick = onPreJogo,
-                        onDetalhesClick = onDetalhes
+                        onDetalhesClick = onDetalhes,
+                        onEquipeClick = onEquipeClick
                     )
                 }
                 Spacer(Modifier.height(16.dp))

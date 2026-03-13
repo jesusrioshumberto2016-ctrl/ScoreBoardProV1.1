@@ -7,6 +7,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Save
 import androidx.compose.material.icons.filled.Star
@@ -28,7 +29,8 @@ fun SumulaTab(
     equipes: List<EquipeExemplo>,
     todosJogadores: List<JogadorExemplo>,
     onEntrarEdicao: (Int) -> Unit = {},
-    onSairEdicao: () -> Unit = {}
+    onSairEdicao: () -> Unit = {},
+    onAlteracao: () -> Unit = {}
 ) {
     var partidaFocadaId by remember { mutableStateOf<Int?>(null) }
 
@@ -36,7 +38,7 @@ fun SumulaTab(
         val partidasOrdenadas = obterPartidasOrdenadas(partidas)
 
         LazyColumn(Modifier.padding(16.dp)) {
-            items(partidasOrdenadas, key = { it.id }) { p ->
+            items(partidasOrdenadas, key = { it.id }) { p: Partida ->
                 val mandante = equipes.find { it.id == p.mandanteId }?.nome ?: p.labelMandante
                 val visitante = equipes.find { it.id == p.visitanteId }?.nome ?: p.labelVisitante
                 Card(Modifier.fillMaxWidth().padding(vertical = 4.dp)) {
@@ -74,7 +76,8 @@ fun SumulaTab(
                 onVoltar = { 
                     partidaFocadaId = null 
                     onSairEdicao()
-                }
+                },
+                onAlteracao = onAlteracao
             )
         } else {
             partidaFocadaId = null
@@ -90,12 +93,16 @@ fun ConteudoRegistrarEventos(
     partidas: SnapshotStateList<Partida>,
     equipes: List<EquipeExemplo>,
     todosJogadores: List<JogadorExemplo>,
-    onVoltar: () -> Unit
+    onVoltar: () -> Unit,
+    onAlteracao: () -> Unit = {}
 ) {
     val mNome = equipes.find { it.id == p.mandanteId }?.nome ?: p.labelMandante
     val vNome = equipes.find { it.id == p.visitanteId }?.nome ?: p.labelVisitante
     val relacionadosIds = p.titularesMandante + p.reservasMandante + p.titularesVisitante + p.reservasVisitante
     val jogadoresDaPartida = todosJogadores.filter { it.id in relacionadosIds || it.equipeId == p.mandanteId || it.equipeId == p.visitanteId }
+
+    var houveMudancaLocal by remember { mutableStateOf(false) }
+    var mostrarConfirmacaoSair by remember { mutableStateOf(false) }
 
     var showDialog by remember { mutableStateOf(false) }
     var tipoAtual by remember { mutableStateOf("GOL") }
@@ -117,7 +124,31 @@ fun ConteudoRegistrarEventos(
     var penMandanteInput by remember { mutableStateOf(p.penaltisMandante?.toString() ?: "") }
     var penVisitanteInput by remember { mutableStateOf(p.penaltisVisitante?.toString() ?: "") }
 
-    // DIÁLOGO DE PÊNALTIS
+    if (mostrarConfirmacaoSair) {
+        AlertDialog(
+            onDismissRequest = { mostrarConfirmacaoSair = false },
+            title = { Text("Alterações pendentes") },
+            text = { Text("Você realizou alterações nesta súmula. Deseja sair sem salvar?") },
+            confirmButton = {
+                Button(onClick = { mostrarConfirmacaoSair = false; onVoltar() }, colors = ButtonDefaults.buttonColors(containerColor = Color.Red)) {
+                    Text("SAIR SEM SALVAR")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { mostrarConfirmacaoSair = false }) { Text("CONTINUAR") }
+            }
+        )
+    }
+
+    val tentarVoltar = {
+        if (houveMudancaLocal) {
+            mostrarConfirmacaoSair = true
+        } else {
+            onVoltar()
+        }
+    }
+
+    // DIÁLOGOS
     if (showDialogPenaltis) {
         AlertDialog(
             onDismissRequest = { showDialogPenaltis = false },
@@ -141,22 +172,11 @@ fun ConteudoRegistrarEventos(
                             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
                         )
                     }
-                    
                     Spacer(Modifier.height(16.dp))
-                    Text("Registrar Cobrança Individual:", fontWeight = FontWeight.Bold, fontSize = 12.sp)
-                    
+                    Text("Cobrança Individual:", fontWeight = FontWeight.Bold, fontSize = 12.sp)
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
-                        Button(
-                            onClick = { tipoAtual = "CONVERTEU PÊNALTI"; showDialog = true },
-                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF2E7D32)),
-                            modifier = Modifier.weight(1f).padding(2.dp)
-                        ) { Text("CONVERTEU", fontSize = 9.sp) }
-                        
-                        Button(
-                            onClick = { tipoAtual = "PERDEU PÊNALTI"; showDialog = true },
-                            colors = ButtonDefaults.buttonColors(containerColor = Color.Red),
-                            modifier = Modifier.weight(1f).padding(2.dp)
-                        ) { Text("PERDEU", fontSize = 10.sp) }
+                        Button(onClick = { tipoAtual = "CONVERTEU PÊNALTI"; showDialog = true }, colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF2E7D32)), modifier = Modifier.weight(1f).padding(2.dp)) { Text("CONVERTEU", fontSize = 9.sp) }
+                        Button(onClick = { tipoAtual = "PERDEU PÊNALTI"; showDialog = true }, colors = ButtonDefaults.buttonColors(containerColor = Color.Red), modifier = Modifier.weight(1f).padding(2.dp)) { Text("PERDEU", fontSize = 10.sp) }
                     }
                 }
             },
@@ -165,45 +185,30 @@ fun ConteudoRegistrarEventos(
                     val pM = penMandanteInput.toIntOrNull()
                     val pV = penVisitanteInput.toIntOrNull()
                     partidas[idxPartida] = p.copy(penaltisMandante = pM, penaltisVisitante = pV)
-                    showDialogPenaltis = false
+                    houveMudancaLocal = true; onAlteracao(); showDialogPenaltis = false
                 }, colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF2E7D32))) { Text("SALVAR PLACAR") }
             }
         )
     }
 
-    // DIÁLOGO DE MINUTO
     if (showDialogMinuto) {
         AlertDialog(
             onDismissRequest = { showDialogMinuto = false },
             title = { Text("Registrar Minuto") },
             text = {
-                OutlinedTextField(
-                    value = minutoInput,
-                    onValueChange = { minutoInput = it.filter { c -> c.isDigit() } },
-                    label = { Text("Minuto do Evento") },
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                    modifier = Modifier.fillMaxWidth()
-                )
+                OutlinedTextField(value = minutoInput, onValueChange = { minutoInput = it.filter { c -> c.isDigit() } }, label = { Text("Minuto") }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number), modifier = Modifier.fillMaxWidth())
             },
             confirmButton = {
                 Button(onClick = {
                     val jog = jogadorPendenteParaEvento
                     if (jog != null) {
                         if (tipoAtual == "GOL" || tipoAtual == "GOL (PÊNALTI)") {
-                            jogadorDoGol = jog
-                            minutoDoGol = minutoInput
-                            tipoDoGol = tipoAtual
-                            showDialogMinuto = false
-                            showDialogAssistencia = true
+                            jogadorDoGol = jog; minutoDoGol = minutoInput; tipoDoGol = tipoAtual; showDialogMinuto = false; showDialogAssistencia = true
                         } else if (tipoAtual == "SAÍDA (SUB)") {
-                            jogadorSaindo = jog
-                            showDialogMinuto = false
-                            showDialogSubstituicaoEntrada = true
+                            jogadorSaindo = jog; showDialogMinuto = false; showDialogSubstituicaoEntrada = true
                         } else {
                             salvarEventoImpl(p, partidas, equipes, jog, tipoAtual, minutoInput)
-                            showDialogMinuto = false
-                            minutoInput = ""
-                            jogadorPendenteParaEvento = null
+                            houveMudancaLocal = true; onAlteracao(); showDialogMinuto = false; minutoInput = ""; jogadorPendenteParaEvento = null
                         }
                     }
                 }) { Text("PRÓXIMO") }
@@ -211,7 +216,6 @@ fun ConteudoRegistrarEventos(
         )
     }
 
-    // DIÁLOGO DE ASSISTÊNCIA
     if (showDialogAssistencia) {
         AlertDialog(
             onDismissRequest = { showDialogAssistencia = false },
@@ -219,138 +223,89 @@ fun ConteudoRegistrarEventos(
             text = {
                 Column(Modifier.verticalScroll(rememberScrollState())) {
                     TextButton(onClick = {
-                        val author = jogadorDoGol
-                        if (author != null) {
-                            salvarEventoImpl(p, partidas, equipes, author, tipoDoGol, minutoDoGol)
-                        }
-                        showDialogAssistencia = false
-                        minutoInput = ""
-                        jogadorPendenteParaEvento = null
-                    }) { Text("SEM ASSISTÊNCIA", fontWeight = FontWeight.Bold, color = Color.Gray) }
-                    HorizontalDivider()
+                        jogadorDoGol?.let { salvarEventoImpl(p, partidas, equipes, it, tipoDoGol, minutoDoGol) }
+                        houveMudancaLocal = true; onAlteracao(); showDialogAssistencia = false; minutoInput = ""; jogadorPendenteParaEvento = null
+                    }) { Text("SEM ASSISTÊNCIA") }
                     val companheiros = jogadoresDaPartida.filter { it.equipeId == jogadorDoGol?.equipeId && it.id != jogadorDoGol?.id }
                     companheiros.forEach { comp ->
                         TextButton(onClick = {
-                            val author = jogadorDoGol
-                            if (author != null) {
-                                salvarEventoImpl(p, partidas, equipes, author, tipoDoGol, minutoDoGol)
-                                salvarEventoImpl(p, partidas, equipes, comp, "ASSISTÊNCIA", minutoDoGol)
-                            }
-                            showDialogAssistencia = false
-                            minutoInput = ""
-                            jogadorPendenteParaEvento = null
+                            jogadorDoGol?.let { salvarEventoImpl(p, partidas, equipes, it, tipoDoGol, minutoDoGol) }
+                            salvarEventoImpl(p, partidas, equipes, comp, "ASSISTÊNCIA", minutoDoGol)
+                            houveMudancaLocal = true; onAlteracao(); showDialogAssistencia = false; minutoInput = ""; jogadorPendenteParaEvento = null
                         }) { Text(comp.nome) }
                     }
                 }
-            },
-            confirmButton = {}
+            }, confirmButton = {}
         )
     }
 
-    // DIÁLOGO DE ENTRADA (SUBSTITUIÇÃO)
     if (showDialogSubstituicaoEntrada) {
         AlertDialog(
             onDismissRequest = { showDialogSubstituicaoEntrada = false },
-            title = { Text("Quem entra no lugar de ${jogadorSaindo?.nome}?") },
+            title = { Text("Quem entra?") },
             text = {
                 Column(Modifier.verticalScroll(rememberScrollState())) {
                     val reservas = jogadoresDaPartida.filter { it.equipeId == jogadorSaindo?.equipeId && it.id != jogadorSaindo?.id }
                     reservas.forEach { reserva ->
                         TextButton(onClick = {
                             val msg = "SUB: Sai ${jogadorSaindo?.nome} / Entra ${reserva.nome}"
-                            salvarEventoImpl(p, partidas, equipes, jogadorSaindo!!, msg, minutoInput)
-                            showDialogSubstituicaoEntrada = false
-                            minutoInput = ""
-                            jogadorPendenteParaEvento = null
-                            jogadorSaindo = null
+                            jogadorSaindo?.let { salvarEventoImpl(p, partidas, equipes, it, msg, minutoInput) }
+                            houveMudancaLocal = true; onAlteracao(); showDialogSubstituicaoEntrada = false; minutoInput = ""; jogadorPendenteParaEvento = null; jogadorSaindo = null
                         }) { Text(reserva.nome) }
                     }
                 }
-            },
-            confirmButton = { TextButton(onClick = { showDialogSubstituicaoEntrada = false }) { Text("CANCELAR") } }
+            }, confirmButton = {}
         )
     }
 
-    // DIÁLOGO DE SELEÇÃO DE JOGADOR
     if (showDialog) {
         AlertDialog(
             onDismissRequest = { showDialog = false },
-            title = { Text("Registrar $tipoAtual") },
+            title = { Text(tipoAtual) },
             text = {
                 Column(Modifier.verticalScroll(rememberScrollState())) {
-                    val listaFiltrada = if (tipoAtual == "PÊNALTI DEFENDIDO") {
-                        jogadoresDaPartida.filter { it.posicao == "GOL" }
-                    } else {
-                        jogadoresDaPartida
-                    }
-
-                    if (listaFiltrada.isEmpty()) {
-                        Text("Nenhum jogador apto.", Modifier.padding(8.dp), color = Color.Gray)
-                    } else {
-                        listaFiltrada.forEach { jog ->
-                            val nomeEquipeJogador = equipes.find { it.id == jog.equipeId }?.nome ?: "Sem Time"
-                            TextButton(onClick = {
-                                jogadorPendenteParaEvento = jog
-                                showDialog = false
-                                showDialogMinuto = true
-                            }) {
-                                Text("${jog.nome} (${jog.posicao} - $nomeEquipeJogador)")
-                            }
-                        }
+                    jogadoresDaPartida.forEach { jog ->
+                        TextButton(onClick = { jogadorPendenteParaEvento = jog; showDialog = false; showDialogMinuto = true }) { Text("${jog.nome} (${jog.posicao})") }
                     }
                 }
-            },
-            confirmButton = { TextButton(onClick = { showDialog = false }) { Text("FECHAR") } }
+            }, confirmButton = {}
         )
     }
 
-    // ELEGER MELHOR JOGADOR
     if (showDialogMelhor) {
         AlertDialog(
             onDismissRequest = { showDialogMelhor = false },
-            title = { Text("Eleger Melhor Jogador") },
+            title = { Text("Melhor Jogador") },
             text = {
                 Column(Modifier.verticalScroll(rememberScrollState())) {
                     jogadoresDaPartida.forEach { jog ->
                         TextButton(onClick = {
                             partidas[idxPartida] = partidas[idxPartida].copy(melhorJogador = jog.nome)
-                            showDialogMelhor = false
+                            houveMudancaLocal = true; onAlteracao(); showDialogMelhor = false
                         }) { Text(jog.nome) }
                     }
                 }
-            },
-            confirmButton = { TextButton(onClick = { showDialogMelhor = false }) { Text("CANCELAR") } }
+            }, confirmButton = {}
         )
     }
 
     Column(Modifier.padding(16.dp).verticalScroll(rememberScrollState())) {
-        Text("SÚMULA: $mNome x $vNome", fontSize = 18.sp, fontWeight = FontWeight.Black)
-        val pM = if(p.golsMandante == null) "-" else p.golsMandante.toString()
-        val pV = if(p.golsVisitante == null) "-" else p.golsVisitante.toString()
-        val penStr = if (p.penaltisMandante != null) " (Pen: ${p.penaltisMandante} x ${p.penaltisVisitante})" else ""
-        Text("Placar: $pM x $pV$penStr", fontSize = 14.sp, color = Color.Gray)
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            IconButton(onClick = tentarVoltar) { Icon(Icons.AutoMirrored.Filled.ArrowBack, "Voltar") }
+            Text("SÚMULA: $mNome x $vNome", fontSize = 18.sp, fontWeight = FontWeight.Black)
+        }
+        
         Spacer(Modifier.height(16.dp))
 
         Row(Modifier.fillMaxWidth().padding(bottom = 8.dp), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-            val btnMod = Modifier.weight(1f)
             val addMarco = { tipo: String ->
                 val marco = EventoPartida(jogadorNome = "Partida", equipeNome = "Geral", tipo = tipo)
                 partidas[idxPartida] = p.copy(eventos = p.eventos + marco)
+                houveMudancaLocal = true; onAlteracao()
             }
-            Button(onClick = { addMarco("INÍCIO") }, modifier = btnMod, colors = ButtonDefaults.buttonColors(containerColor = Color.Black)) { Text("INÍCIO", fontSize = 9.sp) }
-            Button(onClick = { addMarco("INTERVALO") }, modifier = btnMod, colors = ButtonDefaults.buttonColors(containerColor = Color.DarkGray)) { Text("INTERVALO", fontSize = 8.sp) }
-            Button(onClick = { addMarco("FIM DE JOGO") }, modifier = btnMod, colors = ButtonDefaults.buttonColors(containerColor = Color.Red)) { Text("FIM", fontSize = 9.sp) }
-        }
-
-        val ehMataMata = !p.fase.contains("RODADA", ignoreCase = true) && !p.fase.contains("ÚNICA", ignoreCase = true)
-        if (ehMataMata) {
-            Button(
-                onClick = { showDialogPenaltis = true },
-                modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF546E7A))
-            ) {
-                Text("DISPUTA DE PÊNALTIS", fontWeight = FontWeight.Bold)
-            }
+            Button(onClick = { addMarco("INÍCIO") }, modifier = Modifier.weight(1f), colors = ButtonDefaults.buttonColors(containerColor = Color.Black)) { Text("INÍCIO", fontSize = 9.sp) }
+            Button(onClick = { addMarco("INTERVALO") }, modifier = Modifier.weight(1f), colors = ButtonDefaults.buttonColors(containerColor = Color.DarkGray)) { Text("INTERVALO", fontSize = 8.sp) }
+            Button(onClick = { addMarco("FIM DE JOGO") }, modifier = Modifier.weight(1f), colors = ButtonDefaults.buttonColors(containerColor = Color.Red)) { Text("FIM", fontSize = 9.sp) }
         }
 
         Card(Modifier.fillMaxWidth().padding(bottom = 16.dp), colors = CardDefaults.cardColors(containerColor = Color(0xFFFFFDE7))) {
@@ -358,144 +313,84 @@ fun ConteudoRegistrarEventos(
                 Icon(Icons.Default.Star, null, tint = Color(0xFFB79400))
                 Spacer(Modifier.width(8.dp))
                 Text("Melhor: ${p.melhorJogador.ifBlank { "Não definido" }}", Modifier.weight(1f), fontWeight = FontWeight.Bold)
-                Button(onClick = { showDialogMelhor = true }, colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFB79400))) {
-                    Text("DEFINIR", fontSize = 10.sp)
-                }
+                Button(onClick = { showDialogMelhor = true }, colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFB79400))) { Text("DEFINIR", fontSize = 10.sp) }
             }
         }
 
         Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
-                Button(onClick = { tipoAtual = "GOL"; showDialog = true }, modifier = Modifier.weight(1f).padding(2.dp), colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF2E7D32))) { Text("GOL", fontSize = 10.sp) }
-                Button(onClick = { tipoAtual = "GOL (PÊNALTI)"; showDialog = true }, modifier = Modifier.weight(1f).padding(2.dp), colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF1B5E20))) { Text("PÊNALTI", fontSize = 9.sp) }
-                Button(onClick = { tipoAtual = "ASSISTÊNCIA"; showDialog = true }, modifier = Modifier.weight(1f).padding(2.dp), colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF00ACC1))) { Text("ASSIST.", fontSize = 10.sp) }
+                Button(onClick = { tipoAtual = "GOL"; showDialog = true }, modifier = Modifier.weight(1f).padding(2.dp), colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF2E7D32))) { Text("GOL") }
+                Button(onClick = { tipoAtual = "GOL (PÊNALTI)"; showDialog = true }, modifier = Modifier.weight(1f).padding(2.dp), colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF1B5E20))) { Text("PÊNALTI") }
+                Button(onClick = { tipoAtual = "ASSISTÊNCIA"; showDialog = true }, modifier = Modifier.weight(1f).padding(2.dp), colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF00ACC1))) { Text("ASSIST.") }
             }
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
-                Button(onClick = { tipoAtual = "YELLOW CARD"; showDialog = true }, modifier = Modifier.weight(1f).padding(2.dp), colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFFFD600), contentColor = Color.Black)) { Text("YELLOW", fontSize = 8.sp) }
-                Button(onClick = { tipoAtual = "RED CARD"; showDialog = true }, modifier = Modifier.weight(1f).padding(2.dp), colors = ButtonDefaults.buttonColors(containerColor = Color.Red)) { Text("RED", fontSize = 8.sp) }
-                Button(onClick = { tipoAtual = "GOL CONTRA"; showDialog = true }, modifier = Modifier.weight(1f).padding(2.dp), colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFD32F2F))) { Text("GOL CONTRA", fontSize = 8.sp) }
+                Button(onClick = { tipoAtual = "YELLOW CARD"; showDialog = true }, modifier = Modifier.weight(1f).padding(2.dp), colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFFFD600), contentColor = Color.Black)) { Text("AMARELO") }
+                Button(onClick = { tipoAtual = "RED CARD"; showDialog = true }, modifier = Modifier.weight(1f).padding(2.dp), colors = ButtonDefaults.buttonColors(containerColor = Color.Red)) { Text("VERMELHO") }
+                Button(onClick = { tipoAtual = "GOL CONTRA"; showDialog = true }, modifier = Modifier.weight(1f).padding(2.dp), colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFD32F2F))) { Text("CONTRA") }
             }
-            Button(
-                onClick = { tipoAtual = "SAÍDA (SUB)"; showDialog = true }, 
-                modifier = Modifier.fillMaxWidth().padding(horizontal = 2.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = Color.DarkGray)
-            ) {
+            Button(onClick = { tipoAtual = "SAÍDA (SUB)"; showDialog = true }, modifier = Modifier.fillMaxWidth().padding(horizontal = 2.dp), colors = ButtonDefaults.buttonColors(containerColor = Color.DarkGray)) {
                 Icon(Icons.Default.SyncAlt, null, modifier = Modifier.size(16.dp))
                 Spacer(Modifier.width(8.dp))
-                Text("REGISTRAR SUBSTITUIÇÃO", fontWeight = FontWeight.Bold)
+                Text("SUBSTITUIÇÃO")
             }
         }
 
         Spacer(Modifier.height(16.dp))
-        Text("HISTÓRICO DE EVENTOS:", fontWeight = FontWeight.Bold)
-        HorizontalDivider()
-
+        Text("HISTÓRICO:", fontWeight = FontWeight.Bold)
         p.eventos.forEach { ev ->
-            val cor = when {
-                ev.tipo.contains("SUB") -> Color.Gray
-                ev.tipo == "YELLOW CARD" -> Color(0xFFB79400)
-                ev.tipo == "RED CARD" -> Color.Red
-                ev.tipo == "GOL CONTRA" -> Color(0xFFD32F2F)
-                ev.tipo.contains("CONVERTEU") -> Color(0xFF2E7D32)
-                ev.tipo.contains("PERDEU") -> Color.Red
-                else -> Color(0xFF2E7D32)
-            }
-            Row(
-                modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
-                val minStr = if(ev.minuto.isNotBlank()) "${ev.minuto}' " else ""
-                Text("$minStr${ev.tipo}: ${ev.jogadorNome}", color = cor, fontWeight = FontWeight.Medium, modifier = Modifier.weight(1f), fontSize = 12.sp)
+            Row(Modifier.fillMaxWidth().padding(vertical = 4.dp), verticalAlignment = Alignment.CenterVertically) {
+                Text("${if(ev.minuto.isNotBlank()) ev.minuto+"' " else ""}${ev.tipo}: ${ev.jogadorNome}", modifier = Modifier.weight(1f), fontSize = 12.sp)
                 IconButton(onClick = {
                     val pEd = partidas[idxPartida]
-                    var novosGolsMandante = pEd.golsMandante
-                    var novosGolsVisitante = pEd.golsVisitante
-
-                    if (ev.tipo == "GOL" || ev.tipo == "GOL (PÊNALTI)" || ev.tipo == "CONVERTEU PÊNALTI") {
-                        val jog = todosJogadores.find { it.nome == ev.jogadorNome }
-                        if (jog != null) {
-                            if (jog.equipeId == pEd.mandanteId) novosGolsMandante = (novosGolsMandante ?: 0) - 1
-                            else novosGolsVisitante = (novosGolsVisitante ?: 0) - 1
-                        }
-                    } else if (ev.tipo == "GOL CONTRA") {
-                        val jog = todosJogadores.find { it.nome == ev.jogadorNome }
-                        if (jog != null) {
-                            if (jog.equipeId == pEd.mandanteId) novosGolsVisitante = (novosGolsVisitante ?: 0) - 1
-                            else novosGolsMandante = (novosGolsMandante ?: 0) - 1
+                    var nGM = pEd.golsMandante; var nGV = pEd.golsVisitante
+                    var nAM = pEd.cartoesAmarelosMandante; var nVM = pEd.cartoesVermelhosMandante
+                    var nAV = pEd.cartoesAmarelosVisitante; var nVV = pEd.cartoesVermelhosVisitante
+                    val jog = todosJogadores.find { it.nome == ev.jogadorNome }
+                    if (jog != null) {
+                        if (ev.tipo == "GOL" || ev.tipo == "GOL (PÊNALTI)") {
+                            if (jog.equipeId == pEd.mandanteId) nGM = (nGM ?: 0) - 1 else nGV = (nGV ?: 0) - 1
+                        } else if (ev.tipo == "GOL CONTRA") {
+                            if (jog.equipeId == pEd.mandanteId) nGV = (nGV ?: 0) - 1 else nGM = (nGM ?: 0) - 1
+                        } else if (ev.tipo == "YELLOW CARD") {
+                            if (jog.equipeId == pEd.mandanteId) nAM-- else nAV--
+                        } else if (ev.tipo == "RED CARD") {
+                            if (jog.equipeId == pEd.mandanteId) nVM-- else nVV--
                         }
                     }
-
-                    val novaLista = pEd.eventos.toMutableList().apply { remove(ev) }
-                    partidas[idxPartida] = pEd.copy(
-                        eventos = novaLista,
-                        golsMandante = if ((novosGolsMandante ?: 0) < 0) 0 else novosGolsMandante,
-                        golsVisitante = if ((novosGolsVisitante ?: 0) < 0) 0 else novosGolsVisitante
-                    )
-                }) {
-                    Icon(Icons.Default.Delete, contentDescription = "Excluir", tint = Color.Gray)
-                }
+                    val novaLista = p.eventos.toMutableList().apply { remove(ev) }
+                    partidas[idxPartida] = p.copy(eventos = novaLista, golsMandante = nGM, golsVisitante = nGV, cartoesAmarelosMandante = nAM, cartoesVermelhosMandante = nVM, cartoesAmarelosVisitante = nAV, cartoesVermelhosVisitante = nVV)
+                    houveMudancaLocal = true; onAlteracao()
+                }) { Icon(Icons.Default.Delete, null, tint = Color.Gray) }
             }
         }
 
         Spacer(Modifier.height(24.dp))
-        
-        Button(
-            onClick = onVoltar, 
-            modifier = Modifier.fillMaxWidth().height(55.dp),
-            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF2E7D32))
-        ) {
-            Icon(Icons.Default.Save, null)
-            Spacer(Modifier.width(8.dp))
-            Text("SALVAR ALTERAÇÕES", fontWeight = FontWeight.Bold)
-        }
-        
-        Spacer(Modifier.height(8.dp))
-        
-        TextButton(
-            onClick = onVoltar, 
-            modifier = Modifier.fillMaxWidth(),
-            colors = ButtonDefaults.textButtonColors(contentColor = Color.Red)
-        ) {
-            Text("VOLTAR / SAIR")
+        Button(onClick = { houveMudancaLocal = false; onVoltar() }, modifier = Modifier.fillMaxWidth().height(55.dp), colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF2E7D32))) {
+            Icon(Icons.Default.Save, null); Spacer(Modifier.width(8.dp)); Text("SALVAR ALTERAÇÕES", fontWeight = FontWeight.Bold)
         }
     }
 }
 
-fun salvarEventoImpl(
-    p: Partida,
-    partidas: SnapshotStateList<Partida>,
-    equipes: List<EquipeExemplo>,
-    jog: JogadorExemplo,
-    tipo: String,
-    minuto: String
-) {
+fun salvarEventoImpl(p: Partida, partidas: SnapshotStateList<Partida>, equipes: List<EquipeExemplo>, jog: JogadorExemplo, tipo: String, minuto: String) {
     val idx = partidas.indexOfFirst { it.id == p.id }
     if (idx != -1) {
         val pEd = partidas[idx]
         val nomeEq = equipes.find { it.id == jog.equipeId }?.nome ?: "Sem Time"
+        var nGM = pEd.golsMandante; var nGV = pEd.golsVisitante
+        var nAM = pEd.cartoesAmarelosMandante; var nVM = pEd.cartoesVermelhosMandante
+        var nAV = pEd.cartoesAmarelosVisitante; var nVV = pEd.cartoesVermelhosVisitante
 
-        var novosGolsMandante = pEd.golsMandante
-        var novosGolsVisitante = pEd.golsVisitante
-
-        // --- LÓGICA DE CONTABILIZAÇÃO DE GOLS ---
-        // Apenas GOL e GOL (PÊNALTI) somam no placar principal e artilharia
-        // CONVERTEU PÊNALTI e PERDEU PÊNALTI são apenas registros históricos para a disputa final
         if (tipo == "GOL" || tipo == "GOL (PÊNALTI)") {
-            if (jog.equipeId == pEd.mandanteId) novosGolsMandante = (novosGolsMandante ?: 0) + 1
-            else novosGolsVisitante = (novosGolsVisitante ?: 0) + 1
+            if (jog.equipeId == pEd.mandanteId) nGM = (nGM ?: 0) + 1 else nGV = (nGV ?: 0) + 1
         } else if (tipo == "GOL CONTRA") {
-            if (jog.equipeId == pEd.mandanteId) novosGolsVisitante = (novosGolsVisitante ?: 0) + 1
-            else novosGolsMandante = (novosGolsMandante ?: 0) + 1
+            if (jog.equipeId == pEd.mandanteId) nGV = (nGV ?: 0) + 1 else nGM = (nGM ?: 0) + 1
+        } else if (tipo == "YELLOW CARD") {
+            if (jog.equipeId == pEd.mandanteId) nAM++ else nAV++
+        } else if (tipo == "RED CARD") {
+            if (jog.equipeId == pEd.mandanteId) nVM++ else nVV++
         }
 
         val novo = EventoPartida(jogadorNome = jog.nome, equipeNome = nomeEq, tipo = tipo, minuto = minuto)
-        val listaEventos = pEd.eventos + novo
-
-        partidas[idx] = pEd.copy(
-            eventos = listaEventos,
-            golsMandante = novosGolsMandante,
-            golsVisitante = novosGolsVisitante
-        )
+        partidas[idx] = pEd.copy(eventos = pEd.eventos + novo, golsMandante = nGM, golsVisitante = nGV, cartoesAmarelosMandante = nAM, cartoesVermelhosMandante = nVM, cartoesAmarelosVisitante = nAV, cartoesVermelhosVisitante = nVV)
     }
 }
