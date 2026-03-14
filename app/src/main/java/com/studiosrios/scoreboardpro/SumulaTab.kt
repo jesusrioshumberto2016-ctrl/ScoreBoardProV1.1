@@ -30,7 +30,8 @@ fun SumulaTab(
     todosJogadores: List<JogadorExemplo>,
     onEntrarEdicao: (Int) -> Unit = {},
     onSairEdicao: () -> Unit = {},
-    onAlteracao: () -> Unit = {}
+    onAlteracao: () -> Unit = {},
+    onSalvar: () -> Unit = {}
 ) {
     var partidaFocadaId by remember { mutableStateOf<Int?>(null) }
 
@@ -77,7 +78,8 @@ fun SumulaTab(
                     partidaFocadaId = null 
                     onSairEdicao()
                 },
-                onAlteracao = onAlteracao
+                onAlteracao = onAlteracao,
+                onSalvar = onSalvar
             )
         } else {
             partidaFocadaId = null
@@ -94,7 +96,8 @@ fun ConteudoRegistrarEventos(
     equipes: List<EquipeExemplo>,
     todosJogadores: List<JogadorExemplo>,
     onVoltar: () -> Unit,
-    onAlteracao: () -> Unit = {}
+    onAlteracao: () -> Unit = {},
+    onSalvar: () -> Unit = {}
 ) {
     val mNome = equipes.find { it.id == p.mandanteId }?.nome ?: p.labelMandante
     val vNome = equipes.find { it.id == p.visitanteId }?.nome ?: p.labelVisitante
@@ -148,7 +151,6 @@ fun ConteudoRegistrarEventos(
         }
     }
 
-    // DIÁLOGOS
     if (showDialogPenaltis) {
         AlertDialog(
             onDismissRequest = { showDialogPenaltis = false },
@@ -173,7 +175,7 @@ fun ConteudoRegistrarEventos(
                         )
                     }
                     Spacer(Modifier.height(16.dp))
-                    Text("Cobrança Individual:", fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                    Text("Registrar Cobrança Individual:", fontWeight = FontWeight.Bold, fontSize = 12.sp)
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
                         Button(onClick = { tipoAtual = "CONVERTEU PÊNALTI"; showDialog = true }, colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF2E7D32)), modifier = Modifier.weight(1f).padding(2.dp)) { Text("CONVERTEU", fontSize = 9.sp) }
                         Button(onClick = { tipoAtual = "PERDEU PÊNALTI"; showDialog = true }, colors = ButtonDefaults.buttonColors(containerColor = Color.Red), modifier = Modifier.weight(1f).padding(2.dp)) { Text("PERDEU", fontSize = 10.sp) }
@@ -275,7 +277,7 @@ fun ConteudoRegistrarEventos(
     if (showDialogMelhor) {
         AlertDialog(
             onDismissRequest = { showDialogMelhor = false },
-            title = { Text("Melhor Jogador") },
+            title = { Text("Eleger Melhor Jogador") },
             text = {
                 Column(Modifier.verticalScroll(rememberScrollState())) {
                     jogadoresDaPartida.forEach { jog ->
@@ -308,6 +310,10 @@ fun ConteudoRegistrarEventos(
             Button(onClick = { addMarco("FIM DE JOGO") }, modifier = Modifier.weight(1f), colors = ButtonDefaults.buttonColors(containerColor = Color.Red)) { Text("FIM", fontSize = 9.sp) }
         }
 
+        if (!p.fase.contains("RODADA", true)) {
+            Button(onClick = { showDialogPenaltis = true }, modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp), colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF546E7A))) { Text("DISPUTA DE PÊNALTIS") }
+        }
+
         Card(Modifier.fillMaxWidth().padding(bottom = 16.dp), colors = CardDefaults.cardColors(containerColor = Color(0xFFFFFDE7))) {
             Row(Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
                 Icon(Icons.Default.Star, null, tint = Color(0xFFB79400))
@@ -324,19 +330,19 @@ fun ConteudoRegistrarEventos(
                 Button(onClick = { tipoAtual = "ASSISTÊNCIA"; showDialog = true }, modifier = Modifier.weight(1f).padding(2.dp), colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF00ACC1))) { Text("ASSIST.") }
             }
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
-                Button(onClick = { tipoAtual = "YELLOW CARD"; showDialog = true }, modifier = Modifier.weight(1f).padding(2.dp), colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFFFD600), contentColor = Color.Black)) { Text("AMARELO") }
-                Button(onClick = { tipoAtual = "RED CARD"; showDialog = true }, modifier = Modifier.weight(1f).padding(2.dp), colors = ButtonDefaults.buttonColors(containerColor = Color.Red)) { Text("VERMELHO") }
-                Button(onClick = { tipoAtual = "GOL CONTRA"; showDialog = true }, modifier = Modifier.weight(1f).padding(2.dp), colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFD32F2F))) { Text("CONTRA") }
+                Button(onClick = { tipoAtual = "YELLOW CARD"; showDialog = true }, modifier = Modifier.weight(1f).padding(2.dp), colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFFFD600), contentColor = Color.Black)) { Text("YELLOW") }
+                Button(onClick = { tipoAtual = "RED CARD"; showDialog = true }, modifier = Modifier.weight(1f).padding(2.dp), colors = ButtonDefaults.buttonColors(containerColor = Color.Red)) { Text("RED") }
+                Button(onClick = { tipoAtual = "GOL CONTRA"; showDialog = true }, modifier = Modifier.weight(1f).padding(2.dp), colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFD32F2F))) { Text("GOL CONTRA") }
             }
             Button(onClick = { tipoAtual = "SAÍDA (SUB)"; showDialog = true }, modifier = Modifier.fillMaxWidth().padding(horizontal = 2.dp), colors = ButtonDefaults.buttonColors(containerColor = Color.DarkGray)) {
                 Icon(Icons.Default.SyncAlt, null, modifier = Modifier.size(16.dp))
                 Spacer(Modifier.width(8.dp))
-                Text("SUBSTITUIÇÃO")
+                Text("REGISTRAR SUBSTITUIÇÃO", fontWeight = FontWeight.Bold)
             }
         }
 
         Spacer(Modifier.height(16.dp))
-        Text("HISTÓRICO:", fontWeight = FontWeight.Bold)
+        Text("HISTÓRICO DE EVENTOS:", fontWeight = FontWeight.Bold)
         p.eventos.forEach { ev ->
             Row(Modifier.fillMaxWidth().padding(vertical = 4.dp), verticalAlignment = Alignment.CenterVertically) {
                 Text("${if(ev.minuto.isNotBlank()) ev.minuto+"' " else ""}${ev.tipo}: ${ev.jogadorNome}", modifier = Modifier.weight(1f), fontSize = 12.sp)
@@ -365,7 +371,15 @@ fun ConteudoRegistrarEventos(
         }
 
         Spacer(Modifier.height(24.dp))
-        Button(onClick = { houveMudancaLocal = false; onVoltar() }, modifier = Modifier.fillMaxWidth().height(55.dp), colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF2E7D32))) {
+        Button(
+            onClick = { 
+                onSalvar()
+                houveMudancaLocal = false
+                onVoltar() 
+            }, 
+            modifier = Modifier.fillMaxWidth().height(55.dp), 
+            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF2E7D32))
+        ) {
             Icon(Icons.Default.Save, null); Spacer(Modifier.width(8.dp)); Text("SALVAR ALTERAÇÕES", fontWeight = FontWeight.Bold)
         }
     }

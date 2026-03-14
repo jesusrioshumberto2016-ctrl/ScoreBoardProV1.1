@@ -1,5 +1,6 @@
 package com.studiosrios.scoreboardpro
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -50,13 +51,19 @@ fun TelaPainelLibertadores(
     var partidaParaVerPreJogo by remember { mutableStateOf<Partida?>(null) }
     var partidaParaVerDetalhes by remember { mutableStateOf<Partida?>(null) }
     var equipeSelecionada by remember { mutableStateOf<EquipeExemplo?>(null) }
+    var jogadorSelecionadoParaDetalhes by remember { mutableStateOf<JogadorExemplo?>(null) }
     
     var editandoSumulaId by remember { mutableStateOf<Int?>(null) }
     var editandoPreJogoId by remember { mutableStateOf<Int?>(null) }
 
-    // Controle de alterações não salvas
-    var houveAlteracao by remember { mutableStateOf(false) }
+    // Controle de alterações não salvas no banco de dados (Geral)
+    var houveAlteracaoGeral by remember { mutableStateOf(false) }
+    
+    // Controle de alterações pendentes de confirmação em sub-telas ou abas específicas
+    var temTrabalhoNaoConfirmado by remember { mutableStateOf(false) }
+    
     var mostrarDialogoConfirmacaoSair by remember { mutableStateOf(false) }
+    var abaPretendida by remember { mutableIntStateOf(-1) }
 
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
@@ -72,15 +79,30 @@ fun TelaPainelLibertadores(
     val ocultarNavegacao = partidaParaVerPreJogo != null || 
                           partidaParaVerDetalhes != null || 
                           equipeSelecionada != null ||
+                          jogadorSelecionadoParaDetalhes != null ||
                           editandoSumulaId != null || 
                           editandoPreJogoId != null
 
-    // Função para tentar sair
-    val tentarSair = {
-        if (isOrganizador && houveAlteracao) {
+    // Função para tentar sair do painel para o menu
+    val tentarSairDoPainel = {
+        abaPretendida = -1 
+        // Avisa se houver alteração geral não salva no banco
+        if (isOrganizador && houveAlteracaoGeral && !ocultarNavegacao) {
             mostrarDialogoConfirmacaoSair = true
         } else {
             onVoltar()
+        }
+    }
+
+    // Gerenciamento do botão voltar do sistema
+    BackHandler(enabled = true) {
+        when {
+            jogadorSelecionadoParaDetalhes != null -> jogadorSelecionadoParaDetalhes = null
+            equipeSelecionada != null -> equipeSelecionada = null
+            partidaParaVerPreJogo != null -> partidaParaVerPreJogo = null
+            partidaParaVerDetalhes != null -> partidaParaVerDetalhes = null
+            editandoSumulaId != null || editandoPreJogoId != null -> { /* O BackHandler interno do componente cuidará disso */ }
+            else -> tentarSairDoPainel()
         }
     }
 
@@ -88,15 +110,22 @@ fun TelaPainelLibertadores(
         AlertDialog(
             onDismissRequest = { mostrarDialogoConfirmacaoSair = false },
             title = { Text("Alterações não salvas") },
-            text = { Text("Você fez alterações que ainda não foram salvas. Deseja realmente sair e descartar as mudanças?") },
+            text = { Text("Você possui alterações que ainda não foram gravadas permanentemente. Deseja descartar as mudanças?") },
             confirmButton = {
                 Button(
                     onClick = { 
                         mostrarDialogoConfirmacaoSair = false
-                        onVoltar() 
+                        houveAlteracaoGeral = false
+                        temTrabalhoNaoConfirmado = false
+                        if (abaPretendida != -1) {
+                            abaSelecionada = abaPretendida
+                            abaPretendida = -1
+                        } else {
+                            onVoltar()
+                        }
                     },
                     colors = ButtonDefaults.buttonColors(containerColor = Color.Red)
-                ) { Text("SAIR SEM SALVAR") }
+                ) { Text("DESCARTAR") }
             },
             dismissButton = {
                 TextButton(onClick = { mostrarDialogoConfirmacaoSair = false }) { Text("CONTINUAR EDITANDO") }
@@ -116,10 +145,7 @@ fun TelaPainelLibertadores(
                                     AsyncImage(
                                         model = fotoCamp.ifBlank { R.drawable.ic_launcher_background },
                                         contentDescription = null,
-                                        modifier = Modifier
-                                            .size(32.dp)
-                                            .clip(CircleShape)
-                                            .background(Color.LightGray),
+                                        modifier = Modifier.size(32.dp).clip(CircleShape).background(Color.LightGray),
                                         contentScale = ContentScale.Crop
                                     )
                                     Spacer(Modifier.width(8.dp))
@@ -134,39 +160,27 @@ fun TelaPainelLibertadores(
                         },
                         navigationIcon = {
                             Button(
-                                onClick = tentarSair,
-                                modifier = Modifier
-                                    .padding(start = 8.dp)
-                                    .height(36.dp),
-                                colors = ButtonDefaults.buttonColors(
-                                    containerColor = Color.Red.copy(alpha = 0.1f),
-                                    contentColor = Color.Red
-                                ),
+                                onClick = tentarSairDoPainel,
+                                modifier = Modifier.padding(start = 8.dp).height(36.dp),
+                                colors = ButtonDefaults.buttonColors(containerColor = Color.Red.copy(alpha = 0.1f), contentColor = Color.Red),
                                 shape = RoundedCornerShape(8.dp),
                                 contentPadding = PaddingValues(horizontal = 12.dp, vertical = 0.dp),
                                 border = androidx.compose.foundation.BorderStroke(1.dp, Color.Red.copy(alpha = 0.3f))
                             ) {
-                                Icon(
-                                    Icons.AutoMirrored.Filled.ExitToApp,
-                                    contentDescription = null,
-                                    modifier = Modifier.size(16.dp)
-                                )
+                                Icon(Icons.AutoMirrored.Filled.ExitToApp, null, modifier = Modifier.size(16.dp))
                                 Spacer(Modifier.width(6.dp))
-                                Text(
-                                    text = if (isOrganizador) "SAIR" else "VOLTAR",
-                                    fontSize = 11.sp,
-                                    fontWeight = FontWeight.Black
-                                )
+                                Text(if (isOrganizador) "SAIR" else "VOLTAR", fontSize = 11.sp, fontWeight = FontWeight.Black)
                             }
                         },
                         actions = {
                             if (isOrganizador) {
                                 IconButton(onClick = {
                                     onSalvarGeral(idCamp, configsIniciais)
-                                    houveAlteracao = false
+                                    houveAlteracaoGeral = false
+                                    temTrabalhoNaoConfirmado = false
                                     scope.launch { snackbarHostState.showSnackbar("Dados salvos com sucesso!") }
                                 }) { 
-                                    BadgedBox(badge = { if(houveAlteracao) Badge(containerColor = Color.Red) }) {
+                                    BadgedBox(badge = { if(houveAlteracaoGeral) Badge(containerColor = Color.Red) }) {
                                         Icon(Icons.Default.Save, contentDescription = "Salvar") 
                                     }
                                 }
@@ -183,7 +197,14 @@ fun TelaPainelLibertadores(
                             titulosAbas.forEachIndexed { index, titulo ->
                                 Tab(
                                     selected = abaSelecionada == index,
-                                    onClick = { abaSelecionada = index },
+                                    onClick = { 
+                                        if (temTrabalhoNaoConfirmado && abaSelecionada != index) {
+                                            abaPretendida = index
+                                            mostrarDialogoConfirmacaoSair = true
+                                        } else {
+                                            abaSelecionada = index 
+                                        }
+                                    },
                                     text = { Text(titulo, fontSize = 11.sp) }
                                 )
                             }
@@ -197,14 +218,7 @@ fun TelaPainelLibertadores(
                                 Tab(
                                     selected = abaSelecionada == index,
                                     onClick = { abaSelecionada = index },
-                                    text = { 
-                                        Text(
-                                            text = titulo, 
-                                            fontSize = 10.sp,
-                                            fontWeight = FontWeight.Bold,
-                                            maxLines = 1
-                                        ) 
-                                    }
+                                    text = { Text(titulo, fontSize = 10.sp, fontWeight = FontWeight.Bold, maxLines = 1) }
                                 )
                             }
                         }
@@ -215,6 +229,20 @@ fun TelaPainelLibertadores(
     ) { paddingValues ->
         Box(modifier = Modifier.padding(if (ocultarNavegacao) PaddingValues(0.dp) else paddingValues).fillMaxSize()) {
             when {
+                jogadorSelecionadoParaDetalhes != null -> {
+                    TelaDetalhesJogadorTelespectador(
+                        jogador = jogadorSelecionadoParaDetalhes!!,
+                        partidas = partidas,
+                        onVoltar = { jogadorSelecionadoParaDetalhes = null }
+                    )
+                }
+                equipeSelecionada != null -> {
+                    TelaDetalhesEquipe(
+                        equipe = equipeSelecionada!!,
+                        partidas = partidas,
+                        onVoltar = { equipeSelecionada = null }
+                    )
+                }
                 partidaParaVerPreJogo != null -> {
                     TelaPreJogoDetalhada(
                         partida = partidaParaVerPreJogo!!,
@@ -230,13 +258,6 @@ fun TelaPainelLibertadores(
                         onVoltar = { partidaParaVerDetalhes = null }
                     )
                 }
-                equipeSelecionada != null -> {
-                    TelaDetalhesEquipe(
-                        equipe = equipeSelecionada!!,
-                        partidas = partidas,
-                        onVoltar = { equipeSelecionada = null }
-                    )
-                }
                 else -> {
                     val abaNome = titulosAbas[abaSelecionada]
                     Column(Modifier.fillMaxSize()) {
@@ -245,60 +266,34 @@ fun TelaPainelLibertadores(
                                 "Grupos" -> PainelGruposLibertadores(equipes, partidas, configsIniciais, listaGruposConfig, onEquipeClick = { e: EquipeExemplo -> equipeSelecionada = e })
                                 "Mata-Mata" -> { 
                                     val partidasMataMata = partidas.filter { 
-                                        !it.fase.contains("RODADA", ignoreCase = true) && 
-                                        !it.fase.contains("ÚNICA", ignoreCase = true) && 
-                                        it.fase.isNotBlank() 
+                                        !it.fase.contains("RODADA", ignoreCase = true) && !it.fase.contains("ÚNICA", ignoreCase = true) && it.fase.isNotBlank() 
                                     }.sortedWith(compareBy<Partida> { it.data.split("/").reversed().joinToString("") }.thenBy { it.horario })
-                                    
-                                    ConteudoChaveamentoLibertadores(
-                                        equipes = equipes, 
-                                        partidas = partidasMataMata,
-                                        onPreJogo = { p -> partidaParaVerPreJogo = p },
-                                        onDetalhes = { p -> partidaParaVerDetalhes = p },
-                                        onEquipeClick = { e: EquipeExemplo -> equipeSelecionada = e }
-                                    )
+                                    ConteudoChaveamentoLibertadores(equipes, partidasMataMata, { p -> partidaParaVerPreJogo = p }, { p -> partidaParaVerDetalhes = p }, { e -> equipeSelecionada = e })
                                 }
                                 "Equipes" -> AbaEquipesTelespectador(equipes, onEquipeClick = { e: EquipeExemplo -> equipeSelecionada = e })
-                                "Resultados" -> ResultadosTab(
-                                    partidas = partidas, 
-                                    equipes = equipes,
-                                    onConfirmarResultado = { p ->
-                                        houveAlteracao = true
-                                        if (!p.fase.contains("RODADA", ignoreCase = true) && !p.fase.contains("ÚNICA", ignoreCase = true)) {
-                                            promoverClassificadosMataMata(partidas, equipes, listaGruposConfig, configsIniciais)
-                                        }
-                                    }
-                                )
-                                "Partidas" -> PartidasTab(
-                                    partidas = partidas, 
-                                    equipes = equipes, 
-                                    onPreJogoClick = {p -> partidaParaVerPreJogo = p}, 
-                                    onDetalhesClick = {p -> partidaParaVerDetalhes = p}, 
-                                    somenteMataMata = false,
-                                    onEquipeClick = { e: EquipeExemplo -> equipeSelecionada = e }
-                                )
-                                "Súmula" -> SumulaTab(
-                                    partidas = partidas, 
-                                    equipes = equipes, 
-                                    todosJogadores = listaGlobalJogadores,
-                                    onEntrarEdicao = {id -> editandoSumulaId = id}, 
-                                    onSairEdicao = {editandoSumulaId = null},
-                                    onAlteracao = { houveAlteracao = true }
-                                )
-                                "Pré-Jogo" -> PreJogoTab(
+                                "Resultados" -> ResultadosTab(partidas, equipes, onConfirmarResultado = { houveAlteracaoGeral = true })
+                                "Partidas" -> PartidasTab(partidas, equipes, {p -> partidaParaVerPreJogo = p}, {p -> partidaParaVerDetalhes = p}, false, {e -> equipeSelecionada = e})
+                                "Súmula" -> SumulaTab(partidas, equipes, listaGlobalJogadores, {id -> editandoSumulaId = id}, {editandoSumulaId = null}, {houveAlteracaoGeral = true}, {houveAlteracaoGeral = true})
+                                "Pré-Jogo" -> PreJogoTab(equipes, partidas, listaGlobalJogadores, {id -> editandoPreJogoId = id}, {editandoPreJogoId = null}, {houveAlteracaoGeral = true})
+                                "Artilharia" -> TelaArtilharia(
                                     equipes = equipes, 
                                     partidas = partidas, 
                                     listaGlobalJogadores = listaGlobalJogadores, 
-                                    onEntrarEdicao = {id -> editandoPreJogoId = id}, 
-                                    onSairEdicao = {editandoPreJogoId = null},
-                                    onAlteracao = { houveAlteracao = true }
+                                    onEquipeClick = { e: EquipeExemplo -> equipeSelecionada = e },
+                                    onJogadorClick = { j: JogadorExemplo -> jogadorSelecionadoParaDetalhes = j }
                                 )
-                                "Artilharia" -> TelaArtilharia(equipes, partidas, listaGlobalJogadores, onEquipeClick = { e: EquipeExemplo -> equipeSelecionada = e })
-                                "Configs" -> ConfigLibertadores(configsIniciais, algumaPartidaFinalizada) { novasConfigs ->
-                                    onSalvarGeral(idCamp, novasConfigs)
-                                    houveAlteracao = false // Salvamento imediato nesta aba
-                                    scope.launch { snackbarHostState.showSnackbar("Configurações atualizadas!") }
-                                }
+                                "Configs" -> ConfigLibertadores(
+                                    configs = configsIniciais,
+                                    bloquearCriterios = algumaPartidaFinalizada,
+                                    onSalvar = { novasConfigs ->
+                                        onSalvarGeral(idCamp, novasConfigs)
+                                        houveAlteracaoGeral = false
+                                        temTrabalhoNaoConfirmado = false
+                                        scope.launch { snackbarHostState.showSnackbar("Configurações atualizadas!") }
+                                    },
+                                    onVoltar = { tentarSairDoPainel() },
+                                    onAlteracao = { temTrabalhoNaoConfirmado = true; houveAlteracaoGeral = true }
+                                )
                             }
                         }
 
@@ -307,7 +302,7 @@ fun TelaPainelLibertadores(
                                 Button(
                                     onClick = { 
                                         promoverClassificadosMataMata(partidas, equipes, listaGruposConfig, configsIniciais)
-                                        houveAlteracao = true
+                                        houveAlteracaoGeral = true
                                         scope.launch { snackbarHostState.showSnackbar("Classificados definidos!") }
                                     },
                                     enabled = gruposFinalizados,

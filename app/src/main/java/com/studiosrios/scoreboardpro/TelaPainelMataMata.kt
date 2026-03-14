@@ -1,5 +1,6 @@
 package com.studiosrios.scoreboardpro
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -29,6 +30,16 @@ fun TelaPainelMataMata(
     var partidaParaVerDetalhes by remember { mutableStateOf<Partida?>(null) }
     var equipeSelecionada by remember { mutableStateOf<EquipeExemplo?>(null) }
 
+    // Gerenciamento do botão voltar do sistema
+    BackHandler(enabled = true) {
+        when {
+            equipeSelecionada != null -> equipeSelecionada = null
+            partidaParaVerPreJogo != null -> partidaParaVerPreJogo = null
+            partidaParaVerDetalhes != null -> partidaParaVerDetalhes = null
+            else -> onVoltar()
+        }
+    }
+
     Scaffold(
         topBar = {
             if (partidaParaVerPreJogo == null && partidaParaVerDetalhes == null && equipeSelecionada == null) {
@@ -52,7 +63,7 @@ fun TelaPainelMataMata(
             }
         }
     ) { paddingValues ->
-        Box(modifier = Modifier.padding(if (equipeSelecionada != null) PaddingValues(0.dp) else paddingValues).fillMaxSize()) {
+        Box(modifier = Modifier.padding(if (equipeSelecionada != null || partidaParaVerPreJogo != null || partidaParaVerDetalhes != null) PaddingValues(0.dp) else paddingValues).fillMaxSize()) {
             when {
                 equipeSelecionada != null -> {
                     TelaDetalhesEquipe(

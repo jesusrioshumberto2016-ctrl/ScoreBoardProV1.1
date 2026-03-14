@@ -1,5 +1,6 @@
 package com.studiosrios.scoreboardpro
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -276,11 +277,6 @@ fun TelaDetalhesJogadorTelespectador(
         var participacoes = 0
         
         partidas.filter { it.finalizada }.forEach { p ->
-            // Verifica se o jogador teve participação efetiva no jogo:
-            // 1. Estava nos titulares
-            // 2. Ou houve um evento de substituição onde ele entrou
-            // 3. Ou ele registrou qualquer evento no jogo (gol, cartão, etc)
-            
             val foiTitular = p.titularesMandante.contains(jogador.id) || p.titularesVisitante.contains(jogador.id)
             val teveEvento = p.eventos.any { it.jogadorNome == jogador.nome }
             val entrouNoJogo = p.eventos.any { it.tipo.contains("SUB") && it.tipo.contains(jogador.nome) && it.tipo.contains("Entra") }
@@ -307,6 +303,11 @@ fun TelaDetalhesJogadorTelespectador(
             "Cartões Amarelos" to amarelos,
             "Cartões Vermelhos" to vermelhos
         )
+    }
+
+    // Gerenciamento do botão voltar do sistema
+    BackHandler {
+        onVoltar()
     }
 
     Scaffold(

@@ -1,5 +1,6 @@
 package com.studiosrios.scoreboardpro
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -98,6 +99,9 @@ fun ConfiguracaoPreJogoDetalhada(
     onVoltar: () -> Unit,
     onAlteracao: () -> Unit
 ) {
+    // ESTADO LOCAL: As alterações não vão direto para a lista global até clicar em Salvar
+    var pEditada by remember { mutableStateOf(p) }
+    
     val mandanteNome = equipes.find { it.id == p.mandanteId }?.nome ?: p.labelMandante
     val visitanteNome = equipes.find { it.id == p.visitanteId }?.nome ?: p.labelVisitante
     var opcaoSelecionada by remember { mutableIntStateOf(0) }
@@ -105,6 +109,19 @@ fun ConfiguracaoPreJogoDetalhada(
     // Controle local de alterações para aviso ao sair
     var houveMudancaLocal by remember { mutableStateOf(false) }
     var mostrarConfirmacaoSair by remember { mutableStateOf(false) }
+
+    val tentarVoltar = {
+        if (houveMudancaLocal) {
+            mostrarConfirmacaoSair = true
+        } else {
+            onVoltar()
+        }
+    }
+
+    // Gerenciamento do botão voltar do celular para esta sub-tela
+    BackHandler {
+        tentarVoltar()
+    }
 
     if (mostrarConfirmacaoSair) {
         AlertDialog(
@@ -117,17 +134,9 @@ fun ConfiguracaoPreJogoDetalhada(
                 }
             },
             dismissButton = {
-                TextButton(onClick = { mostrarConfirmacaoSair = false }) { Text("CONTINUAR") }
+                TextButton(onClick = { mostrarConfirmacaoSair = false }) { Text("CONTINUAR EDITANDO") }
             }
         )
-    }
-
-    val tentarVoltar = {
-        if (houveMudancaLocal) {
-            mostrarConfirmacaoSair = true
-        } else {
-            onVoltar()
-        }
     }
 
     Column(modifier = Modifier.fillMaxSize().padding(16.dp)) {
@@ -155,11 +164,10 @@ fun ConfiguracaoPreJogoDetalhada(
                             Text("COMISSÃO TÉCNICA", fontWeight = FontWeight.Bold, color = Color.Gray, modifier = Modifier.padding(top = 8.dp))
                             HorizontalDivider(Modifier.padding(vertical = 8.dp))
                             OutlinedTextField(
-                                value = if (isMandante) p.tecnicoMandante else p.tecnicoVisitante,
+                                value = if (isMandante) pEditada.tecnicoMandante else pEditada.tecnicoVisitante,
                                 onValueChange = { v -> 
-                                    partidas[idx] = if (isMandante) p.copy(tecnicoMandante = v) else p.copy(tecnicoVisitante = v)
+                                    pEditada = if (isMandante) pEditada.copy(tecnicoMandante = v) else pEditada.copy(tecnicoVisitante = v)
                                     houveMudancaLocal = true
-                                    onAlteracao()
                                 },
                                 label = { Text("Técnico") }, modifier = Modifier.fillMaxWidth()
                             )
@@ -169,9 +177,9 @@ fun ConfiguracaoPreJogoDetalhada(
                         }
 
                         items(jogadoresDoTime) { jog ->
-                            val isTitular = if (isMandante) p.titularesMandante.contains(jog.id) else p.titularesVisitante.contains(jog.id)
-                            val isReserva = if (isMandante) p.reservasMandante.contains(jog.id) else p.reservasVisitante.contains(jog.id)
-                            val posicaoNoJogo = p.posicoesNoJogo[jog.id] ?: jog.posicao
+                            val isTitular = if (isMandante) pEditada.titularesMandante.contains(jog.id) else pEditada.titularesVisitante.contains(jog.id)
+                            val isReserva = if (isMandante) pEditada.reservasMandante.contains(jog.id) else pEditada.reservasVisitante.contains(jog.id)
+                            val posicaoNoJogo = pEditada.posicoesNoJogo[jog.id] ?: jog.posicao
 
                             Card(
                                 modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
@@ -205,11 +213,10 @@ fun ConfiguracaoPreJogoDetalhada(
                                                 DropdownMenuItem(
                                                     text = { Text(pos) },
                                                     onClick = {
-                                                        val novoMapa = p.posicoesNoJogo.toMutableMap()
+                                                        val novoMapa = pEditada.posicoesNoJogo.toMutableMap()
                                                         novoMapa[jog.id] = pos
-                                                        partidas[idx] = p.copy(posicoesNoJogo = novoMapa)
+                                                        pEditada = pEditada.copy(posicoesNoJogo = novoMapa)
                                                         houveMudancaLocal = true
-                                                        onAlteracao()
                                                         showPosMenu = false
                                                     }
                                                 )
@@ -219,23 +226,21 @@ fun ConfiguracaoPreJogoDetalhada(
 
                                     Row {
                                         TextButton(onClick = {
-                                            partidas[idx] = if (isMandante) {
-                                                p.copy(titularesMandante = if (isTitular) p.titularesMandante - jog.id else p.titularesMandante + jog.id, reservasMandante = p.reservasMandante - jog.id)
+                                            pEditada = if (isMandante) {
+                                                pEditada.copy(titularesMandante = if (isTitular) pEditada.titularesMandante - jog.id else pEditada.titularesMandante + jog.id, reservasMandante = pEditada.reservasMandante - jog.id)
                                             } else {
-                                                p.copy(titularesVisitante = if (isTitular) p.titularesVisitante - jog.id else p.titularesVisitante + jog.id, reservasVisitante = p.reservasVisitante - jog.id)
+                                                pEditada.copy(titularesVisitante = if (isTitular) pEditada.titularesVisitante - jog.id else pEditada.titularesVisitante + jog.id, reservasVisitante = pEditada.reservasVisitante - jog.id)
                                             }
                                             houveMudancaLocal = true
-                                            onAlteracao()
                                         }) { Text("TIT", color = if (isTitular) Color(0xFF2E7D32) else Color.Gray) }
 
                                         TextButton(onClick = {
-                                            partidas[idx] = if (isMandante) {
-                                                p.copy(reservasMandante = if (isReserva) p.reservasMandante - jog.id else p.reservasMandante + jog.id, titularesMandante = p.titularesMandante - jog.id)
+                                            pEditada = if (isMandante) {
+                                                pEditada.copy(reservasMandante = if (isReserva) pEditada.reservasMandante - jog.id else pEditada.reservasMandante + jog.id, titularesMandante = pEditada.titularesMandante - jog.id)
                                             } else {
-                                                p.copy(reservasVisitante = if (isReserva) p.reservasVisitante - jog.id else p.reservasVisitante + jog.id, titularesVisitante = p.titularesVisitante - jog.id)
+                                                pEditada.copy(reservasVisitante = if (isReserva) pEditada.reservasVisitante - jog.id else pEditada.reservasVisitante + jog.id, titularesVisitante = pEditada.titularesVisitante - jog.id)
                                             }
                                             houveMudancaLocal = true
-                                            onAlteracao()
                                         }) { Text("RES", color = if (isReserva) Color(0xFFEF6C00) else Color.Gray) }
                                     }
                                 }
@@ -243,32 +248,29 @@ fun ConfiguracaoPreJogoDetalhada(
                         }
                     }
                 }
-                2 -> CampoVisualEstiloSofa(p, equipes, listaGlobalJogadores)
+                2 -> CampoVisualEstiloSofa(pEditada, equipes, listaGlobalJogadores)
                 3 -> {
                     Column(Modifier.fillMaxSize()) {
                         Text("EQUIPE DE ARBITRAGEM", fontWeight = FontWeight.Bold, color = Color.Gray)
                         HorizontalDivider(Modifier.padding(vertical = 8.dp))
-                        OutlinedTextField(value = p.arbitroPrincipal, onValueChange = { 
-                            partidas[idx] = p.copy(arbitroPrincipal = it)
-                            houveMudancaLocal = true
-                            onAlteracao()
-                        }, label = { Text("Árbitro Principal") }, modifier = Modifier.fillMaxWidth())
-                        OutlinedTextField(value = p.assistente1, onValueChange = { 
-                            partidas[idx] = p.copy(assistente1 = it)
-                            houveMudancaLocal = true
-                            onAlteracao()
-                        }, label = { Text("Assistente 1") }, modifier = Modifier.fillMaxWidth())
-                        OutlinedTextField(value = p.assistente2, onValueChange = { 
-                            partidas[idx] = p.copy(assistente2 = it)
-                            houveMudancaLocal = true
-                            onAlteracao()
-                        }, label = { Text("Assistente 2") }, modifier = Modifier.fillMaxWidth())
+                        OutlinedTextField(value = pEditada.arbitroPrincipal, onValueChange = { pEditada = pEditada.copy(arbitroPrincipal = it); houveMudancaLocal = true }, label = { Text("Árbitro Principal") }, modifier = Modifier.fillMaxWidth())
+                        OutlinedTextField(value = pEditada.assistente1, onValueChange = { pEditada = pEditada.copy(assistente1 = it); houveMudancaLocal = true }, label = { Text("Assistente 1") }, modifier = Modifier.fillMaxWidth())
+                        OutlinedTextField(value = pEditada.assistente2, onValueChange = { pEditada = pEditada.copy(assistente2 = it); houveMudancaLocal = true }, label = { Text("Assistente 2") }, modifier = Modifier.fillMaxWidth())
                     }
                 }
             }
         }
 
-        Button(onClick = { houveMudancaLocal = false; onVoltar() }, modifier = Modifier.fillMaxWidth().padding(top = 8.dp), colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF2E7D32))) {
+        Button(
+            onClick = { 
+                partidas[idx] = pEditada // Confirma as mudanças na lista global
+                houveMudancaLocal = false // Importante: Reset do sinalizador antes de voltar
+                onAlteracao()
+                onVoltar() 
+            }, 
+            modifier = Modifier.fillMaxWidth().padding(top = 8.dp), 
+            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF2E7D32))
+        ) {
             Text("SALVAR E VOLTAR")
         }
     }
@@ -316,7 +318,7 @@ fun CampoVisualEstiloSofa(p: Partida, equipes: List<EquipeExemplo>, todosJogador
         
         Row(Modifier.fillMaxWidth().padding(horizontal = 8.dp), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
             Column(Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally) {
-                Text("Técnico: ${p.tecnicoMandante.ifBlank { "---" }}", fontSize = 10.sp, color = Color.Gray)
+                Text("Técnico: ${p.tecnicoMandante.ifBlank { "--" }}", fontSize = 10.sp, color = Color.Gray)
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(equipeM?.nome ?: p.labelMandante, color = Color(0xFF1976D2), fontWeight = FontWeight.Bold, fontSize = 12.sp, textAlign = TextAlign.Center)
                     Spacer(Modifier.width(4.dp))
@@ -345,7 +347,7 @@ fun CampoVisualEstiloSofa(p: Partida, equipes: List<EquipeExemplo>, todosJogador
             }
 
             Column(Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally) {
-                Text("Técnico: ${p.tecnicoVisitante.ifBlank { "---" }}", fontSize = 10.sp, color = Color.Gray)
+                Text("Técnico: ${p.tecnicoVisitante.ifBlank { "--" }}", fontSize = 10.sp, color = Color.Gray)
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     AsyncImage(
                         model = equipeV?.escudoUri?.ifBlank { R.drawable.ic_launcher_background } ?: R.drawable.ic_launcher_background,
@@ -378,7 +380,7 @@ fun CampoVisualEstiloSofa(p: Partida, equipes: List<EquipeExemplo>, todosJogador
 }
 
 @Composable
-fun BoxScope.DistribuirJogadoresNoCampo(jogadores: List<JogadorExemplo>, p: Partida, isVisitante: Boolean) {
+fun DistribuirJogadoresNoCampo(jogadores: List<JogadorExemplo>, p: Partida, isVisitante: Boolean) {
     fun filtrar(pos: List<String>) = jogadores.filter { (p.posicoesNoJogo[it.id] ?: it.posicao).split(" ").first() in pos }
 
     val goleiros = filtrar(listOf("GOL"))
@@ -413,16 +415,7 @@ fun BoxScope.DistribuirJogadoresNoCampo(jogadores: List<JogadorExemplo>, p: Part
 fun JogadorIconeCampo(j: JogadorExemplo, p: Partida, corTime: Color) {
     val posLado = p.posicoesNoJogo[j.id] ?: ""
 
-    Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.clickable {
-        if (posLado.contains("(E)")) {
-            val novoMapa = p.posicoesNoJogo.toMutableMap()
-            novoMapa[j.id] = posLado.replace("(E)", "(D)")
-            // Aqui precisaria de uma lógica de troca, mas inverte o próprio
-        } else if (posLado.contains("(D)")) {
-            val novoMapa = p.posicoesNoJogo.toMutableMap()
-            novoMapa[j.id] = posLado.replace("(D)", "(E)")
-        }
-    }) {
+    Column(horizontalAlignment = Alignment.CenterHorizontally) {
         Surface(
             modifier = Modifier.size(32.dp),
             shape = CircleShape,
@@ -439,7 +432,6 @@ fun JogadorIconeCampo(j: JogadorExemplo, p: Partida, corTime: Color) {
                 )
             }
         }
-        // CORREÇÃO: Usando o Apelido abaixo da foto no campo
         Text(
             text = j.apelido.ifBlank { j.nome.split(" ").last() },
             fontSize = 9.sp, 

@@ -1,5 +1,6 @@
 package com.studiosrios.scoreboardpro
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -16,10 +17,52 @@ import androidx.compose.ui.unit.sp
 fun ConfigLibertadores(
     configs: ConfiguracoesCampeonato,
     bloquearCriterios: Boolean = false,
-    onSalvar: (ConfiguracoesCampeonato) -> Unit
+    onSalvar: (ConfiguracoesCampeonato) -> Unit,
+    onVoltar: () -> Unit,
+    onAlteracao: () -> Unit = {} // Adicionado callback
 ) {
-    var exibirCartoes by remember { mutableStateOf(configs.exibirCartoesNaTabela) }
-    val criterios = remember { mutableStateListOf<String>().apply { addAll(configs.criteriosDesempate) } }
+    // Usamos remember(configs) para que, se as configs mudarem (após salvar), o estado local resete
+    var exibirCartoes by remember(configs) { mutableStateOf(configs.exibirCartoesNaTabela) }
+    val criterios = remember(configs) { mutableStateListOf<String>().apply { addAll(configs.criteriosDesempate) } }
+
+    // Controle de alterações: compara o estado atual da tela com o objeto 'configs' original/salvo
+    val houveMudanca by remember(exibirCartoes, criterios.toList(), configs) {
+        derivedStateOf {
+            exibirCartoes != configs.exibirCartoesNaTabela || 
+            criterios.toList() != configs.criteriosDesempate
+        }
+    }
+    
+    var mostrarConfirmacaoSair by remember { mutableStateOf(false) }
+
+    val tentarVoltar = {
+        if (houveMudanca) {
+            mostrarConfirmacaoSair = true
+        } else {
+            onVoltar()
+        }
+    }
+
+    // Botão voltar do celular
+    BackHandler {
+        tentarVoltar()
+    }
+
+    if (mostrarConfirmacaoSair) {
+        AlertDialog(
+            onDismissRequest = { mostrarConfirmacaoSair = false },
+            title = { Text("Alterações pendentes") },
+            text = { Text("Existem alterações nas configurações que não foram salvas. Deseja sair e descartar as mudanças?") },
+            confirmButton = {
+                Button(onClick = { mostrarConfirmacaoSair = false; onVoltar() }, colors = ButtonDefaults.buttonColors(containerColor = Color.Red)) {
+                    Text("DESCARTAR")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { mostrarConfirmacaoSair = false }) { Text("CONTINUAR EDITANDO") }
+            }
+        )
+    }
 
     val opcoesCriterios = listOf("Selecionar", "Confronto Direto", "Vitórias", "Saldo de Gols", "Gols Marcados", "Cartões Amarelos", "Cartões Vermelhos")
 
@@ -36,7 +79,13 @@ fun ConfigLibertadores(
                     Text("Exibir Cartões na Tabela", fontWeight = FontWeight.Bold)
                     Text("Mostrar disciplina nas tabelas dos grupos", style = MaterialTheme.typography.bodySmall)
                 }
-                Switch(checked = exibirCartoes, onCheckedChange = { exibirCartoes = it })
+                Switch(
+                    checked = exibirCartoes, 
+                    onCheckedChange = { 
+                        exibirCartoes = it 
+                        onAlteracao() // Notifica alteração
+                    }
+                )
             }
         }
 
@@ -63,6 +112,7 @@ fun ConfigLibertadores(
                         habilitado = !bloquearCriterios,
                         onSelecionar = { novaOpcao ->
                             criterios[index] = novaOpcao
+                            onAlteracao() // Notifica alteração
                         }
                     )
                 }
@@ -82,6 +132,15 @@ fun ConfigLibertadores(
         ) {
             Text("SALVAR CONFIGURAÇÕES", fontWeight = FontWeight.Bold)
         }
+        
+        TextButton(
+            onClick = tentarVoltar,
+            modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
+            colors = ButtonDefaults.textButtonColors(contentColor = Color.Red)
+        ) {
+            Text("VOLTAR")
+        }
+
         Spacer(Modifier.height(16.dp))
     }
 }

@@ -26,7 +26,8 @@ fun TelaArtilharia(
     equipes: List<EquipeExemplo>,
     partidas: List<Partida>,
     listaGlobalJogadores: List<JogadorExemplo>,
-    onEquipeClick: (EquipeExemplo) -> Unit = {}
+    onEquipeClick: (EquipeExemplo) -> Unit = {},
+    onJogadorClick: (JogadorExemplo) -> Unit = {} // Adicionado callback
 ) {
     var subAbaSelecionada by remember { mutableIntStateOf(0) }
     val titulosSubAbas = listOf("Artilheiros", "Assistentes", "Gols Pênalti", "Amarelos", "Vermelhos", "Gols Contra")
@@ -76,7 +77,7 @@ fun TelaArtilharia(
             } else {
                 LazyColumn {
                     items(listaExibicao) { item ->
-                        CardEstatistica(item, equipes, labelUnidade, onEquipeClick)
+                        CardEstatistica(item, equipes, listaGlobalJogadores, labelUnidade, onEquipeClick, onJogadorClick)
                     }
                 }
             }
@@ -85,9 +86,21 @@ fun TelaArtilharia(
 }
 
 @Composable
-fun CardEstatistica(item: ItemEstatistica, equipes: List<EquipeExemplo>, unidade: String, onEquipeClick: (EquipeExemplo) -> Unit = {}) {
+fun CardEstatistica(
+    item: ItemEstatistica, 
+    equipes: List<EquipeExemplo>, 
+    jogadores: List<JogadorExemplo>,
+    unidade: String, 
+    onEquipeClick: (EquipeExemplo) -> Unit = {},
+    onJogadorClick: (JogadorExemplo) -> Unit = {}
+) {
+    val jogadorObj = jogadores.find { it.nome == item.nomeJogador }
+
     Card(
-        modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 4.dp)
+            .clickable(enabled = jogadorObj != null) { jogadorObj?.let { onJogadorClick(it) } },
         elevation = CardDefaults.cardElevation(1.dp)
     ) {
         Row(
