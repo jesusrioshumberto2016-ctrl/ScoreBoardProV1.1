@@ -1,9 +1,14 @@
 package com.studiosrios.scoreboardpro
 
+import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -17,11 +22,14 @@ import androidx.compose.runtime.*
 import androidx.compose.runtime.snapshots.SnapshotStateList
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import coil.compose.AsyncImage
 
 @Composable
 fun SumulaTab(
@@ -127,6 +135,20 @@ fun ConteudoRegistrarEventos(
     var penMandanteInput by remember { mutableStateOf(p.penaltisMandante?.toString() ?: "") }
     var penVisitanteInput by remember { mutableStateOf(p.penaltisVisitante?.toString() ?: "") }
 
+    var jogadorParaVerAcoes by remember { mutableStateOf<JogadorExemplo?>(null) }
+
+    val tentarVoltarLocal = {
+        if (houveMudancaLocal) {
+            mostrarConfirmacaoSair = true
+        } else {
+            onVoltar()
+        }
+    }
+
+    BackHandler {
+        tentarVoltarLocal()
+    }
+
     if (mostrarConfirmacaoSair) {
         AlertDialog(
             onDismissRequest = { mostrarConfirmacaoSair = false },
@@ -143,12 +165,41 @@ fun ConteudoRegistrarEventos(
         )
     }
 
-    val tentarVoltar = {
-        if (houveMudancaLocal) {
-            mostrarConfirmacaoSair = true
-        } else {
-            onVoltar()
-        }
+    if (jogadorParaVerAcoes != null) {
+        val acoes = p.eventos.filter { it.jogadorNome == jogadorParaVerAcoes?.nome }
+        AlertDialog(
+            onDismissRequest = { jogadorParaVerAcoes = null },
+            title = { 
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    AsyncImage(
+                        model = jogadorParaVerAcoes!!.fotoUri.ifBlank { R.drawable.ic_launcher_background },
+                        contentDescription = null,
+                        modifier = Modifier.size(40.dp).clip(CircleShape).background(Color.LightGray),
+                        contentScale = ContentScale.Crop
+                    )
+                    Spacer(Modifier.width(12.dp))
+                    Text(jogadorParaVerAcoes!!.apelido.ifBlank { jogadorParaVerAcoes!!.nome }, fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                }
+            },
+            text = {
+                Column {
+                    Text("AÇÕES NESTA PARTIDA:", fontSize = 12.sp, fontWeight = FontWeight.Black, color = Color.Gray)
+                    Spacer(Modifier.height(8.dp))
+                    if (acoes.isEmpty()) {
+                        Text("Nenhuma ação registrada.", color = Color.LightGray, fontSize = 14.sp)
+                    } else {
+                        acoes.forEach { ev ->
+                            Row(Modifier.padding(vertical = 4.dp), verticalAlignment = Alignment.CenterVertically) {
+                                Text("[${ev.minuto}']", fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary, fontSize = 12.sp)
+                                Spacer(Modifier.width(8.dp))
+                                Text(ev.tipo, fontSize = 14.sp)
+                            }
+                        }
+                    }
+                }
+            },
+            confirmButton = { Button(onClick = { jogadorParaVerAcoes = null }) { Text("FECHAR") } }
+        )
     }
 
     if (showDialogPenaltis) {
@@ -293,7 +344,7 @@ fun ConteudoRegistrarEventos(
 
     Column(Modifier.padding(16.dp).verticalScroll(rememberScrollState())) {
         Row(verticalAlignment = Alignment.CenterVertically) {
-            IconButton(onClick = tentarVoltar) { Icon(Icons.AutoMirrored.Filled.ArrowBack, "Voltar") }
+            IconButton(onClick = tentarVoltarLocal) { Icon(Icons.AutoMirrored.Filled.ArrowBack, "Voltar") }
             Text("SÚMULA: $mNome x $vNome", fontSize = 18.sp, fontWeight = FontWeight.Black)
         }
         
@@ -330,9 +381,9 @@ fun ConteudoRegistrarEventos(
                 Button(onClick = { tipoAtual = "ASSISTÊNCIA"; showDialog = true }, modifier = Modifier.weight(1f).padding(2.dp), colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF00ACC1))) { Text("ASSIST.") }
             }
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
-                Button(onClick = { tipoAtual = "YELLOW CARD"; showDialog = true }, modifier = Modifier.weight(1f).padding(2.dp), colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFFFD600), contentColor = Color.Black)) { Text("YELLOW") }
-                Button(onClick = { tipoAtual = "RED CARD"; showDialog = true }, modifier = Modifier.weight(1f).padding(2.dp), colors = ButtonDefaults.buttonColors(containerColor = Color.Red)) { Text("RED") }
-                Button(onClick = { tipoAtual = "GOL CONTRA"; showDialog = true }, modifier = Modifier.weight(1f).padding(2.dp), colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFD32F2F))) { Text("GOL CONTRA") }
+                Button(onClick = { tipoAtual = "YELLOW CARD"; showDialog = true }, modifier = Modifier.weight(1f).padding(2.dp), colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFFFD600), contentColor = Color.Black)) { Text("AMARELO") }
+                Button(onClick = { tipoAtual = "RED CARD"; showDialog = true }, modifier = Modifier.weight(1f).padding(2.dp), colors = ButtonDefaults.buttonColors(containerColor = Color.Red)) { Text("VERMELHO") }
+                Button(onClick = { tipoAtual = "GOL CONTRA"; showDialog = true }, modifier = Modifier.weight(1f).padding(2.dp), colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFD32F2F))) { Text("CONTRA") }
             }
             Button(onClick = { tipoAtual = "SAÍDA (SUB)"; showDialog = true }, modifier = Modifier.fillMaxWidth().padding(horizontal = 2.dp), colors = ButtonDefaults.buttonColors(containerColor = Color.DarkGray)) {
                 Icon(Icons.Default.SyncAlt, null, modifier = Modifier.size(16.dp))
@@ -344,28 +395,53 @@ fun ConteudoRegistrarEventos(
         Spacer(Modifier.height(16.dp))
         Text("HISTÓRICO DE EVENTOS:", fontWeight = FontWeight.Bold)
         p.eventos.forEach { ev ->
-            Row(Modifier.fillMaxWidth().padding(vertical = 4.dp), verticalAlignment = Alignment.CenterVertically) {
-                Text("${if(ev.minuto.isNotBlank()) ev.minuto+"' " else ""}${ev.tipo}: ${ev.jogadorNome}", modifier = Modifier.weight(1f), fontSize = 12.sp)
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 4.dp)
+                    .clickable { 
+                        val jog = jogadoresDaPartida.find { it.nome == ev.jogadorNome }
+                        if (jog != null) jogadorParaVerAcoes = jog
+                    }, 
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                val minStr = if(ev.minuto.isNotBlank()) "${ev.minuto}' " else ""
+                Text("$minStr${ev.tipo}: ${ev.jogadorNome}", color = Color.DarkGray, fontWeight = FontWeight.Medium, modifier = Modifier.weight(1f), fontSize = 12.sp)
                 IconButton(onClick = {
                     val pEd = partidas[idxPartida]
                     var nGM = pEd.golsMandante; var nGV = pEd.golsVisitante
                     var nAM = pEd.cartoesAmarelosMandante; var nVM = pEd.cartoesVermelhosMandante
                     var nAV = pEd.cartoesAmarelosVisitante; var nVV = pEd.cartoesVermelhosVisitante
+
                     val jog = todosJogadores.find { it.nome == ev.jogadorNome }
                     if (jog != null) {
-                        if (ev.tipo == "GOL" || ev.tipo == "GOL (PÊNALTI)") {
-                            if (jog.equipeId == pEd.mandanteId) nGM = (nGM ?: 0) - 1 else nGV = (nGV ?: 0) - 1
+                        if (ev.tipo == "GOL" || ev.tipo == "GOL (PÊNALTI)" || ev.tipo == "CONVERTEU PÊNALTI") {
+                            if (jog.equipeId == pEd.mandanteId) nGM = (nGM ?: 0) - 1
+                            else nGV = (nGV ?: 0) - 1
                         } else if (ev.tipo == "GOL CONTRA") {
-                            if (jog.equipeId == pEd.mandanteId) nGV = (nGV ?: 0) - 1 else nGM = (nGM ?: 0) - 1
+                            if (jog.equipeId == pEd.mandanteId) nGV = (nGV ?: 0) - 1
+                            else nGM = (nGM ?: 0) - 1
                         } else if (ev.tipo == "YELLOW CARD") {
-                            if (jog.equipeId == pEd.mandanteId) nAM-- else nAV--
+                            if (jog.equipeId == pEd.mandanteId) nAM--
+                            else nAV--
                         } else if (ev.tipo == "RED CARD") {
-                            if (jog.equipeId == pEd.mandanteId) nVM-- else nVV--
+                            if (jog.equipeId == pEd.mandanteId) nVM--
+                            else nVV--
                         }
                     }
-                    val novaLista = p.eventos.toMutableList().apply { remove(ev) }
-                    partidas[idxPartida] = p.copy(eventos = novaLista, golsMandante = nGM, golsVisitante = nGV, cartoesAmarelosMandante = nAM, cartoesVermelhosMandante = nVM, cartoesAmarelosVisitante = nAV, cartoesVermelhosVisitante = nVV)
-                    houveMudancaLocal = true; onAlteracao()
+
+                    val novaLista = pEd.eventos.toMutableList().apply { remove(ev) }
+                    partidas[idxPartida] = pEd.copy(
+                        eventos = novaLista,
+                        golsMandante = if ((nGM ?: 0) < 0) 0 else nGM,
+                        golsVisitante = if ((nGV ?: 0) < 0) 0 else nGV,
+                        cartoesAmarelosMandante = if (nAM < 0) 0 else nAM,
+                        cartoesVermelhosMandante = if (nVM < 0) 0 else nVM,
+                        cartoesAmarelosVisitante = if (nAV < 0) 0 else nAV,
+                        cartoesVermelhosVisitante = if (nVV < 0) 0 else nVV
+                    )
+                    houveMudancaLocal = true
+                    onAlteracao()
                 }) { Icon(Icons.Default.Delete, null, tint = Color.Gray) }
             }
         }

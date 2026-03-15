@@ -7,8 +7,6 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Person
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -20,6 +18,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
+import java.util.Locale
 
 @Composable
 fun TelaArtilharia(
@@ -27,10 +26,10 @@ fun TelaArtilharia(
     partidas: List<Partida>,
     listaGlobalJogadores: List<JogadorExemplo>,
     onEquipeClick: (EquipeExemplo) -> Unit = {},
-    onJogadorClick: (JogadorExemplo) -> Unit = {} // Adicionado callback
+    onJogadorClick: (JogadorExemplo) -> Unit = {}
 ) {
     var subAbaSelecionada by remember { mutableIntStateOf(0) }
-    val titulosSubAbas = listOf("Artilheiros", "Assistentes", "Gols Pênalti", "Amarelos", "Vermelhos", "Gols Contra")
+    val titulosSubAbas = listOf("Artilheiros", "Assistentes", "Pontuação", "Gols Pênalti", "Amarelos", "Vermelhos", "Gols Contra")
 
     Column(modifier = Modifier.fillMaxSize()) {
         ScrollableTabRow(
@@ -48,25 +47,27 @@ fun TelaArtilharia(
         }
 
         Box(modifier = Modifier.weight(1f).padding(16.dp)) {
-            val estatisticas = processarEstatisticas(partidas, listaGlobalJogadores)
+            val estatisticas = processarEstatisticas(partidas, listaGlobalJogadores, equipes)
             
             val listaExibicao = when (subAbaSelecionada) {
                 0 -> estatisticas.artilheiros
                 1 -> estatisticas.assistentes
-                2 -> estatisticas.golsPenalti
-                3 -> estatisticas.amarelos
-                4 -> estatisticas.vermelhos
-                5 -> estatisticas.golsContra
+                2 -> estatisticas.rankingPontuacao
+                3 -> estatisticas.golsPenalti
+                4 -> estatisticas.amarelos
+                5 -> estatisticas.vermelhos
+                6 -> estatisticas.golsContra
                 else -> emptyList()
             }
 
             val labelUnidade = when (subAbaSelecionada) {
                 0 -> "Gols"
                 1 -> "Assist."
-                2 -> "Gols"
-                3 -> "Cartões"
+                2 -> "Pts"
+                3 -> "Gols"
                 4 -> "Cartões"
-                5 -> "Gols"
+                5 -> "Cartões"
+                6 -> "Gols"
                 else -> ""
             }
 
@@ -140,12 +141,24 @@ fun CardEstatistica(
                     )
                 }
             }
-            Text("${item.quantidade} $unidade", fontWeight = FontWeight.ExtraBold, color = MaterialTheme.colorScheme.primary)
+            Text(
+                text = if(unidade == "Pts") String.format(Locale.US, "%.1f %s", item.quantidadeFloat, unidade) 
+                       else "${item.quantidade} $unidade", 
+                fontWeight = FontWeight.ExtraBold, 
+                color = MaterialTheme.colorScheme.primary
+            )
         }
     }
 }
 
-data class ItemEstatistica(val nomeJogador: String, val apelido: String, val nomeEquipe: String, val quantidade: Int, val fotoUri: String)
+data class ItemEstatistica(
+    val nomeJogador: String, 
+    val apelido: String, 
+    val nomeEquipe: String, 
+    val quantidade: Int, 
+    val fotoUri: String,
+    val quantidadeFloat: Double = 0.0 // Para pontuação
+)
 
 data class EstatisticasGerais(
     val artilheiros: List<ItemEstatistica>,
@@ -153,10 +166,11 @@ data class EstatisticasGerais(
     val golsPenalti: List<ItemEstatistica>,
     val amarelos: List<ItemEstatistica>,
     val vermelhos: List<ItemEstatistica>,
-    val golsContra: List<ItemEstatistica>
+    val golsContra: List<ItemEstatistica>,
+    val rankingPontuacao: List<ItemEstatistica> // Nova categoria
 )
 
-fun processarEstatisticas(partidas: List<Partida>, jogadores: List<JogadorExemplo>): EstatisticasGerais {
+fun processarEstatisticas(partidas: List<Partida>, jogadores: List<JogadorExemplo>, equipes: List<EquipeExemplo>): EstatisticasGerais {
     val mapaGols = mutableMapOf<String, Int>()
     val mapaAssist = mutableMapOf<String, Int>()
     val mapaPenalti = mutableMapOf<String, Int>()
@@ -193,12 +207,26 @@ fun processarEstatisticas(partidas: List<Partida>, jogadores: List<JogadorExempl
         ItemEstatistica(it.key, apelido, mapaEquipe[it.key] ?: "S/E", it.value, foto)
     }.sortedByDescending { it.quantidade }
 
+    // Cálculo do Ranking de Pontuação
+    val rankingPontuacao = jogadores.map { jogador ->
+        val pts = calcularPontuacaoJogador(jogador, partidas)
+        ItemEstatistica(
+            nomeJogador = jogador.nome,
+            apelido = jogador.apelido,
+            nomeEquipe = equipes.find { it.id == jogador.equipeId }?.nome ?: "Sem Time",
+            quantidade = pts.total.toInt(),
+            fotoUri = jogador.fotoUri,
+            quantidadeFloat = pts.total
+        )
+    }.filter { it.quantidadeFloat != 0.0 }.sortedByDescending { it.quantidadeFloat }
+
     return EstatisticasGerais(
         artilheiros = converter(mapaGols),
         assistentes = converter(mapaAssist),
         golsPenalti = converter(mapaPenalti),
         amarelos = converter(mapaAmarelos),
         vermelhos = converter(mapaVermelhos),
-        golsContra = converter(mapaGolsContra)
+        golsContra = converter(mapaGolsContra),
+        rankingPontuacao = rankingPontuacao
     )
 }

@@ -8,8 +8,10 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.*
@@ -23,6 +25,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
+import java.util.Locale
 
 @Composable
 fun AbaEquipesTelespectador(equipes: List<EquipeExemplo>, onEquipeClick: (EquipeExemplo) -> Unit) {
@@ -243,7 +246,7 @@ fun AbaEstatisticasEquipe(equipe: EquipeExemplo, partidas: List<Partida>) {
             "Saldo de Gols" to (gm - gs).toString(),
             "Cartões Amarelos" to am.toString(),
             "Cartões Vermelhos" to vm.toString(),
-            "Aproveitamento" to String.format("%.1f%%", aproveitamento)
+            "Aproveitamento" to String.format(Locale.US, "%.1f%%", aproveitamento)
         )
     }
 
@@ -272,40 +275,10 @@ fun TelaDetalhesJogadorTelespectador(
     partidas: List<Partida>,
     onVoltar: () -> Unit
 ) {
-    val stats = remember(jogador.nome, partidas) {
-        var gols = 0; var assists = 0; var amarelos = 0; var vermelhos = 0; var golsPenalti = 0
-        var participacoes = 0
-        
-        partidas.filter { it.finalizada }.forEach { p ->
-            val foiTitular = p.titularesMandante.contains(jogador.id) || p.titularesVisitante.contains(jogador.id)
-            val teveEvento = p.eventos.any { it.jogadorNome == jogador.nome }
-            val entrouNoJogo = p.eventos.any { it.tipo.contains("SUB") && it.tipo.contains(jogador.nome) && it.tipo.contains("Entra") }
-
-            if (foiTitular || teveEvento || entrouNoJogo) {
-                participacoes++
-            }
-
-            p.eventos.filter { it.jogadorNome == jogador.nome }.forEach { ev ->
-                when (ev.tipo) {
-                    "GOL" -> gols++
-                    "GOL (PÊNALTI)" -> { gols++; golsPenalti++ }
-                    "ASSISTÊNCIA" -> assists++
-                    "YELLOW CARD" -> amarelos++
-                    "RED CARD" -> vermelhos++
-                }
-            }
-        }
-        listOf(
-            "Jogos Participados" to participacoes,
-            "Gols Marcados" to gols,
-            "Assistências" to assists,
-            "Gols de Pênalti" to golsPenalti,
-            "Cartões Amarelos" to amarelos,
-            "Cartões Vermelhos" to vermelhos
-        )
+    val pontuacao = remember(jogador.nome, partidas) {
+        calcularPontuacaoJogador(jogador, partidas)
     }
 
-    // Gerenciamento do botão voltar do sistema
     BackHandler {
         onVoltar()
     }
@@ -322,38 +295,77 @@ fun TelaDetalhesJogadorTelespectador(
             )
         }
     ) { padding ->
-        Column(modifier = Modifier.fillMaxSize().padding(padding).padding(16.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+        Column(modifier = Modifier.fillMaxSize().padding(padding).padding(16.dp).verticalScroll(rememberScrollState()), horizontalAlignment = Alignment.CenterHorizontally) {
             AsyncImage(
                 model = jogador.fotoUri.ifBlank { R.drawable.ic_launcher_background },
                 contentDescription = null,
                 modifier = Modifier
-                    .size(120.dp)
+                    .size(100.dp)
                     .clip(CircleShape)
                     .background(Color.LightGray)
                     .border(2.dp, MaterialTheme.colorScheme.primary, CircleShape),
                 contentScale = ContentScale.Crop
             )
-            Spacer(Modifier.height(16.dp))
-            Text(jogador.nome, fontSize = 22.sp, fontWeight = FontWeight.Black)
-            if (jogador.apelido.isNotBlank()) {
-                Text("\"${jogador.apelido}\"", fontSize = 16.sp, color = Color.Gray)
-            }
-            Text("${jogador.posicao} | ${jogador.idade} anos | ${jogador.altura}", color = MaterialTheme.colorScheme.primary)
+            Spacer(Modifier.height(12.dp))
+            Text(jogador.nome, fontSize = 20.sp, fontWeight = FontWeight.Black)
+            Text("${jogador.posicao} | ${jogador.idade} anos", color = MaterialTheme.colorScheme.primary, fontSize = 14.sp)
             
-            Spacer(Modifier.height(32.dp))
-            Text("DESEMPENHO NO CAMPEONATO", fontWeight = FontWeight.Bold, fontSize = 14.sp, color = Color.Gray)
+            Spacer(Modifier.height(24.dp))
+            
+            // CARD DE PONTUAÇÃO TOTAL
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer)
+            ) {
+                Column(Modifier.padding(16.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text("PONTUAÇÃO TOTAL", fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                    Text(
+                        text = String.format(Locale.US, "%.1f", pontuacao.total), 
+                        fontSize = 42.sp, 
+                        fontWeight = FontWeight.Black, 
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                    Text("PONTOS", fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                }
+            }
+
+            Spacer(Modifier.height(24.dp))
+            Text("DETALHAMENTO DO DESEMPENHO", fontWeight = FontWeight.Bold, fontSize = 14.sp, color = Color.Gray)
             HorizontalDivider(Modifier.padding(vertical = 8.dp))
             
-            stats.forEach { (label, value) ->
-                Row(
-                    modifier = Modifier.fillMaxWidth().padding(vertical = 12.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween
-                ) {
-                    Text(label, fontSize = 16.sp)
-                    Text("$value", fontWeight = FontWeight.Bold, fontSize = 18.sp, color = MaterialTheme.colorScheme.primary)
-                }
-                HorizontalDivider(thickness = 0.5.dp, color = Color.LightGray)
-            }
+            // LISTA DE PONTOS POR CATEGORIA
+            ItemPontuacaoDetalhada("Gols (+5.0)", pontuacao.gols, pontuacao.gols * 5.0)
+            ItemPontuacaoDetalhada("Assistências (+2.5)", pontuacao.assistencias, pontuacao.assistencias * 2.5)
+            ItemPontuacaoDetalhada("Defesa s/ sofrer gol (+3.0)", pontuacao.sg, pontuacao.sg * 3.0)
+            ItemPontuacaoDetalhada("Melhor da Partida (+5.0)", pontuacao.mvp, pontuacao.mvp * 5.0)
+            ItemPontuacaoDetalhada("Cartão Amarelo (-0.5)", pontuacao.amarelos, pontuacao.amarelos * -0.5)
+            ItemPontuacaoDetalhada("Cartão Vermelho (-3.0)", pontuacao.vermelhos, pontuacao.vermelhos * -3.0)
+            ItemPontuacaoDetalhada("Gol Contra (-5.0)", pontuacao.golsContra, pontuacao.golsContra * -5.0)
+            
+            Spacer(Modifier.height(32.dp))
         }
+    }
+}
+
+@Composable
+fun ItemPontuacaoDetalhada(label: String, quantidade: Int, pontos: Double) {
+    if (quantidade != 0) {
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Column {
+                Text(label, fontSize = 14.sp, fontWeight = FontWeight.Medium)
+                Text("Quantidade: $quantidade", fontSize = 11.sp, color = Color.Gray)
+            }
+            Text(
+                text = (if(pontos > 0) "+" else "") + String.format(Locale.US, "%.1f", pontos),
+                fontWeight = FontWeight.Bold,
+                color = if(pontos > 0) Color(0xFF2E7D32) else if(pontos < 0) Color.Red else Color.Gray,
+                fontSize = 16.sp
+            )
+        }
+        HorizontalDivider(thickness = 0.5.dp, color = Color.LightGray)
     }
 }

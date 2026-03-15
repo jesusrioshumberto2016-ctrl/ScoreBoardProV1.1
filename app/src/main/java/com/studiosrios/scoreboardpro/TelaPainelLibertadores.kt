@@ -273,8 +273,23 @@ fun TelaPainelLibertadores(
                                 "Equipes" -> AbaEquipesTelespectador(equipes, onEquipeClick = { e: EquipeExemplo -> equipeSelecionada = e })
                                 "Resultados" -> ResultadosTab(partidas, equipes, onConfirmarResultado = { houveAlteracaoGeral = true })
                                 "Partidas" -> PartidasTab(partidas, equipes, {p -> partidaParaVerPreJogo = p}, {p -> partidaParaVerDetalhes = p}, false, {e -> equipeSelecionada = e})
-                                "Súmula" -> SumulaTab(partidas, equipes, listaGlobalJogadores, {id -> editandoSumulaId = id}, {editandoSumulaId = null}, {houveAlteracaoGeral = true}, {houveAlteracaoGeral = true})
-                                "Pré-Jogo" -> PreJogoTab(equipes, partidas, listaGlobalJogadores, {id -> editandoPreJogoId = id}, {editandoPreJogoId = null}, {houveAlteracaoGeral = true})
+                                "Súmula" -> SumulaTab(
+                                    partidas = partidas, 
+                                    equipes = equipes, 
+                                    todosJogadores = listaGlobalJogadores,
+                                    onEntrarEdicao = {id -> editandoSumulaId = id}, 
+                                    onSairEdicao = {editandoSumulaId = null},
+                                    onAlteracao = { houveAlteracaoGeral = true },
+                                    onSalvar = { houveAlteracaoGeral = true }
+                                )
+                                "Pré-Jogo" -> PreJogoTab(
+                                    equipes = equipes, 
+                                    partidas = partidas, 
+                                    listaGlobalJogadores = listaGlobalJogadores, 
+                                    onEntrarEdicao = {id -> editandoPreJogoId = id}, 
+                                    onSairEdicao = {editandoPreJogoId = null},
+                                    onAlteracao = { houveAlteracaoGeral = true }
+                                )
                                 "Artilharia" -> TelaArtilharia(
                                     equipes = equipes, 
                                     partidas = partidas, 

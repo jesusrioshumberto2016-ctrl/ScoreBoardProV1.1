@@ -3,8 +3,76 @@ package com.studiosrios.scoreboardpro
 import androidx.compose.runtime.snapshots.SnapshotStateList
 
 /**
- * MatchLogic: Processamento de regras de negócio e classificação.
+ * MatchLogic: Processamento de regras de negócio, classificação e pontuação.
  */
+
+data class PontuacaoDetalhada(
+    val total: Double = 0.0,
+    val gols: Int = 0,
+    val assistencias: Int = 0,
+    val sg: Int = 0,
+    val amarelos: Int = 0,
+    val vermelhos: Int = 0,
+    val golsContra: Int = 0,
+    val mvp: Int = 0
+)
+
+fun calcularPontuacaoJogador(jogador: JogadorExemplo, partidas: List<Partida>): PontuacaoDetalhada {
+    var ptsGols = 0; var ptsAssists = 0; var ptsSG = 0
+    var ptsAmarelos = 0; var ptsVermelhos = 0; var ptsContra = 0; var ptsMVP = 0
+    
+    var countGols = 0; var countAssists = 0; var countSG = 0
+    var countAmarelos = 0; var countVermelhos = 0; var countContra = 0; var countMVP = 0
+
+    partidas.filter { it.finalizada }.forEach { p ->
+        // 1. Eventos individuais
+        p.eventos.filter { it.jogadorNome == jogador.nome }.forEach { ev ->
+            when (ev.tipo) {
+                "GOL", "GOL (PÊNALTI)" -> countGols++
+                "ASSISTÊNCIA" -> countAssists++
+                "YELLOW CARD" -> countAmarelos++
+                "RED CARD" -> countVermelhos++
+                "GOL CONTRA" -> countContra++
+            }
+        }
+
+        // 2. MVP (Melhor da Partida)
+        if (p.melhorJogador == jogador.nome) {
+            countMVP++
+        }
+
+        // 3. Defesa sem sofrer gol (SG)
+        // Regra: Jogador deve ser de defesa (GOL, ZAG, LAT, ALA, VOL) e o time não pode ter sofrido gols
+        val posBase = jogador.posicao.take(3).uppercase()
+        val ehDefensor = posBase in listOf("GOL", "ZAG", "LAT", "ALA", "VOL")
+        
+        if (ehDefensor) {
+            val foiTitular = p.titularesMandante.contains(jogador.id) || p.titularesVisitante.contains(jogador.id)
+            val entrouNoJogo = p.eventos.any { it.tipo.contains("SUB") && it.tipo.contains(jogador.nome) && it.tipo.contains("Entra") }
+            
+            if (foiTitular || entrouNoJogo) {
+                val golsSofridos = if (p.mandanteId == jogador.equipeId) (p.golsVisitante ?: 0) else (p.golsMandante ?: 0)
+                if (golsSofridos == 0) {
+                    countSG++
+                }
+            }
+        }
+    }
+
+    val total = (countGols * 5.0) + (countAssists * 2.5) + (countSG * 3.0) + 
+                (countAmarelos * -0.5) + (countContra * -5.0) + (countVermelhos * -3.0) + (countMVP * 5.0)
+
+    return PontuacaoDetalhada(
+        total = total,
+        gols = countGols,
+        assistencias = countAssists,
+        sg = countSG,
+        amarelos = countAmarelos,
+        vermelhos = countVermelhos,
+        golsContra = countContra,
+        mvp = countMVP
+    )
+}
 
 fun obterPartidasOrdenadas(partidas: List<Partida>): List<Partida> {
     return partidas.sortedWith(
@@ -22,7 +90,7 @@ fun calcularClassificacao(equipes: List<EquipeExemplo>, partidas: List<Partida>,
 
 fun verificarFaseGruposFinalizada(partidas: List<Partida>): Boolean {
     val partidasGrupos = partidas.filter { 
-        it.fase.contains("Rodada", ignoreCase = true) || it.fase.contains("Única", ignoreCase = true)
+        it.fase.contains("Rodada", ignoreCase = true) || it.fase.contains("ÚNICA", ignoreCase = true)
     }
     if (partidasGrupos.isEmpty()) return false
     return partidasGrupos.all { it.finalizada }
@@ -69,10 +137,6 @@ fun promoverClassificadosMataMata(
             golsA > golsB -> idA
             golsB > golsA -> idB
             else -> {
-                // Empate no agregado: Verifica pênaltis (sempre registrados no jogo de volta ou único)
-                val penA = if (jogoVolta != null) (jogoVolta.penaltisVisitante ?: 0) else (jogoIda.penaltisMandante ?: 0)
-                val penB = if (jogoVolta != null) (jogoVolta.penaltisMandante ?: 0) else (jogoIda.penaltisVisitante ?: 0)
-                
                 // No jogo de volta, idA é visitante. Então penA é penaltisVisitante do jogo de volta.
                 val pA = if (jogoVolta != null) (jogoVolta.penaltisVisitante ?: 0) else (jogoIda.penaltisMandante ?: 0)
                 val pB = if (jogoVolta != null) (jogoVolta.penaltisMandante ?: 0) else (jogoIda.penaltisVisitante ?: 0)
