@@ -43,19 +43,20 @@ fun TelaPreJogoDetalhada(
     var jogadorParaVerAcoes by remember { mutableStateOf<JogadorExemplo?>(null) }
 
     if (jogadorParaVerAcoes != null) {
-        val acoes = partida.eventos.filter { it.jogadorNome == jogadorParaVerAcoes?.nome }
+        val jog = jogadorParaVerAcoes!!
+        val acoes = partida.eventos.filter { it.jogadorNome == jog.nome }
         AlertDialog(
             onDismissRequest = { jogadorParaVerAcoes = null },
             title = { 
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     AsyncImage(
-                        model = jogadorParaVerAcoes!!.fotoUri.ifBlank { R.drawable.ic_launcher_background },
+                        model = jog.fotoUri.ifBlank { R.drawable.ic_launcher_background },
                         contentDescription = null,
                         modifier = Modifier.size(40.dp).clip(CircleShape).background(Color.LightGray),
                         contentScale = ContentScale.Crop
                     )
                     Spacer(Modifier.width(12.dp))
-                    Text(jogadorParaVerAcoes!!.apelido.ifBlank { jogadorParaVerAcoes!!.nome }, fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                    Text(jog.apelido.ifBlank { jog.nome }, fontSize = 16.sp, fontWeight = FontWeight.Bold)
                 }
             },
             text = {
@@ -107,7 +108,7 @@ fun TelaPreJogoDetalhada(
             }
 
             Text("FORMAÇÃO NO CAMPO", modifier = Modifier.padding(start = 16.dp), fontWeight = FontWeight.Bold, color = Color.Gray)
-            Box(modifier = Modifier.fillMaxWidth().height(550.dp).padding(16.dp).background(Color(0xFF2E7D32)).border(2.dp, Color.White)) {
+            Box(modifier = Modifier.fillMaxWidth().height(650.dp).padding(16.dp).background(Color(0xFF2E7D32)).border(2.dp, Color.White)) {
                 Canvas(modifier = Modifier.fillMaxSize()) {
                     val w = size.width
                     val h = size.height
@@ -118,10 +119,7 @@ fun TelaPreJogoDetalhada(
                     drawCircle(fieldColor, radius = 60.dp.toPx(), center = Offset(w/2, h/2), style = androidx.compose.ui.graphics.drawscope.Stroke(strokeWidth))
                     
                     drawRect(fieldColor, topLeft = Offset(w*0.2f, 0f), size = androidx.compose.ui.geometry.Size(w*0.6f, h*0.12f), style = androidx.compose.ui.graphics.drawscope.Stroke(strokeWidth))
-                    drawRect(fieldColor, topLeft = Offset(w*0.35f, 0f), size = androidx.compose.ui.geometry.Size(w*0.3f, h*0.04f), style = androidx.compose.ui.graphics.drawscope.Stroke(strokeWidth))
-                    
                     drawRect(fieldColor, topLeft = Offset(w*0.2f, h*0.88f), size = androidx.compose.ui.geometry.Size(w*0.6f, h*0.12f), style = androidx.compose.ui.graphics.drawscope.Stroke(strokeWidth))
-                    drawRect(fieldColor, topLeft = Offset(w*0.35f, h*0.96f), size = androidx.compose.ui.geometry.Size(w*0.3f, h*0.04f), style = androidx.compose.ui.graphics.drawscope.Stroke(strokeWidth))
                 }
                 
                 Column(Modifier.fillMaxSize()) {
@@ -136,22 +134,56 @@ fun TelaPreJogoDetalhada(
 
             Row(Modifier.fillMaxWidth().padding(16.dp)) {
                 Column(Modifier.weight(1f)) {
-                    Text("RESERVAS", fontWeight = FontWeight.Bold, color = Color.Gray, fontSize = 12.sp)
+                    if (partida.tecnicoMandante.isNotBlank()) {
+                        Text("TÉC: ${partida.tecnicoMandante.uppercase()}", fontSize = 9.sp, fontWeight = FontWeight.Black, color = Color.DarkGray, modifier = Modifier.padding(bottom = 4.dp))
+                    }
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        AsyncImage(
+                            model = mandante?.escudoUri?.ifBlank { R.drawable.ic_launcher_background } ?: R.drawable.ic_launcher_background,
+                            contentDescription = null,
+                            modifier = Modifier.size(24.dp).clip(CircleShape)
+                        )
+                        Spacer(Modifier.width(8.dp))
+                        Text("RESERVAS", fontWeight = FontWeight.Bold, color = Color.Gray, fontSize = 12.sp)
+                    }
                     reservasM.forEach { res ->
                         Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(vertical = 4.dp).clickable { jogadorParaVerAcoes = res }) {
-                            AsyncImage(model = res.fotoUri.ifBlank { R.drawable.ic_launcher_background }, contentDescription = null, modifier = Modifier.size(24.dp).clip(CircleShape).background(Color.LightGray))
+                            Box(contentAlignment = Alignment.BottomEnd) {
+                                AsyncImage(model = res.fotoUri.ifBlank { R.drawable.ic_launcher_background }, contentDescription = null, modifier = Modifier.size(24.dp).clip(CircleShape).background(Color.LightGray))
+                                val nota = partida.notasJogadores[res.id] ?: 6.0
+                                Box(modifier = Modifier.size(10.dp).background(obterCorNota(nota), CircleShape).border(0.5.dp, Color.White, CircleShape), contentAlignment = Alignment.Center) {
+                                    Text(String.format("%.1f", nota), fontSize = 5.sp, fontWeight = FontWeight.Bold, color = Color.White)
+                                }
+                            }
                             Spacer(Modifier.width(8.dp))
                             Text(res.apelido.ifBlank { res.nome }, fontSize = 12.sp)
                         }
                     }
                 }
-                Column(Modifier.weight(1f)) {
-                    Text("RESERVAS", fontWeight = FontWeight.Bold, color = Color.Gray, fontSize = 12.sp, textAlign = TextAlign.End, modifier = Modifier.fillMaxWidth())
+                Column(Modifier.weight(1f), horizontalAlignment = Alignment.End) {
+                    if (partida.tecnicoVisitante.isNotBlank()) {
+                        Text("TÉC: ${partida.tecnicoVisitante.uppercase()}", fontSize = 9.sp, fontWeight = FontWeight.Black, color = Color.DarkGray, textAlign = TextAlign.End, modifier = Modifier.padding(bottom = 4.dp))
+                    }
+                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.End) {
+                        Text("RESERVAS", fontWeight = FontWeight.Bold, color = Color.Gray, fontSize = 12.sp, textAlign = TextAlign.End)
+                        Spacer(Modifier.width(8.dp))
+                        AsyncImage(
+                            model = visitante?.escudoUri?.ifBlank { R.drawable.ic_launcher_background } ?: R.drawable.ic_launcher_background,
+                            contentDescription = null,
+                            modifier = Modifier.size(24.dp).clip(CircleShape)
+                        )
+                    }
                     reservasV.forEach { res ->
                         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.End, modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp).clickable { jogadorParaVerAcoes = res }) {
                             Text(res.apelido.ifBlank { res.nome }, fontSize = 12.sp)
                             Spacer(Modifier.width(8.dp))
-                            AsyncImage(model = res.fotoUri.ifBlank { R.drawable.ic_launcher_background }, contentDescription = null, modifier = Modifier.size(24.dp).clip(CircleShape).background(Color.LightGray))
+                            Box(contentAlignment = Alignment.BottomEnd) {
+                                AsyncImage(model = res.fotoUri.ifBlank { R.drawable.ic_launcher_background }, contentDescription = null, modifier = Modifier.size(24.dp).clip(CircleShape).background(Color.LightGray))
+                                val nota = partida.notasJogadores[res.id] ?: 6.0
+                                Box(modifier = Modifier.size(10.dp).background(obterCorNota(nota), CircleShape).border(0.5.dp, Color.White, CircleShape), contentAlignment = Alignment.Center) {
+                                    Text(String.format("%.1f", nota), fontSize = 5.sp, fontWeight = FontWeight.Bold, color = Color.White)
+                                }
+                            }
                         }
                     }
                 }
@@ -172,6 +204,17 @@ fun TelaPreJogoDetalhada(
     }
 }
 
+fun obterCorNota(nota: Double): Color {
+    return when {
+        nota >= 8.5 -> Color(0xFF1B5E20) // Verde Escuro (Excelente)
+        nota >= 7.5 -> Color(0xFF4CAF50) // Verde (Bom)
+        nota >= 6.5 -> Color(0xFFCDDC39) // Lima (Regular+)
+        nota >= 5.5 -> Color(0xFFFFEB3B) // Amarelo (Regular)
+        nota >= 4.5 -> Color(0xFFFF9800) // Laranja (Ruim)
+        else -> Color(0xFFF44336) // Vermelho (Péssimo)
+    }
+}
+
 @Composable
 fun InfoPreJogoItem(label: String, value: String) {
     if (value.isNotBlank()) {
@@ -184,26 +227,62 @@ fun InfoPreJogoItem(label: String, value: String) {
 
 @Composable
 fun BoxScope.DistribuirJogadoresNoCampoDetalhado(jogadores: List<JogadorExemplo>, p: Partida, isVisitante: Boolean, onClick: (JogadorExemplo) -> Unit) {
-    val jogadoresComPosicao = jogadores.sortedBy { jog ->
-        val pos = p.posicoesNoJogo[jog.id] ?: jog.posicao
-        when {
-            pos.contains("GOL") -> 0
-            pos.contains("ZAG") || pos.contains("LAT") -> 1
-            pos.contains("VOL") || pos.contains("MEI") -> 2
-            else -> 3
-        }
-    }
+    fun filtrar(pos: List<String>) = jogadores.filter { (p.posicoesNoJogo[it.id] ?: it.posicao).split(" ").first() in pos }
+
+    val goleiros = filtrar(listOf("GOL"))
+    val defesas = filtrar(listOf("ZAG", "LAT"))
+    val volantes = filtrar(listOf("VOL"))
+    val meias = filtrar(listOf("MEI", "MAT", "ALA"))
+    val atacantes = filtrar(listOf("PT", "CA"))
+
+    val linhas = if (isVisitante) listOf(goleiros, defesas, volantes, meias, atacantes)
+                 else listOf(atacantes, meias, volantes, defesas, goleiros)
 
     Column(Modifier.fillMaxSize(), verticalArrangement = Arrangement.SpaceEvenly) {
-        val grupos = if (isVisitante) jogadoresComPosicao.chunked(3) else jogadoresComPosicao.reversed().chunked(3)
-        grupos.forEach { fila ->
+        linhas.forEach { linha ->
+            val linhaOrdenada = linha.sortedWith(compareBy { jog ->
+                val pos = p.posicoesNoJogo[jog.id] ?: jog.posicao
+                when {
+                    pos.contains("(E)") -> 0
+                    pos.contains("(D)") -> 2
+                    else -> 1
+                }
+            })
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
-                fila.forEach { jog ->
+                linhaOrdenada.forEach { jog ->
                     Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.clickable { onClick(jog) }) {
-                        Surface(modifier = Modifier.size(35.dp), shape = CircleShape, border = androidx.compose.foundation.BorderStroke(2.dp, if(isVisitante) Color.Red else Color.Blue)) {
-                            AsyncImage(model = jog.fotoUri.ifBlank { R.drawable.ic_launcher_background }, contentDescription = null, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize().clip(CircleShape))
+                        Box(contentAlignment = Alignment.BottomEnd) {
+                            Surface(
+                                modifier = Modifier.size(32.dp),
+                                shape = CircleShape,
+                                color = Color.White,
+                                shadowElevation = 4.dp,
+                                border = androidx.compose.foundation.BorderStroke(2.dp, if(isVisitante) Color(0xFFD32F2F) else Color(0xFF1976D2))
+                            ) {
+                                Box(contentAlignment = Alignment.Center) {
+                                    AsyncImage(
+                                        model = jog.fotoUri.ifBlank { R.drawable.ic_launcher_background },
+                                        contentDescription = null,
+                                        modifier = Modifier.fillMaxSize().clip(CircleShape),
+                                        contentScale = ContentScale.Crop
+                                    )
+                                }
+                            }
+                            val nota = p.notasJogadores[jog.id] ?: 6.0
+                            Box(modifier = Modifier.size(12.dp).background(obterCorNota(nota), CircleShape).border(1.dp, Color.White, CircleShape), contentAlignment = Alignment.Center) {
+                                Text(String.format("%.1f", nota), fontSize = 6.sp, fontWeight = FontWeight.Bold, color = Color.White)
+                            }
                         }
-                        Text(jog.apelido.ifBlank { jog.nome.take(5) }, color = Color.White, fontSize = 9.sp, fontWeight = FontWeight.Bold, modifier = Modifier.background(Color.Black.copy(0.4f), RoundedCornerShape(4.dp)).padding(horizontal = 4.dp))
+                        Text(
+                            text = jog.apelido.ifBlank { jog.nome.split(" ").last() },
+                            fontSize = 9.sp, 
+                            color = Color.White,
+                            fontWeight = FontWeight.Bold,
+                            modifier = Modifier
+                                .background(Color.Black.copy(alpha = 0.4f), RoundedCornerShape(4.dp))
+                                .padding(horizontal = 4.dp, vertical = 1.dp),
+                            maxLines = 1
+                        )
                     }
                 }
             }

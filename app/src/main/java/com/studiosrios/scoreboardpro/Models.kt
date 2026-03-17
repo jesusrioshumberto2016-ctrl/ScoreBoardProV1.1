@@ -85,7 +85,9 @@ data class Partida(
     val tecnicoVisitante: String = "",
     val auxiliar1Visitante: String = "",
     val auxiliar2Visitante: String = "",
-    val massagistaVisitante: String = ""
+    val massagistaVisitante: String = "",
+    
+    val notasJogadores: Map<Int, Double> = emptyMap()
 )
 
 data class LinhaTabela(
