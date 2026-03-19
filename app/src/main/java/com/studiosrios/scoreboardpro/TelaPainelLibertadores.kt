@@ -2,6 +2,7 @@ package com.studiosrios.scoreboardpro
 
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -433,19 +434,16 @@ fun AbaEquipesTelespectador(
                 supportingContent = { Text(equipe.city) },
                 modifier = Modifier.clickable { onEquipeClick(equipe) },
                 leadingContent = {
-                    Surface(
-                        modifier = Modifier.size(40.dp),
-                        shape = CircleShape,
-                        color = MaterialTheme.colorScheme.primaryContainer
-                    ) {
-                        Box(contentAlignment = Alignment.Center) {
-                            Text(
-                                text = equipe.nome.take(1).uppercase(),
-                                style = MaterialTheme.typography.titleMedium,
-                                color = MaterialTheme.colorScheme.onPrimaryContainer
-                            )
-                        }
-                    }
+                    AsyncImage(
+                        model = equipe.escudoUri.ifBlank { R.drawable.ic_launcher_background },
+                        contentDescription = null,
+                        modifier = Modifier
+                            .size(40.dp)
+                            .clip(CircleShape)
+                            .background(Color.White)
+                            .border(0.5.dp, Color.LightGray, CircleShape),
+                        contentScale = ContentScale.Crop
+                    )
                 }
             )
             HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp), thickness = 0.5.dp)
