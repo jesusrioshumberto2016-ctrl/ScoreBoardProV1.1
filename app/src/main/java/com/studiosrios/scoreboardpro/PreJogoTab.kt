@@ -28,6 +28,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Edit
 import coil.compose.AsyncImage
+import java.util.Locale
 
 @Composable
 fun PreJogoTab(
@@ -235,6 +236,8 @@ fun ConfiguracaoPreJogoDetalhada(
                                         Text(jog.apelido.ifBlank { jog.nome }, fontWeight = FontWeight.Bold, fontSize = 14.sp)
                                         Text("$posicaoNoJogo | ${jog.idade}", fontSize = 10.sp, color = Color.Gray)
                                     }
+
+                                    Spacer(Modifier.width(4.dp))
                                     
                                     var showPosMenu by remember { mutableStateOf(false) }
                                     Box {
@@ -243,7 +246,7 @@ fun ConfiguracaoPreJogoDetalhada(
                                             modifier = Modifier.height(30.dp),
                                             contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp)
                                         ) {
-                                            Text(posicaoNoJogo, fontSize = 10.sp)
+                                            Text(posicaoNoJogo, fontSize = 9.sp)
                                         }
                                         DropdownMenu(expanded = showPosMenu, onDismissRequest = { showPosMenu = false }) {
                                             val posicoes = listOf("GOL", "ZAG", "LAT", "VOL", "MEI", "MAT", "ALA", "PT", "CA")
@@ -268,7 +271,7 @@ fun ConfiguracaoPreJogoDetalhada(
                                             } else {
                                                 pEditada.copy(titularesVisitante = if (isTitular) pEditada.titularesVisitante - jog.id else pEditada.titularesVisitante + jog.id, reservasVisitante = pEditada.reservasVisitante - jog.id)
                                             }
-                                        }) { Text("TIT", color = if (isTitular) Color(0xFF2E7D32) else Color.Gray) }
+                                        }, contentPadding = PaddingValues(horizontal = 8.dp)) { Text("TIT", fontSize = 10.sp, color = if (isTitular) Color(0xFF2E7D32) else Color.Gray) }
 
                                         TextButton(onClick = {
                                             pEditada = if (isMandante) {
@@ -276,7 +279,7 @@ fun ConfiguracaoPreJogoDetalhada(
                                             } else {
                                                 pEditada.copy(reservasVisitante = if (isReserva) pEditada.reservasVisitante - jog.id else pEditada.reservasVisitante + jog.id, titularesVisitante = pEditada.titularesVisitante - jog.id)
                                             }
-                                        }) { Text("RES", color = if (isReserva) Color(0xFFEF6C00) else Color.Gray) }
+                                        }, contentPadding = PaddingValues(horizontal = 8.dp)) { Text("RES", fontSize = 10.sp, color = if (isReserva) Color(0xFFEF6C00) else Color.Gray) }
                                     }
                                 }
                             }

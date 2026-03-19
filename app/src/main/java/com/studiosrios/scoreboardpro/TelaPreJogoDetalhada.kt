@@ -24,6 +24,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
+import java.util.Locale
 
 @Composable
 fun TelaPreJogoDetalhada(
@@ -150,10 +151,6 @@ fun TelaPreJogoDetalhada(
                         Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(vertical = 4.dp).clickable { jogadorParaVerAcoes = res }) {
                             Box(contentAlignment = Alignment.BottomEnd) {
                                 AsyncImage(model = res.fotoUri.ifBlank { R.drawable.ic_launcher_background }, contentDescription = null, modifier = Modifier.size(24.dp).clip(CircleShape).background(Color.LightGray))
-                                val nota = partida.notasJogadores[res.id] ?: 6.0
-                                Box(modifier = Modifier.size(10.dp).background(obterCorNota(nota), CircleShape).border(0.5.dp, Color.White, CircleShape), contentAlignment = Alignment.Center) {
-                                    Text(String.format("%.1f", nota), fontSize = 5.sp, fontWeight = FontWeight.Bold, color = Color.White)
-                                }
                             }
                             Spacer(Modifier.width(8.dp))
                             Text(res.apelido.ifBlank { res.nome }, fontSize = 12.sp)
@@ -179,10 +176,6 @@ fun TelaPreJogoDetalhada(
                             Spacer(Modifier.width(8.dp))
                             Box(contentAlignment = Alignment.BottomEnd) {
                                 AsyncImage(model = res.fotoUri.ifBlank { R.drawable.ic_launcher_background }, contentDescription = null, modifier = Modifier.size(24.dp).clip(CircleShape).background(Color.LightGray))
-                                val nota = partida.notasJogadores[res.id] ?: 6.0
-                                Box(modifier = Modifier.size(10.dp).background(obterCorNota(nota), CircleShape).border(0.5.dp, Color.White, CircleShape), contentAlignment = Alignment.Center) {
-                                    Text(String.format("%.1f", nota), fontSize = 5.sp, fontWeight = FontWeight.Bold, color = Color.White)
-                                }
                             }
                         }
                     }
@@ -267,10 +260,6 @@ fun BoxScope.DistribuirJogadoresNoCampoDetalhado(jogadores: List<JogadorExemplo>
                                         contentScale = ContentScale.Crop
                                     )
                                 }
-                            }
-                            val nota = p.notasJogadores[jog.id] ?: 6.0
-                            Box(modifier = Modifier.size(12.dp).background(obterCorNota(nota), CircleShape).border(1.dp, Color.White, CircleShape), contentAlignment = Alignment.Center) {
-                                Text(String.format("%.1f", nota), fontSize = 6.sp, fontWeight = FontWeight.Bold, color = Color.White)
                             }
                         }
                         Text(

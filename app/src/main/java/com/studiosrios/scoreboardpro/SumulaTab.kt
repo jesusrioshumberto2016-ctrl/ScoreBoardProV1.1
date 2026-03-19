@@ -109,8 +109,10 @@ fun ConteudoRegistrarEventos(
 ) {
     val mNome = equipes.find { it.id == p.mandanteId }?.nome ?: p.labelMandante
     val vNome = equipes.find { it.id == p.visitanteId }?.nome ?: p.labelVisitante
+    
+    // FILTRAR APENAS JOGADORES RELACIONADOS (TITULARES OU RESERVAS)
     val relacionadosIds = p.titularesMandante + p.reservasMandante + p.titularesVisitante + p.reservasVisitante
-    val jogadoresDaPartida = todosJogadores.filter { it.id in relacionadosIds || it.equipeId == p.mandanteId || it.equipeId == p.visitanteId }
+    val jogadoresDaPartida = todosJogadores.filter { it.id in relacionadosIds }
 
     var houveMudancaLocal by remember { mutableStateOf(false) }
     var mostrarConfirmacaoSair by remember { mutableStateOf(false) }
@@ -301,8 +303,13 @@ fun ConteudoRegistrarEventos(
                     val reservas = jogadoresDaPartida.filter { it.equipeId == jogadorSaindo?.equipeId && it.id != jogadorSaindo?.id }
                     reservas.forEach { reserva ->
                         TextButton(onClick = {
-                            val msg = "SUB: Sai ${jogadorSaindo?.nome} / Entra ${reserva.nome}"
-                            jogadorSaindo?.let { salvarEventoImpl(p, partidas, equipes, it, msg, minutoInput) }
+                            val min = minutoInput
+                            val sai = jogadorSaindo
+                            val entra = reserva
+                            if (sai != null) {
+                                salvarEventoImpl(p, partidas, equipes, sai, "SAÍDA (SUB)", min)
+                                salvarEventoImpl(p, partidas, equipes, entra, "ENTRADA (SUB)", min)
+                            }
                             houveMudancaLocal = true; onAlteracao(); showDialogSubstituicaoEntrada = false; minutoInput = ""; jogadorPendenteParaEvento = null; jogadorSaindo = null
                         }) { Text(reserva.nome) }
                     }
@@ -353,7 +360,11 @@ fun ConteudoRegistrarEventos(
         Row(Modifier.fillMaxWidth().padding(bottom = 8.dp), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
             val addMarco = { tipo: String ->
                 val marco = EventoPartida(jogadorNome = "Partida", equipeNome = "Geral", tipo = tipo)
-                partidas[idxPartida] = p.copy(eventos = p.eventos + marco)
+                val isFim = tipo == "FIM DE JOGO"
+                partidas[idxPartida] = p.copy(
+                    eventos = p.eventos + marco,
+                    finalizada = if (isFim) true else p.finalizada
+                )
                 houveMudancaLocal = true; onAlteracao()
             }
             Button(onClick = { addMarco("INÍCIO") }, modifier = Modifier.weight(1f), colors = ButtonDefaults.buttonColors(containerColor = Color.Black)) { Text("INÍCIO", fontSize = 9.sp) }
@@ -430,9 +441,11 @@ fun ConteudoRegistrarEventos(
                         }
                     }
 
+                    val isFim = ev.tipo == "FIM DE JOGO"
                     val novaLista = pEd.eventos.toMutableList().apply { remove(ev) }
                     partidas[idxPartida] = pEd.copy(
                         eventos = novaLista,
+                        finalizada = if (isFim) false else pEd.finalizada,
                         golsMandante = if ((nGM ?: 0) < 0) 0 else nGM,
                         golsVisitante = if ((nGV ?: 0) < 0) 0 else nGV,
                         cartoesAmarelosMandante = if (nAM < 0) 0 else nAM,

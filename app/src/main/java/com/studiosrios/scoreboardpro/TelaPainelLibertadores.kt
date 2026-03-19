@@ -2,7 +2,10 @@ package com.studiosrios.scoreboardpro
 
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -53,6 +56,8 @@ fun TelaPainelLibertadores(
     var equipeSelecionada by remember { mutableStateOf<EquipeExemplo?>(null) }
     var jogadorSelecionadoParaDetalhes by remember { mutableStateOf<JogadorExemplo?>(null) }
     
+    var subAbaArtilhariaSelecionada by remember { mutableIntStateOf(0) }
+
     var editandoSumulaId by remember { mutableStateOf<Int?>(null) }
     var editandoPreJogoId by remember { mutableStateOf<Int?>(null) }
 
@@ -168,7 +173,7 @@ fun TelaPainelLibertadores(
                                 border = androidx.compose.foundation.BorderStroke(1.dp, Color.Red.copy(alpha = 0.3f))
                             ) {
                                 Icon(Icons.AutoMirrored.Filled.ExitToApp, null, modifier = Modifier.size(16.dp))
-                                Spacer(Modifier.width(6.dp))
+                                Spacer(Modifier.width(6.6.dp))
                                 Text(if (isOrganizador) "SAIR" else "VOLTAR", fontSize = 11.sp, fontWeight = FontWeight.Black)
                             }
                         },
@@ -233,6 +238,7 @@ fun TelaPainelLibertadores(
                     TelaDetalhesJogadorTelespectador(
                         jogador = jogadorSelecionadoParaDetalhes!!,
                         partidas = partidas,
+                        equipes = equipes,
                         onVoltar = { jogadorSelecionadoParaDetalhes = null }
                     )
                 }
@@ -268,16 +274,16 @@ fun TelaPainelLibertadores(
                                     val partidasMataMata = partidas.filter { 
                                         !it.fase.contains("RODADA", ignoreCase = true) && !it.fase.contains("ÚNICA", ignoreCase = true) && it.fase.isNotBlank() 
                                     }.sortedWith(compareBy<Partida> { it.data.split("/").reversed().joinToString("") }.thenBy { it.horario })
-                                    ConteudoChaveamentoLibertadores(equipes, partidasMataMata, { p -> partidaParaVerPreJogo = p }, { p -> partidaParaVerDetalhes = p }, { e -> equipeSelecionada = e })
+                                    ConteudoChaveamentoLibertadores(equipes, partidasMataMata, { p: Partida -> partidaParaVerPreJogo = p }, { p: Partida -> partidaParaVerDetalhes = p }, { e: EquipeExemplo -> equipeSelecionada = e })
                                 }
                                 "Equipes" -> AbaEquipesTelespectador(equipes, onEquipeClick = { e: EquipeExemplo -> equipeSelecionada = e })
-                                "Resultados" -> ResultadosTab(partidas, equipes, onConfirmarResultado = { houveAlteracaoGeral = true })
-                                "Partidas" -> PartidasTab(partidas, equipes, {p -> partidaParaVerPreJogo = p}, {p -> partidaParaVerDetalhes = p}, false, {e -> equipeSelecionada = e})
+                                "Resultados" -> ResultadosTab(partidas, equipes, onConfirmarResultado = { _: Partida -> houveAlteracaoGeral = true })
+                                "Partidas" -> PartidasTab(partidas, equipes, {p: Partida -> partidaParaVerPreJogo = p}, {p: Partida -> partidaParaVerDetalhes = p}, false, {e: EquipeExemplo -> equipeSelecionada = e})
                                 "Súmula" -> SumulaTab(
                                     partidas = partidas, 
                                     equipes = equipes, 
                                     todosJogadores = listaGlobalJogadores,
-                                    onEntrarEdicao = {id -> editandoSumulaId = id}, 
+                                    onEntrarEdicao = {id: Int -> editandoSumulaId = id}, 
                                     onSairEdicao = {editandoSumulaId = null},
                                     onAlteracao = { houveAlteracaoGeral = true },
                                     onSalvar = { houveAlteracaoGeral = true }
@@ -286,7 +292,7 @@ fun TelaPainelLibertadores(
                                     equipes = equipes, 
                                     partidas = partidas, 
                                     listaGlobalJogadores = listaGlobalJogadores, 
-                                    onEntrarEdicao = {id -> editandoPreJogoId = id}, 
+                                    onEntrarEdicao = {id: Int -> editandoPreJogoId = id}, 
                                     onSairEdicao = {editandoPreJogoId = null},
                                     onAlteracao = { houveAlteracaoGeral = true }
                                 )
@@ -294,13 +300,15 @@ fun TelaPainelLibertadores(
                                     equipes = equipes, 
                                     partidas = partidas, 
                                     listaGlobalJogadores = listaGlobalJogadores, 
+                                    subAbaSelecionada = subAbaArtilhariaSelecionada,
+                                    onSubAbaSelecionadaChange = { subAbaArtilhariaSelecionada = it },
                                     onEquipeClick = { e: EquipeExemplo -> equipeSelecionada = e },
                                     onJogadorClick = { j: JogadorExemplo -> jogadorSelecionadoParaDetalhes = j }
                                 )
                                 "Configs" -> ConfigLibertadores(
                                     configs = configsIniciais,
                                     bloquearCriterios = algumaPartidaFinalizada,
-                                    onSalvar = { novasConfigs ->
+                                    onSalvar = { novasConfigs: ConfiguracoesCampeonato ->
                                         onSalvarGeral(idCamp, novasConfigs)
                                         houveAlteracaoGeral = false
                                         temTrabalhoNaoConfirmado = false
@@ -322,7 +330,7 @@ fun TelaPainelLibertadores(
                                     },
                                     enabled = gruposFinalizados,
                                     modifier = Modifier.fillMaxWidth().padding(16.dp),
-                                    colors = ButtonDefaults.buttonColors(containerColor = if (gruposFinalizados) Color(0xFF2E7D32) else Color.Gray)
+                                    colors = ButtonDefaults.buttonColors(containerColor = if (gruposFinalizados) Color(0xFF2E7D32) else Color(0xFF1976D2))
                                 ) {
                                     Icon(Icons.Default.CheckCircle, null)
                                     Spacer(Modifier.width(8.dp))
@@ -350,7 +358,7 @@ fun ConteudoChaveamentoLibertadores(
         Spacer(modifier = Modifier.height(16.dp))
         
         if (partidas.isEmpty()) {
-            Text("Nenhuma partida de mata-mata gerada ainda.", color = Color.Gray)
+            Text("Nenhum partida de mata-mata gerada ainda.", color = Color.Gray)
         } else {
             val fases = partidas.groupBy { it.fase }
             fases.forEach { (nomeFase, jogos) ->
@@ -384,7 +392,7 @@ fun PainelGruposLibertadores(
         if (listaGrupos.isEmpty()) {
             Text("Nenhum grupo configurado.", Modifier.padding(16.dp))
         } else {
-            listaGrupos.forEach { grupo ->
+            for (grupo in listaGrupos) {
                 if (indiceInicio < equipes.size) {
                     Text(
                         text = grupo.nome,
@@ -409,6 +417,38 @@ fun PainelGruposLibertadores(
                     HorizontalDivider(thickness = 1.dp, color = MaterialTheme.colorScheme.outlineVariant)
                 }
             }
+        }
+    }
+}
+
+@Composable
+fun AbaEquipesTelespectador(
+    equipes: List<EquipeExemplo>,
+    onEquipeClick: (EquipeExemplo) -> Unit
+) {
+    LazyColumn(modifier = Modifier.fillMaxSize()) {
+        items(equipes) { equipe ->
+            ListItem(
+                headlineContent = { Text(equipe.nome, fontWeight = FontWeight.Bold) },
+                supportingContent = { Text(equipe.city) },
+                modifier = Modifier.clickable { onEquipeClick(equipe) },
+                leadingContent = {
+                    Surface(
+                        modifier = Modifier.size(40.dp),
+                        shape = CircleShape,
+                        color = MaterialTheme.colorScheme.primaryContainer
+                    ) {
+                        Box(contentAlignment = Alignment.Center) {
+                            Text(
+                                text = equipe.nome.take(1).uppercase(),
+                                style = MaterialTheme.typography.titleMedium,
+                                color = MaterialTheme.colorScheme.onPrimaryContainer
+                            )
+                        }
+                    }
+                }
+            )
+            HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp), thickness = 0.5.dp)
         }
     }
 }

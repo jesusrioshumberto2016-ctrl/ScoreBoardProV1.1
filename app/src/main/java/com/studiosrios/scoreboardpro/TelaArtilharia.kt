@@ -25,10 +25,11 @@ fun TelaArtilharia(
     equipes: List<EquipeExemplo>,
     partidas: List<Partida>,
     listaGlobalJogadores: List<JogadorExemplo>,
+    subAbaSelecionada: Int = 0,
+    onSubAbaSelecionadaChange: (Int) -> Unit = {},
     onEquipeClick: (EquipeExemplo) -> Unit = {},
     onJogadorClick: (JogadorExemplo) -> Unit = {}
 ) {
-    var subAbaSelecionada by remember { mutableIntStateOf(0) }
     val titulosSubAbas = listOf("Artilheiros", "Assistentes", "Pontuação", "Gols Pênalti", "Amarelos", "Vermelhos", "Gols Contra")
 
     Column(modifier = Modifier.fillMaxSize()) {
@@ -40,7 +41,7 @@ fun TelaArtilharia(
             titulosSubAbas.forEachIndexed { index, titulo ->
                 Tab(
                     selected = subAbaSelecionada == index,
-                    onClick = { subAbaSelecionada = index },
+                    onClick = { onSubAbaSelecionadaChange(index) },
                     text = { Text(titulo, fontSize = 12.sp, fontWeight = FontWeight.Bold) }
                 )
             }
@@ -95,13 +96,16 @@ fun CardEstatistica(
     onEquipeClick: (EquipeExemplo) -> Unit = {},
     onJogadorClick: (JogadorExemplo) -> Unit = {}
 ) {
-    val jogadorObj = jogadores.find { it.nome == item.nomeJogador }
+    // Busca robusta pelo jogador para evitar crash
+    val jogadorObj = jogadores.find { it.nome == item.nomeJogador || (it.apelido.isNotBlank() && it.apelido == item.apelido) }
 
     Card(
         modifier = Modifier
             .fillMaxWidth()
             .padding(vertical = 4.dp)
-            .clickable(enabled = jogadorObj != null) { jogadorObj?.let { onJogadorClick(it) } },
+            .clickable(enabled = jogadorObj != null) { 
+                jogadorObj?.let { onJogadorClick(it) } 
+            },
         elevation = CardDefaults.cardElevation(1.dp)
     ) {
         Row(
@@ -209,7 +213,8 @@ fun processarEstatisticas(partidas: List<Partida>, jogadores: List<JogadorExempl
 
     // Cálculo do Ranking de Pontuação
     val rankingPontuacao = jogadores.map { jogador ->
-        val pts = calcularPontuacaoJogador(jogador, partidas)
+        // GARANTE PASSAGEM DA LISTA DE EQUIPES PARA A FUNÇÃO DE CÁLCULO
+        val pts = calcularPontuacaoJogador(jogador, partidas, equipes)
         ItemEstatistica(
             nomeJogador = jogador.nome,
             apelido = jogador.apelido,

@@ -17,10 +17,8 @@ data class PontuacaoDetalhada(
     val mvp: Int = 0
 )
 
-fun calcularPontuacaoJogador(jogador: JogadorExemplo, partidas: List<Partida>): PontuacaoDetalhada {
-    var ptsGols = 0; var ptsAssists = 0; var ptsSG = 0
-    var ptsAmarelos = 0; var ptsVermelhos = 0; var ptsContra = 0; var ptsMVP = 0
-    
+@JvmOverloads
+fun calcularPontuacaoJogador(jogador: JogadorExemplo, partidas: List<Partida>, equipes: List<EquipeExemplo> = emptyList()): PontuacaoDetalhada {
     var countGols = 0; var countAssists = 0; var countSG = 0
     var countAmarelos = 0; var countVermelhos = 0; var countContra = 0; var countMVP = 0
 
@@ -41,18 +39,45 @@ fun calcularPontuacaoJogador(jogador: JogadorExemplo, partidas: List<Partida>): 
             countMVP++
         }
 
-        // 3. Defesa sem sofrer gol (SG)
-        // Regra: Jogador deve ser de defesa (GOL, ZAG, LAT, ALA, VOL) e o time não pode ter sofrido gols
+        // 3. Defesa sem sofrer gol (SG) - LÓGICA RESTRITA A GOLEIROS
         val posBase = jogador.posicao.take(3).uppercase()
-        val ehDefensor = posBase in listOf("GOL", "ZAG", "LAT", "ALA", "VOL")
+        val ehGoleiro = posBase == "GOL"
         
-        if (ehDefensor) {
+        if (ehGoleiro) {
             val foiTitular = p.titularesMandante.contains(jogador.id) || p.titularesVisitante.contains(jogador.id)
-            val entrouNoJogo = p.eventos.any { it.tipo.contains("SUB") && it.tipo.contains(jogador.nome) && it.tipo.contains("Entra") }
+            val eventoEntrada = p.eventos.find { it.tipo.contains("SUB") && it.tipo.contains(jogador.nome) && it.tipo.contains("Entra") }
             
-            if (foiTitular || entrouNoJogo) {
-                val golsSofridos = if (p.mandanteId == jogador.equipeId) (p.golsVisitante ?: 0) else (p.golsMandante ?: 0)
-                if (golsSofridos == 0) {
+            if (foiTitular || eventoEntrada != null) {
+                val minEntrada = if (foiTitular) 0 else (eventoEntrada?.minuto?.toIntOrNull() ?: 0)
+                val eventoSaida = p.eventos.find { it.tipo.contains("SUB") && it.tipo.contains(jogador.nome) && it.tipo.contains("Sai") }
+                val minSaida = if (eventoSaida != null) (eventoSaida.minuto.toIntOrNull() ?: 90) else 999 
+
+                val ehMandante = jogador.equipeId == p.mandanteId
+                val mNome = equipes.find { it.id == p.mandanteId }?.nome ?: p.labelMandante
+                val vNome = equipes.find { it.id == p.visitanteId }?.nome ?: p.labelVisitante
+                val minhaEquipeNome = if (ehMandante) mNome else vNome
+                val adversarioNome = if (ehMandante) vNome else mNome
+
+                var sofreuGolEnquantoEmCampo = false
+                
+                p.eventos.forEach { ev ->
+                    if (ev.tipo == "GOL" || ev.tipo == "GOL (PÊNALTI)" || ev.tipo == "GOL CONTRA") {
+                        val minGol = ev.minuto.toIntOrNull() ?: -1
+                        val ehGolContraSuaEquipe = (ev.tipo != "GOL CONTRA" && ev.equipeNome == adversarioNome) ||
+                                                   (ev.tipo == "GOL CONTRA" && ev.equipeNome == minhaEquipeNome)
+                        
+                        if (ehGolContraSuaEquipe) {
+                            if (minGol != -1 && minGol >= minEntrada && minGol <= minSaida) {
+                                sofreuGolEnquantoEmCampo = true
+                            } else if (minGol == -1) {
+                                sofreuGolEnquantoEmCampo = true
+                            }
+                        }
+                    }
+                }
+
+                val totalGolsSofridosFinal = if (ehMandante) (p.golsVisitante ?: 0) else (p.golsMandante ?: 0)
+                if (totalGolsSofridosFinal == 0 || !sofreuGolEnquantoEmCampo) {
                     countSG++
                 }
             }

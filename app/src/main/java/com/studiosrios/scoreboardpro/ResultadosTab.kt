@@ -224,14 +224,24 @@ fun ItemResultadoCard(
                         val gM = listaGeral[idx].golsMandante ?: 0
                         val gV = listaGeral[idx].golsVisitante ?: 0
                         val partidaFinalizada = !partida.finalizada
+                        
+                        val novaListaEventos = if (partidaFinalizada) {
+                            // Adiciona "FIM DE JOGO" se estiver confirmando
+                            listaGeral[idx].eventos + EventoPartida(jogadorNome = "Partida", equipeNome = "Sistema", tipo = "FIM DE JOGO", minuto = "90")
+                        } else {
+                            // Remove "FIM DE JOGO" se estiver cancelando
+                            listaGeral[idx].eventos.filter { it.tipo != "FIM DE JOGO" }
+                        }
+
                         listaGeral[idx] = listaGeral[idx].copy(
                             finalizada = partidaFinalizada, 
                             golsMandante = gM, 
-                            golsVisitante = gV
+                            golsVisitante = gV,
+                            eventos = novaListaEventos
                         )
-                        if (partidaFinalizada) {
-                            onConfirmar(listaGeral[idx])
-                        }
+                        
+                        // Callback sempre que houver alteração (confirmar ou cancelar)
+                        onConfirmar(listaGeral[idx])
                     }
                 }, 
                 modifier = Modifier.fillMaxWidth().padding(top = 8.dp), 

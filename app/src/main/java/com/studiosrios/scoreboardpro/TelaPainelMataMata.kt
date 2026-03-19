@@ -29,10 +29,14 @@ fun TelaPainelMataMata(
     var partidaParaVerPreJogo by remember { mutableStateOf<Partida?>(null) }
     var partidaParaVerDetalhes by remember { mutableStateOf<Partida?>(null) }
     var equipeSelecionada by remember { mutableStateOf<EquipeExemplo?>(null) }
+    var jogadorSelecionadoParaDetalhes by remember { mutableStateOf<JogadorExemplo?>(null) }
+    
+    var subAbaArtilhariaSelecionada by remember { mutableIntStateOf(0) }
 
     // Gerenciamento do botão voltar do sistema
     BackHandler(enabled = true) {
         when {
+            jogadorSelecionadoParaDetalhes != null -> jogadorSelecionadoParaDetalhes = null
             equipeSelecionada != null -> equipeSelecionada = null
             partidaParaVerPreJogo != null -> partidaParaVerPreJogo = null
             partidaParaVerDetalhes != null -> partidaParaVerDetalhes = null
@@ -42,7 +46,7 @@ fun TelaPainelMataMata(
 
     Scaffold(
         topBar = {
-            if (partidaParaVerPreJogo == null && partidaParaVerDetalhes == null && equipeSelecionada == null) {
+            if (partidaParaVerPreJogo == null && partidaParaVerDetalhes == null && equipeSelecionada == null && jogadorSelecionadoParaDetalhes == null) {
                 Column {
                     CenterAlignedTopAppBar(
                         title = { Text("Painel Mata-Mata", fontWeight = FontWeight.Bold) },
@@ -63,8 +67,16 @@ fun TelaPainelMataMata(
             }
         }
     ) { paddingValues ->
-        Box(modifier = Modifier.padding(if (equipeSelecionada != null || partidaParaVerPreJogo != null || partidaParaVerDetalhes != null) PaddingValues(0.dp) else paddingValues).fillMaxSize()) {
+        Box(modifier = Modifier.padding(if (equipeSelecionada != null || partidaParaVerPreJogo != null || partidaParaVerDetalhes != null || jogadorSelecionadoParaDetalhes != null) PaddingValues(0.dp) else paddingValues).fillMaxSize()) {
             when {
+                jogadorSelecionadoParaDetalhes != null -> {
+                    TelaDetalhesJogadorTelespectador(
+                        jogador = jogadorSelecionadoParaDetalhes!!,
+                        partidas = partidas,
+                        equipes = equipes,
+                        onVoltar = { jogadorSelecionadoParaDetalhes = null }
+                    )
+                }
                 equipeSelecionada != null -> {
                     TelaDetalhesEquipe(
                         equipe = equipeSelecionada!!,
@@ -108,7 +120,15 @@ fun TelaPainelMataMata(
                                 onEquipeClick = { e: EquipeExemplo -> equipeSelecionada = e }
                             )
                         }
-                        2 -> TelaArtilharia(equipes, partidas, listaGlobalJogadores, onEquipeClick = { e: EquipeExemplo -> equipeSelecionada = e })
+                        2 -> TelaArtilharia(
+                            equipes = equipes, 
+                            partidas = partidas, 
+                            listaGlobalJogadores = listaGlobalJogadores, 
+                            subAbaSelecionada = subAbaArtilhariaSelecionada,
+                            onSubAbaSelecionadaChange = { subAbaArtilhariaSelecionada = it },
+                            onEquipeClick = { e: EquipeExemplo -> equipeSelecionada = e },
+                            onJogadorClick = { j: JogadorExemplo -> jogadorSelecionadoParaDetalhes = j }
+                        )
                         3 -> {
                             ConfigMataMata(
                                 configs = configsIniciais,
