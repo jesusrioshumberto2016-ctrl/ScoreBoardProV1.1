@@ -32,7 +32,7 @@ fun ConfigLibertadores(
             criterios.toList() != configs.criteriosDesempate
         }
     }
-    
+
     var mostrarConfirmacaoSair by remember { mutableStateOf(false) }
 
     val tentarVoltar = {
@@ -72,7 +72,7 @@ fun ConfigLibertadores(
 
         // --- OPÇÕES GERAIS ---
         Text("Geral", fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
-        
+
         Card(modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp)) {
             Row(Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
                 Column(Modifier.weight(1f)) {
@@ -80,9 +80,9 @@ fun ConfigLibertadores(
                     Text("Mostrar disciplina nas tabelas dos grupos", style = MaterialTheme.typography.bodySmall)
                 }
                 Switch(
-                    checked = exibirCartoes, 
-                    onCheckedChange = { 
-                        exibirCartoes = it 
+                    checked = exibirCartoes,
+                    onCheckedChange = {
+                        exibirCartoes = it
                         onAlteracao() // Notifica alteração
                     }
                 )
@@ -126,7 +126,7 @@ fun ConfigLibertadores(
                 onSalvar(configs.copy(
                     exibirCartoesNaTabela = exibirCartoes,
                     criteriosDesempate = criterios.toList()
-                )) 
+                ))
             },
             modifier = Modifier.fillMaxWidth().height(56.dp)
         ) {

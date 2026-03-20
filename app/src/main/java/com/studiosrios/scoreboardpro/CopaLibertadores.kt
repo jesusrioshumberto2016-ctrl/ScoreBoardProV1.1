@@ -15,38 +15,67 @@ class CopaLibertadores : FormatoCampeonato {
         var idContador = 1
         val copiaEquipes = equipes.toMutableList()
 
-        // 1. GERAÇÃO DA FASE DE GRUPOS (Organizada por Rodadas)
+        // 1. GERAÇÃO DA FASE DE GRUPOS (Organizada por Rodadas usando Round Robin)
         configsGrupos.forEach { config ->
-            val timesDesteGrupo = mutableListOf<Int>()
+            val timesDesteGrupo = mutableListOf<EquipeExemplo>()
             for (i in 0 until config.qtdTimes) {
                 if (copiaEquipes.isNotEmpty()) {
-                    timesDesteGrupo.add(copiaEquipes.removeAt(0).id)
+                    timesDesteGrupo.add(copiaEquipes.removeAt(0))
                 }
             }
 
-            for (i in timesDesteGrupo.indices) {
-                for (j in i + 1 until timesDesteGrupo.size) {
-                    val rodadaIda = if (turnoEReturno) "${i + j}ª Rodada" else "Rodada Única"
-                    partidas.add(Partida(
-                        id = idContador++, 
-                        mandanteId = timesDesteGrupo[i], 
-                        visitanteId = timesDesteGrupo[j],
-                        fase = rodadaIda
-                    ))
-                    
-                    if (turnoEReturno) {
+            if (timesDesteGrupo.size >= 2) {
+                val numEquipes = timesDesteGrupo.size
+                val numRodadasTurno = if (numEquipes % 2 == 0) numEquipes - 1 else numEquipes
+                val listaRodadas = timesDesteGrupo.toMutableList()
+                
+                if (numEquipes % 2 != 0) {
+                    listaRodadas.add(EquipeExemplo(-1, "BYE", "BYE", "BYE"))
+                }
+                
+                val totalEquipes = listaRodadas.size
+
+                for (rodada in 1..numRodadasTurno) {
+                    for (jogo in 0 until totalEquipes / 2) {
+                        val mandante = listaRodadas[jogo]
+                        val visitante = listaRodadas[totalEquipes - 1 - jogo]
+
+                        if (mandante.id != -1 && visitante.id != -1) {
+                            partidas.add(Partida(
+                                id = idContador++,
+                                mandanteId = mandante.id,
+                                visitanteId = visitante.id,
+                                fase = "Rodada $rodada"
+                            ))
+                        }
+                    }
+                    // Rotação
+                    val ultima = listaRodadas.removeAt(listaRodadas.size - 1)
+                    listaRodadas.add(1, ultima)
+                }
+
+                if (turnoEReturno) {
+                    val numRodadasTotal = numRodadasTurno * 2
+                    val jogosTurno = partidas.filter { p -> 
+                        timesDesteGrupo.any { it.id == p.mandanteId } && 
+                        timesDesteGrupo.any { it.id == p.visitanteId } 
+                    }.toList()
+
+                    jogosTurno.forEach { p ->
+                        val rodadaOriginal = p.fase.replace("Rodada ", "").toInt()
+                        val rodadaReturno = rodadaOriginal + numRodadasTurno
                         partidas.add(Partida(
-                            id = idContador++, 
-                            mandanteId = timesDesteGrupo[j], 
-                            visitanteId = timesDesteGrupo[i],
-                            fase = "${i + j + 1}ª Rodada"
+                            id = idContador++,
+                            mandanteId = p.visitanteId,
+                            visitanteId = p.mandanteId,
+                            fase = "Rodada $rodadaReturno"
                         ))
                     }
                 }
             }
         }
 
-        // 2. GERAÇÃO DOS CONFRONTOS DE MATA-MATA (Conforme definição do usuário)
+        // 2. GERAÇÃO DOS CONFRONTOS DE MATA-MATA
         var indexConfronto = 0
         val totalVagas = configsGrupos.sumOf { it.qtdClassificados }
         
@@ -54,7 +83,6 @@ class CopaLibertadores : FormatoCampeonato {
             val faseInfo = obterNomeFaseEConfronto(indexConfronto, totalVagas)
             val ehFinal = faseInfo.first.contains("FINAL", ignoreCase = true) && !faseInfo.first.contains("OITAVAS", ignoreCase = true) && !faseInfo.first.contains("QUARTAS", ignoreCase = true) && !faseInfo.first.contains("SEMI", ignoreCase = true)
             
-            // Determina se deve ter ida e volta para este confronto específico
             val deveTerVolta = if (ehFinal) idaEVoltaFinal else idaEVoltaMataMata
 
             // Jogo de Ida

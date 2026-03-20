@@ -1,9 +1,13 @@
 package com.studiosrios.scoreboardpro
 
+import android.net.Uri
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
@@ -11,167 +15,224 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.snapshots.SnapshotStateList
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun TelaInicialMenu(
-    listaC: List<CampeonatoSalvo>,
-    onAbrirCamp: (CampeonatoSalvo) -> Unit,
-    onNavegar: (String) -> Unit
+fun TelaSelecaoJogador(
+    equipeAlvo: EquipeExemplo,
+    listaTotal: SnapshotStateList<JogadorExemplo>,
+    listaGlobalEquipes: SnapshotStateList<EquipeExemplo>,
+    onFinalizar: () -> Unit
 ) {
+    var searchQuery by remember { mutableStateOf("") }
+
+    val listaDisponivel = remember(searchQuery, listaTotal, equipeAlvo) {
+        listaTotal.filter { jogador ->
+            // Jogador não pode estar na equipe alvo e deve bater com a busca
+            val jaEstaNaEquipe = equipeAlvo.jogadores.any { it.id == jogador.id }
+            val matchesSearch = jogador.nome.contains(searchQuery, ignoreCase = true) || 
+                                jogador.apelido.contains(searchQuery, ignoreCase = true)
+            !jaEstaNaEquipe && matchesSearch
+        }
+    }
+
     Scaffold(
-        floatingActionButton = {
-            FloatingActionButton(
-                onClick = { onNavegar("cadastrar_campeonato") },
-                containerColor = Color(0xFF2E7D32),
-                contentColor = Color.White
-            ) {
-                Icon(Icons.Default.Add, "Novo Campeonato")
-            }
-        },
         topBar = {
-            CenterAlignedTopAppBar(
-                title = { 
-                    Text("ScoreBoard Pro", fontWeight = FontWeight.Black, fontSize = 22.sp) 
-                },
-                colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.surface
-                )
+            TopAppBar(
+                title = { Text("Adicionar ao Elenco") },
+                navigationIcon = {
+                    IconButton(onClick = onFinalizar) {
+                        Icon(Icons.Default.ArrowBack, contentDescription = "Voltar")
+                    }
+                }
             )
         }
     ) { padding ->
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(padding)
-                .background(MaterialTheme.colorScheme.background)
-        ) {
-            Text(
-                "MEUS CAMPEONATOS",
-                modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
-                fontSize = 14.sp,
-                fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.primary
+        Column(modifier = Modifier.padding(padding).fillMaxSize()) {
+            
+            // Barra de Busca
+            OutlinedTextField(
+                value = searchQuery,
+                onValueChange = { searchQuery = it },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp),
+                placeholder = { Text("Buscar jogador disponível...") },
+                leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
+                singleLine = true,
+                shape = RoundedCornerShape(12.dp)
             )
 
-            if (listaC.isEmpty()) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(200.dp)
-                        .padding(16.dp)
-                        .background(Color.LightGray.copy(0.2f), RoundedCornerShape(16.dp)),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text("Nenhum campeonato registrado", color = Color.Gray, fontSize = 14.sp)
+            Text(
+                "Toque no jogador para adicionar à equipe ${equipeAlvo.nome}",
+                fontSize = 12.sp,
+                color = Color.Gray,
+                modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp)
+            )
+
+            LazyColumn(modifier = Modifier.weight(1f).padding(horizontal = 16.dp)) {
+                items(listaDisponivel) { jogador ->
+                    Card(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 4.dp)
+                            .clickable {
+                                // Lógica de Adição
+                                val eqIdx = listaGlobalEquipes.indexOfFirst { it.id == equipeAlvo.id }
+                                if (eqIdx != -1) {
+                                    val novoElenco = equipeAlvo.jogadores + jogador
+                                    listaGlobalEquipes[eqIdx] = listaGlobalEquipes[eqIdx].copy(jogadores = novoElenco)
+                                    
+                                    // Vincula o jogador à equipe na lista global de jogadores também
+                                    val jogIdx = listaTotal.indexOfFirst { it.id == jogador.id }
+                                    if (jogIdx != -1) {
+                                        listaTotal[jogIdx] = listaTotal[jogIdx].copy(equipeId = equipeAlvo.id)
+                                    }
+                                }
+                            },
+                        colors = CardDefaults.cardColors(containerColor = Color.White),
+                        elevation = CardDefaults.cardElevation(1.dp)
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(12.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            AsyncImage(
+                                model = if (jogador.fotoUri.isBlank()) R.drawable.ic_launcher_background else jogador.fotoUri,
+                                contentDescription = null,
+                                modifier = Modifier.size(40.dp).clip(CircleShape).background(Color.LightGray),
+                                contentScale = ContentScale.Crop
+                            )
+                            Spacer(Modifier.width(12.dp))
+                            Column(Modifier.weight(1f)) {
+                                Text(
+                                    text = if (jogador.apelido.isNotBlank()) "${jogador.nome} (${jogador.apelido})" else jogador.nome,
+                                    fontWeight = FontWeight.Bold
+                                )
+                                Text(jogador.posicao, fontSize = 12.sp, color = Color.Gray)
+                            }
+                            // Indica se o jogador já pertence a outra equipe
+                            if (jogador.equipeId != -1 && jogador.equipeId != equipeAlvo.id) {
+                                Text("Já tem time", fontSize = 10.sp, color = Color.Red.copy(alpha = 0.6f))
+                            } else {
+                                Icon(Icons.Default.Add, contentDescription = null, tint = Color(0xFF2E7D32))
+                            }
+                        }
+                    }
                 }
-            } else {
-                LazyRow(
-                    contentPadding = PaddingValues(horizontal = 16.dp),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp),
-                    modifier = Modifier.fillMaxWidth().height(220.dp)
-                ) {
-                    items(listaC) { camp ->
-                        ItemCardCampeonato(camp) { onAbrirCamp(camp) }
+
+                if (listaDisponivel.isEmpty()) {
+                    item {
+                        Box(Modifier.fillMaxWidth().padding(32.dp), contentAlignment = Alignment.Center) {
+                            Text("Nenhum jogador disponível para adicionar.", color = Color.Gray)
+                        }
+                    }
+                }
+            }
+            
+            Button(
+                onClick = onFinalizar,
+                modifier = Modifier.fillMaxWidth().padding(16.dp),
+                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF2E7D32))
+            ) {
+                Text("CONCLUIR")
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun TelaSelecaoEquipesParaCampeonato(
+    listaTotal: List<EquipeExemplo>,
+    onVoltar: () -> Unit,
+    onFinalizar: (List<EquipeExemplo>) -> Unit
+) {
+    val selecionadas = remember { mutableStateListOf<EquipeExemplo>() }
+    var searchQuery by remember { mutableStateOf("") }
+
+    val listaFiltrada = remember(searchQuery, listaTotal) {
+        listaTotal.filter { it.nome.contains(searchQuery, ignoreCase = true) }
+    }
+
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                title = { Text("Selecionar Equipes") },
+                navigationIcon = {
+                    IconButton(onClick = onVoltar) {
+                        Icon(Icons.Default.ArrowBack, contentDescription = "Voltar")
+                    }
+                }
+            )
+        }
+    ) { padding ->
+        Column(modifier = Modifier.padding(padding).fillMaxSize()) {
+            OutlinedTextField(
+                value = searchQuery,
+                onValueChange = { searchQuery = it },
+                modifier = Modifier.fillMaxWidth().padding(16.dp),
+                placeholder = { Text("Buscar equipe...") },
+                leadingIcon = { Icon(Icons.Default.Search, null) },
+                shape = RoundedCornerShape(12.dp)
+            )
+
+            LazyColumn(modifier = Modifier.weight(1f).padding(horizontal = 16.dp)) {
+                items(listaFiltrada) { equipe ->
+                    val isSelected = selecionadas.any { it.id == equipe.id }
+                    Card(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 4.dp)
+                            .clickable {
+                                if (isSelected) {
+                                    selecionadas.removeAll { it.id == equipe.id }
+                                } else {
+                                    selecionadas.add(equipe)
+                                }
+                            },
+                        colors = CardDefaults.cardColors(
+                            containerColor = if (isSelected) MaterialTheme.colorScheme.primaryContainer else Color.White
+                        )
+                    ) {
+                        Row(modifier = Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
+                            AsyncImage(
+                                model = if (equipe.escudoUri.isBlank()) R.drawable.ic_launcher_background else equipe.escudoUri,
+                                contentDescription = null,
+                                modifier = Modifier.size(40.dp).clip(CircleShape).background(Color.LightGray),
+                                contentScale = ContentScale.Crop
+                            )
+                            Spacer(Modifier.width(16.dp))
+                            Text(equipe.nome, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
+                            Checkbox(checked = isSelected, onCheckedChange = null)
+                        }
                     }
                 }
             }
 
-            Spacer(Modifier.height(24.dp))
-
-            Text(
-                "GERENCIAMENTO GERAL",
-                modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
-                fontSize = 14.sp,
-                fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.primary
-            )
-
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp)
-                    .verticalScroll(rememberScrollState())
+            Button(
+                onClick = { onFinalizar(selecionadas.toList()) },
+                modifier = Modifier.fillMaxWidth().padding(16.dp),
+                enabled = selecionadas.isNotEmpty()
             ) {
-                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    CardMenuRapido("EQUIPES", Modifier.weight(1f)) { onNavegar("gerenciar_equipe") }
-                    CardMenuRapido("JOGADORES", Modifier.weight(1f)) { onNavegar("gerenciar_jogador") }
-                }
-                Spacer(Modifier.height(8.dp))
-                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    CardMenuRapido("NOVA EQUIPE", Modifier.weight(1f)) { onNavegar("cadastrar_equipe") }
-                    CardMenuRapido("NOVO JOGADOR", Modifier.weight(1f)) { onNavegar("cadastrar_jogador") }
-                }
+                Text("CONFIRMAR (${selecionadas.size})")
             }
-        }
-    }
-}
-
-@Composable
-fun ItemCardCampeonato(camp: CampeonatoSalvo, onClick: () -> Unit) {
-    Card(
-        modifier = Modifier
-            .width(160.dp)
-            .fillMaxHeight()
-            .clickable { onClick() },
-        elevation = CardDefaults.cardElevation(4.dp),
-        colors = CardDefaults.cardColors(containerColor = Color.White)
-    ) {
-        Column {
-            AsyncImage(
-                model = camp.fotoUri.ifBlank { R.drawable.ic_launcher_background },
-                contentDescription = null,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(120.dp),
-                contentScale = ContentScale.Crop
-            )
-            Column(Modifier.padding(12.dp)) {
-                Text(
-                    text = camp.nomeExibicao,
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 14.sp,
-                    maxLines = 1
-                )
-                Text(
-                    text = camp.modelo,
-                    fontSize = 10.sp,
-                    color = Color.Gray
-                )
-                Spacer(Modifier.weight(1f))
-                Text(
-                    text = "${camp.equipes.size} TIMES",
-                    fontSize = 9.sp,
-                    fontWeight = FontWeight.Black,
-                    color = MaterialTheme.colorScheme.primary
-                )
-            }
-        }
-    }
-}
-
-@Composable
-fun CardMenuRapido(label: String, modifier: Modifier = Modifier, onClick: () -> Unit) {
-    Card(
-        modifier = modifier
-            .height(80.dp)
-            .clickable { onClick() },
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
-    ) {
-        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-            Text(label, fontWeight = FontWeight.Bold, fontSize = 12.sp, textAlign = TextAlign.Center)
         }
     }
 }

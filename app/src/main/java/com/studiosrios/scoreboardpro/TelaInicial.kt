@@ -8,6 +8,10 @@ import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.EmojiEvents
+import androidx.compose.material.icons.filled.Groups
+import androidx.compose.material.icons.filled.PersonAdd
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.SportsSoccer
 import androidx.compose.material3.*
@@ -16,6 +20,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -101,6 +106,87 @@ fun TelaInicialTelespectador(
                         CardTelespectador(camp) { onAbrirCampeonato(camp) }
                     }
                 }
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun TelaInicialMenu(
+    listaC: List<CampeonatoSalvo>,
+    onAbrirCamp: (CampeonatoSalvo) -> Unit,
+    onNavegar: (String) -> Unit
+) {
+    Scaffold(
+        topBar = {
+            TopAppBar(title = { Text("Menu do Organizador", fontWeight = FontWeight.Bold) })
+        }
+    ) { padding ->
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(padding)
+                .padding(16.dp)
+        ) {
+            Text("AÇÕES RÁPIDAS", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = Color.Gray)
+            Spacer(Modifier.height(16.dp))
+
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+                ItemMenuRapido("Novo Camp.", Icons.Default.Add, Color(0xFF1976D2)) { onNavegar("cadastrar_campeonato") }
+                ItemMenuRapido("Novo Jogador", Icons.Default.PersonAdd, Color(0xFF388E3C)) { onNavegar("cadastrar_jogador") }
+                ItemMenuRapido("Nova Equipe", Icons.Default.Groups, Color(0xFFFBC02D)) { onNavegar("cadastrar_equipe") }
+            }
+
+            Spacer(Modifier.height(32.dp))
+            Text("GERENCIAMENTO", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = Color.Gray)
+            Spacer(Modifier.height(16.dp))
+
+            CardGerenciamento("Meus Campeonatos", "Ver e editar torneios salvos", Icons.Default.EmojiEvents) { onNavegar("gerenciar_campeonato") }
+            CardGerenciamento("Banco de Jogadores", "Gerenciar todos os atletas", Icons.Default.PersonAdd) { onNavegar("gerenciar_jogador") }
+            CardGerenciamento("Gestão de Equipes", "Editar elencos e informações", Icons.Default.Groups) { onNavegar("gerenciar_equipe") }
+        }
+    }
+}
+
+@Composable
+fun ItemMenuRapido(label: String, icon: ImageVector, color: Color, onClick: () -> Unit) {
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        modifier = Modifier
+            .width(100.dp)
+            .clickable { onClick() }
+    ) {
+        Box(
+            modifier = Modifier
+                .size(60.dp)
+                .clip(RoundedCornerShape(16.dp))
+                .background(color.copy(alpha = 0.1f)),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(icon, null, tint = color)
+        }
+        Spacer(Modifier.height(8.dp))
+        Text(label, fontSize = 12.sp, fontWeight = FontWeight.Medium)
+    }
+}
+
+@Composable
+fun CardGerenciamento(titulo: String, sub: String, icon: ImageVector, onClick: () -> Unit) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 8.dp)
+            .clickable { onClick() },
+        colors = CardDefaults.cardColors(containerColor = Color.White),
+        elevation = CardDefaults.cardElevation(2.dp)
+    ) {
+        Row(Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
+            Icon(icon, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(32.dp))
+            Spacer(Modifier.width(16.dp))
+            Column {
+                Text(titulo, fontWeight = FontWeight.Bold)
+                Text(sub, fontSize = 12.sp, color = Color.Gray)
             }
         }
     }

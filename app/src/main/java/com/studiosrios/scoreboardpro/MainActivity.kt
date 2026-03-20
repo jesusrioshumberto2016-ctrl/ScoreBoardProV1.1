@@ -10,7 +10,6 @@ import androidx.compose.runtime.*
 import androidx.compose.runtime.snapshots.SnapshotStateList
 import androidx.compose.ui.Modifier
 
-
 class MainActivity : ComponentActivity() {
     private val listaGlobalJogadores = mutableStateListOf<JogadorExemplo>()
     private val listaGlobalEquipes = mutableStateListOf<EquipeExemplo>()
@@ -28,15 +27,24 @@ class MainActivity : ComponentActivity() {
                 val sigla = "EQP$i"
                 val cidade = cidades[(i - 1) % cidades.size]
                 
+                // Placeholder para escudo da equipe
+                val escudoUrl = "https://ui-avatars.com/api/?name=$sigla&background=0D47A1&color=fff&size=256"
+                
                 val jogadoresDestaEquipe = mutableListOf<JogadorExemplo>()
                 for (j in 1..16) {
+                    val apelido = "J$j-$sigla"
+                    // Placeholder para foto do jogador
+                    val fotoUrl = "https://ui-avatars.com/api/?name=${apelido.replace("-", "+")}&background=random&color=fff&size=256"
+                    
                     val jog = JogadorExemplo(
                         id = jogadorIdContador++,
                         nome = "Jogador $j - E$i",
                         posicao = posicoes[j - 1],
                         altura = "1.${75 + (j % 15)}",
                         idade = "${18 + (j % 15)} anos",
-                        equipeId = i
+                        equipeId = i,
+                        apelido = apelido,
+                        fotoUri = fotoUrl
                     )
                     jogadoresDestaEquipe.add(jog)
                     listaGlobalJogadores.add(jog)
@@ -47,7 +55,8 @@ class MainActivity : ComponentActivity() {
                     identificacao = sigla,
                     nome = "Equipe de Teste $i",
                     city = cidade,
-                    jogadores = jogadoresDestaEquipe
+                    jogadores = jogadoresDestaEquipe,
+                    escudoUri = escudoUrl
                 ))
             }
         }
@@ -61,8 +70,6 @@ class MainActivity : ComponentActivity() {
         }
     }
 }
-
-
 
 @Composable
 fun ScoreBoardNavigation(
@@ -134,7 +141,7 @@ fun ScoreBoardNavigation(
 
         "menu" -> TelaInicialMenu(
             listaC = listaC,
-            onAbrirCamp = { camp ->
+            onAbrirCamp = { camp: CampeonatoSalvo ->
                 isOrganizador = true
                 equipesNoCampeonato.clear()
                 equipesNoCampeonato.addAll(camp.equipes)
@@ -175,7 +182,7 @@ fun ScoreBoardNavigation(
 
         "cadastrar_campeonato" -> TelaModeloCampeonato(
             onVoltar = { telaAtual = "menu" },
-            onSelecionar = { modelo: String, nome: String, foto: String ->
+            onSelecionar = { nome: String, foto: String, modelo: String ->
                 modeloCampeonatoEscolhido = modelo
                 nomeCampeonatoEscolhido = nome
                 fotoCampeonatoEscolhida = foto
@@ -218,15 +225,12 @@ fun ScoreBoardNavigation(
         }
 
         "selecao_equipes_campeonato" -> {
-            TelaSelecaoEquipesCampeonato(
-                listaEquipes = listaE,
-                onVoltar = { 
-                    telaAtual = if (modeloCampeonatoEscolhido.contains("Libertadores", ignoreCase = true)) "config_chaveamento"
-                    else "cadastrar_campeonato"
-                },
-                onFinalizar = { selecionadasIds: List<Int> ->
+            // Resolvendo ambiguidade de sobrecarga usando parâmetros nomeados
+            TelaSelecaoEquipesParaCampeonato(
+                listaTotal = listaE,
+                onFinalizar = { selecionadas: List<EquipeExemplo> ->
                     equipesNoCampeonato.clear()
-                    equipesNoCampeonato.addAll(listaE.filter { selecionadasIds.contains(it.id) })
+                    equipesNoCampeonato.addAll(selecionadas)
 
                     if (modeloCampeonatoEscolhido.contains("Libertadores", ignoreCase = true)) {
                         telaAtual = "distribuicao_grupos"
@@ -260,13 +264,17 @@ fun ScoreBoardNavigation(
                         
                         telaAtual = "painel_campeonato"
                     }
+                },
+                onVoltar = { 
+                    telaAtual = if (modeloCampeonatoEscolhido.contains("Libertadores", ignoreCase = true)) "config_chaveamento"
+                    else "cadastrar_campeonato"
                 }
             )
         }
         "distribuicao_grupos" -> {
             TelaDistribuicaoGrupos(
-                equipesSelecionadas = equipesNoCampeonato.toList(),
-                configGrupos = configuracaoFinalGrupos,
+                equipesNoCampeonato.toList(),
+                configuracaoFinalGrupos,
                 onVoltar = { telaAtual = "selecao_equipes_campeonato" },
                 onFinalizar = { equipesDistribuidas: List<EquipeExemplo> ->
                     equipesNoCampeonato.clear()
@@ -333,41 +341,53 @@ fun ScoreBoardNavigation(
             )
         }
         "cadastrar_jogador" -> TelaCadastroJogador(listaGlobalJogadores = listaJ, onVoltar = { telaAtual = "menu" })
-        "gerenciar_jogador" -> TelaListaJogadores(lista = listaJ, onVoltar = { telaAtual = "menu" }, onGerenciar = { jogador: JogadorExemplo -> jogadorSelecionado = jogador; telaAtual = "detalhes_jogador" })
+        "gerenciar_jogador" -> TelaListaJogadoresGerenciar(
+            listaJ = listaJ, 
+            onVoltar = { telaAtual = "menu" }, 
+            onGerenciar = { jogador -> 
+                jogadorSelecionado = jogador
+                telaAtual = "detalhes_jogador" 
+            }
+        )
         "detalhes_jogador" -> {
             jogadorSelecionado?.let { jogador ->
-                TelaDetalhesJogador(jogador = jogador, onSalvar = { novaPos: String, novaFoto: String, novoApelido: String ->
-                    val index = listaJ.indexOfFirst { it.id == jogador.id }
-                    if (index != -1) listaJ[index] = listaJ[index].copy(posicao = novaPos, fotoUri = novaFoto, apelido = novoApelido)
-                    telaAtual = "gerenciar_jogador"
-                }, onVoltar = { telaAtual = "gerenciar_jogador" })
+                TelaGerenciarJogadorAdmin(
+                    jogador = jogador, 
+                    listaGlobalJogadores = listaJ,
+                    onVoltar = { telaAtual = "gerenciar_jogador" }
+                )
             }
         }
         "cadastrar_equipe" -> TelaCadastroEquipe(listaGlobalEquipes = listaE, onVoltar = { telaAtual = "menu" })
         "gerenciar_equipe" -> {
-            TelaListaEquipes(
-                lista = listaE, 
+            TelaListaEquipesGerenciar(
+                listaE = listaE, 
                 onVoltar = { telaAtual = "menu" }, 
-                onGerenciar = { equipe: EquipeExemplo -> 
+                onGerenciar = { equipe -> 
                     equipeSelecionada = equipe
-                    telaAtual = "detalhes_equipe" 
+                    telaAtual = "detalhes_equipe"
                 }
             )
         }
         "detalhes_equipe" -> {
             equipeSelecionada?.let { equipe ->
-                TelaDetalhesEquipe(
+                TelaGerenciarEquipeAdmin(
                     equipe = equipe, 
                     listaGlobalEquipes = listaE,
-                    listaJogadores = listaJ, 
-                    onAdicionar = { telaAtual = "selecionar_jogador_para_equipe" }, 
+                    listaGlobalJogadores = listaJ,
+                    onAdicionarJogador = { telaAtual = "selecionar_jogador_para_equipe" },
                     onVoltar = { telaAtual = "gerenciar_equipe" }
                 )
             }
         }
         "selecionar_jogador_para_equipe" -> {
             equipeSelecionada?.let { equipe ->
-                TelaSelecaoJogador(equipeAlvo = equipe, listaTotal = listaJ, onFinalizar = { telaAtual = "detalhes_equipe" })
+                TelaSelecaoJogador(
+                    equipeAlvo = equipe, 
+                    listaTotal = listaJ, 
+                    listaGlobalEquipes = listaE,
+                    onFinalizar = { telaAtual = "detalhes_equipe" }
+                )
             }
         }
     }

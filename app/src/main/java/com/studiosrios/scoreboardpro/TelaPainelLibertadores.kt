@@ -157,7 +157,7 @@ fun TelaPainelLibertadores(
                                     Spacer(Modifier.width(8.dp))
                                 }
                                 Text(
-                                    text = if (isOrganizador) "Painel Libertadores" else nomeCamp, 
+                                    text = if (isOrganizador) "Painel Libertadores" else nomeCamp,
                                     fontWeight = FontWeight.Bold,
                                     fontSize = if (isOrganizador) 18.sp else 16.sp,
                                     maxLines = 1
@@ -203,12 +203,12 @@ fun TelaPainelLibertadores(
                             titulosAbas.forEachIndexed { index, titulo ->
                                 Tab(
                                     selected = abaSelecionada == index,
-                                    onClick = { 
+                                    onClick = {
                                         if (temTrabalhoNaoConfirmado && abaSelecionada != index) {
                                             abaPretendida = index
                                             mostrarDialogoConfirmacaoSair = true
                                         } else {
-                                            abaSelecionada = index 
+                                            abaSelecionada = index
                                         }
                                     },
                                     text = { Text(titulo, fontSize = 11.sp) }
@@ -216,15 +216,16 @@ fun TelaPainelLibertadores(
                             }
                         }
                     } else {
-                        TabRow(
+                        ScrollableTabRow(
                             selectedTabIndex = abaSelecionada,
+                            edgePadding = 0.dp,
                             containerColor = MaterialTheme.colorScheme.surface
                         ) {
                             titulosAbas.forEachIndexed { index, titulo ->
                                 Tab(
                                     selected = abaSelecionada == index,
                                     onClick = { abaSelecionada = index },
-                                    text = { Text(titulo, fontSize = 10.sp, fontWeight = FontWeight.Bold, maxLines = 1) }
+                                    text = { Text(titulo, fontSize = 11.sp, fontWeight = FontWeight.Bold, maxLines = 1) }
                                 )
                             }
                         }

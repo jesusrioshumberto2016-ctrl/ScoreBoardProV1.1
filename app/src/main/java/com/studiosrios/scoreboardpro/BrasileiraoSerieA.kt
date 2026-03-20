@@ -13,26 +13,54 @@ class BrasileiraoSerieA : FormatoCampeonato {
     ): List<Partida> {
         val partidasGeradas = mutableListOf<Partida>()
         var idContador = 1
+        
+        if (equipes.size < 2) return emptyList()
 
-        for (i in equipes.indices) {
-            for (j in i + 1 until equipes.size) {
-                partidasGeradas.add(
-                    Partida(
-                        id = idContador++,
-                        mandanteId = equipes[i].id,
-                        visitanteId = equipes[j].id,
-                        fase = "Rodada"
+        val numEquipes = equipes.size
+        val numRodadas = if (numEquipes % 2 == 0) numEquipes - 1 else numEquipes
+        val jogosPorRodada = numEquipes / 2
+
+        val listaEquipes = equipes.toMutableList()
+        if (numEquipes % 2 != 0) {
+            listaEquipes.add(EquipeExemplo(-1, "BYE", "BYE", "BYE")) // Equipe fantasma para número ímpar
+        }
+
+        val totalEquipes = listaEquipes.size
+
+        for (rodada in 1..numRodadas) {
+            for (jogo in 0 until totalEquipes / 2) {
+                val mandante = listaEquipes[jogo]
+                val visitante = listaEquipes[totalEquipes - 1 - jogo]
+
+                if (mandante.id != -1 && visitante.id != -1) {
+                    partidasGeradas.add(
+                        Partida(
+                            id = idContador++,
+                            mandanteId = mandante.id,
+                            visitanteId = visitante.id,
+                            fase = "Rodada $rodada"
+                        )
                     )
-                )
+                }
             }
+            // Rotacionar equipes (mantém a primeira fixa)
+            val ultima = listaEquipes.removeAt(listaEquipes.size - 1)
+            listaEquipes.add(1, ultima)
         }
 
         if (turnoEReturno) {
-            val returno = partidasGeradas.toList().map { p ->
-                Partida(id = idContador++, mandanteId = p.visitanteId, visitanteId = p.mandanteId, fase = "Rodada")
+            val returno = partidasGeradas.toList().mapIndexed { index, p ->
+                val rodadaReturno = numRodadas + (index / (numEquipes / 2)) + 1
+                Partida(
+                    id = idContador++, 
+                    mandanteId = p.visitanteId, 
+                    visitanteId = p.mandanteId, 
+                    fase = "Rodada $rodadaReturno"
+                )
             }
             partidasGeradas.addAll(returno)
         }
+
         return partidasGeradas
     }
 
