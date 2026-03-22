@@ -1,6 +1,7 @@
 package com.studiosrios.scoreboardpro
 
 import android.net.Uri
+import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
@@ -27,10 +28,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
+import com.studiosrios.scoreboardpro.data.repository.DataRepository
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -38,14 +41,18 @@ fun TelaSelecaoJogador(
     equipeAlvo: EquipeExemplo,
     listaTotal: SnapshotStateList<JogadorExemplo>,
     listaGlobalEquipes: SnapshotStateList<EquipeExemplo>,
+    repository: DataRepository,
     onFinalizar: () -> Unit
 ) {
     var searchQuery by remember { mutableStateOf("") }
+    val ctx = LocalContext.current
 
-    val listaDisponivel = remember(searchQuery, listaTotal, equipeAlvo) {
+    // Pegamos sempre a versão mais atual da equipe da lista global
+    val equipeAtual = listaGlobalEquipes.find { it.id == equipeAlvo.id } ?: equipeAlvo
+
+    val listaDisponivel = remember(searchQuery, listaTotal, equipeAtual) {
         listaTotal.filter { jogador ->
-            // Jogador não pode estar na equipe alvo e deve bater com a busca
-            val jaEstaNaEquipe = equipeAlvo.jogadores.any { it.id == jogador.id }
+            val jaEstaNaEquipe = equipeAtual.jogadores.any { it.id == jogador.id }
             val matchesSearch = jogador.nome.contains(searchQuery, ignoreCase = true) || 
                                 jogador.apelido.contains(searchQuery, ignoreCase = true)
             !jaEstaNaEquipe && matchesSearch
@@ -66,7 +73,6 @@ fun TelaSelecaoJogador(
     ) { padding ->
         Column(modifier = Modifier.padding(padding).fillMaxSize()) {
             
-            // Barra de Busca
             OutlinedTextField(
                 value = searchQuery,
                 onValueChange = { searchQuery = it },
@@ -80,9 +86,9 @@ fun TelaSelecaoJogador(
             )
 
             Text(
-                "Toque no jogador para adicionar à equipe ${equipeAlvo.nome}",
+                "Elenco atual: ${equipeAtual.jogadores.size}/50 jogadores",
                 fontSize = 12.sp,
-                color = Color.Gray,
+                color = if (equipeAtual.jogadores.size >= 50) Color.Red else Color.Gray,
                 modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp)
             )
 
@@ -93,16 +99,32 @@ fun TelaSelecaoJogador(
                             .fillMaxWidth()
                             .padding(vertical = 4.dp)
                             .clickable {
-                                // Lógica de Adição
-                                val eqIdx = listaGlobalEquipes.indexOfFirst { it.id == equipeAlvo.id }
+                                val eqIdx = listaGlobalEquipes.indexOfFirst { it.id == equipeAtual.id }
                                 if (eqIdx != -1) {
-                                    val novoElenco = equipeAlvo.jogadores + jogador
-                                    listaGlobalEquipes[eqIdx] = listaGlobalEquipes[eqIdx].copy(jogadores = novoElenco)
+                                    val equipeSendoEditada = listaGlobalEquipes[eqIdx]
                                     
-                                    // Vincula o jogador à equipe na lista global de jogadores também
-                                    val jogIdx = listaTotal.indexOfFirst { it.id == jogador.id }
-                                    if (jogIdx != -1) {
-                                        listaTotal[jogIdx] = listaTotal[jogIdx].copy(equipeId = equipeAlvo.id)
+                                    if (equipeSendoEditada.jogadores.size >= 50) {
+                                        Toast.makeText(ctx, "Limite de 50 jogadores atingido!", Toast.LENGTH_SHORT).show()
+                                    } else {
+                                        val novoElenco = equipeSendoEditada.jogadores + jogador
+                                        val equipeAtualizada = equipeSendoEditada.copy(jogadores = novoElenco)
+                                        
+                                        // Atualiza na memória
+                                        listaGlobalEquipes[eqIdx] = equipeAtualizada
+                                        
+                                        // Vincula o jogador à equipe na lista global
+                                        val jogIdx = listaTotal.indexOfFirst { it.id == jogador.id }
+                                        if (jogIdx != -1) {
+                                            val jogadorAtualizado = listaTotal[jogIdx].copy(equipeId = equipeAtualizada.id)
+                                            listaTotal[jogIdx] = jogadorAtualizado
+                                            // Salva jogador atualizado
+                                            repository.salvarJogador(jogadorAtualizado)
+                                        }
+                                        
+                                        // Salva equipe atualizada (Offline-first + Sync)
+                                        repository.salvarEquipe(equipeAtualizada)
+                                        
+                                        Toast.makeText(ctx, "${jogador.apelido.ifBlank { jogador.nome }} adicionado!", Toast.LENGTH_SHORT).show()
                                     }
                                 }
                             },
@@ -127,8 +149,8 @@ fun TelaSelecaoJogador(
                                 )
                                 Text(jogador.posicao, fontSize = 12.sp, color = Color.Gray)
                             }
-                            // Indica se o jogador já pertence a outra equipe
-                            if (jogador.equipeId != -1 && jogador.equipeId != equipeAlvo.id) {
+                            
+                            if (jogador.equipeId != -1 && jogador.equipeId != equipeAtual.id) {
                                 Text("Já tem time", fontSize = 10.sp, color = Color.Red.copy(alpha = 0.6f))
                             } else {
                                 Icon(Icons.Default.Add, contentDescription = null, tint = Color(0xFF2E7D32))

@@ -9,8 +9,6 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyRow
-import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -34,22 +32,23 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
+import com.studiosrios.scoreboardpro.data.repository.DataRepository
 import java.util.Calendar
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun TelaCadastroJogador(
     listaGlobalJogadores: SnapshotStateList<JogadorExemplo>,
+    repository: DataRepository,
     onVoltar: () -> Unit
 ) {
     var nome by remember { mutableStateOf("") }
-    var apelido by remember { mutableStateOf("") } // Novo estado para apelido
+    var apelido by remember { mutableStateOf("") }
     var altura by remember { mutableStateOf("") }
     var fotoUri by remember { mutableStateOf("") }
     var dataNasc by remember { mutableStateOf("Selecionar") }
     var idadeS by remember { mutableStateOf("") }
     var expanded by remember { mutableStateOf(false) }
-    // Lista de posições atualizada
     val posicoes = listOf("GOL", "ZAG", "LAT", "VOL", "MEI", "MAT", "ALA", "PT", "CA")
     var posSel by remember { mutableStateOf(posicoes[0]) }
     val ctx = LocalContext.current
@@ -95,7 +94,6 @@ fun TelaCadastroJogador(
         OutlinedTextField(value = nome, onValueChange = { nome = it }, label = { Text("Nome Completo") }, modifier = Modifier.fillMaxWidth())
         Spacer(modifier = Modifier.height(16.dp))
 
-        // NOVO CAMPO: APELIDO (MÁXIMO 16 CARACTERES)
         OutlinedTextField(
             value = apelido,
             onValueChange = { if (it.length <= 16) apelido = it },
@@ -134,7 +132,14 @@ fun TelaCadastroJogador(
             onClick = {
                 if (nome.isNotBlank()) {
                     val novoId = (listaGlobalJogadores.maxOfOrNull { it.id } ?: 0) + 1
-                    listaGlobalJogadores.add(JogadorExemplo(novoId, nome, posSel, altura, idadeS, -1, 0, fotoUri, apelido))
+                    val novoJogador = JogadorExemplo(novoId, nome, posSel, altura, idadeS, -1, 0, fotoUri, apelido)
+                    
+                    // Salvar no Room e Firebase
+                    repository.salvarJogador(novoJogador)
+                    
+                    // Atualizar UI imediatamente para evitar problemas de ID e visibilidade
+                    listaGlobalJogadores.add(novoJogador)
+
                     Toast.makeText(ctx, "Jogador salvo!", Toast.LENGTH_SHORT).show()
                     onVoltar()
                 }
@@ -151,6 +156,7 @@ fun TelaCadastroJogador(
 @Composable
 fun TelaCadastroEquipe(
     listaGlobalEquipes: SnapshotStateList<EquipeExemplo>,
+    repository: DataRepository,
     onVoltar: () -> Unit
 ) {
     var iden by remember { mutableStateOf("") }
@@ -270,7 +276,14 @@ fun TelaCadastroEquipe(
                 if (nome.isNotBlank() && iden.isNotBlank()) {
                     val novoId = (listaGlobalEquipes.maxOfOrNull { it.id } ?: 0) + 1
                     val patrocinadoresParaSalvar = listaPatrocinadores.map { it }
-                    listaGlobalEquipes.add(EquipeExemplo(novoId, iden, nome, cid, emptyList(), patrocinadoresParaSalvar, escudoUri))
+                    val novaEquipe = EquipeExemplo(novoId, iden, nome, cid, emptyList(), patrocinadoresParaSalvar, escudoUri)
+                    
+                    // Salvar no Room e Firebase
+                    repository.salvarEquipe(novaEquipe)
+                    
+                    // Atualizar UI imediatamente
+                    listaGlobalEquipes.add(novaEquipe)
+
                     Toast.makeText(ctx, "Equipe salva!", Toast.LENGTH_SHORT).show()
                     onVoltar()
                 }

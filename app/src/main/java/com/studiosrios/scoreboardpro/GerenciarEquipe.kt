@@ -33,6 +33,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
+import com.studiosrios.scoreboardpro.data.repository.DataRepository
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -138,10 +139,10 @@ fun TelaGerenciarEquipeAdmin(
     equipe: EquipeExemplo,
     listaGlobalEquipes: SnapshotStateList<EquipeExemplo>,
     listaGlobalJogadores: SnapshotStateList<JogadorExemplo>,
+    repository: DataRepository,
     onAdicionarJogador: () -> Unit,
     onVoltar: () -> Unit
 ) {
-    // Usamos a equipe da lista global para garantir que a UI reflita as mudanças em tempo real
     val equipeAtual = listaGlobalEquipes.find { it.id == equipe.id } ?: equipe
     
     var escudoUri by remember { mutableStateOf(equipeAtual.escudoUri) }
@@ -155,7 +156,9 @@ fun TelaGerenciarEquipeAdmin(
             escudoUri = novaUri
             val index = listaGlobalEquipes.indexOfFirst { it.id == equipeAtual.id }
             if (index != -1) {
-                listaGlobalEquipes[index] = listaGlobalEquipes[index].copy(escudoUri = novaUri)
+                val updated = listaGlobalEquipes[index].copy(escudoUri = novaUri)
+                listaGlobalEquipes[index] = updated
+                repository.salvarEquipe(updated)
             }
         }
     }
@@ -191,7 +194,9 @@ fun TelaGerenciarEquipeAdmin(
                         val index = listaGlobalEquipes.indexOfFirst { it.id == equipeAtual.id }
                         if (index != -1) {
                             val novosPatrocinadores = equipeAtual.patrocinadores + Patrocinador(nomePatrocinador, fotoPatrocinadorUri)
-                            listaGlobalEquipes[index] = listaGlobalEquipes[index].copy(patrocinadores = novosPatrocinadores)
+                            val updated = listaGlobalEquipes[index].copy(patrocinadores = novosPatrocinadores)
+                            listaGlobalEquipes[index] = updated
+                            repository.salvarEquipe(updated)
                         }
                         nomePatrocinador = ""
                         fotoPatrocinadorUri = ""
@@ -230,7 +235,6 @@ fun TelaGerenciarEquipeAdmin(
                 .padding(16.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            // Foto da Equipe
             Box(contentAlignment = Alignment.BottomEnd) {
                 AsyncImage(
                     model = if (escudoUri.isBlank()) R.drawable.ic_launcher_background else escudoUri,
@@ -269,7 +273,6 @@ fun TelaGerenciarEquipeAdmin(
 
             Spacer(Modifier.height(24.dp))
 
-            // 2. PATROCINADORES com opção de Adicionar e Remover
             Column(modifier = Modifier.fillMaxWidth()) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(
@@ -312,7 +315,9 @@ fun TelaGerenciarEquipeAdmin(
                                             val index = listaGlobalEquipes.indexOfFirst { it.id == equipeAtual.id }
                                             if (index != -1) {
                                                 val novosPatrocinadores = equipeAtual.patrocinadores.filter { it != pat }
-                                                listaGlobalEquipes[index] = listaGlobalEquipes[index].copy(patrocinadores = novosPatrocinadores)
+                                                val updated = listaGlobalEquipes[index].copy(patrocinadores = novosPatrocinadores)
+                                                listaGlobalEquipes[index] = updated
+                                                repository.salvarEquipe(updated)
                                             }
                                         },
                                         modifier = Modifier.size(24.dp).offset(x = 8.dp, y = (-8).dp)
@@ -336,7 +341,6 @@ fun TelaGerenciarEquipeAdmin(
 
             Spacer(Modifier.height(24.dp))
 
-            // 3. Mostrar Elenco + Remover Jogadores
             Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                 Text("ELENCO ATUAL", fontWeight = FontWeight.Bold, fontSize = 18.sp)
                 Spacer(Modifier.weight(1f))
@@ -371,11 +375,15 @@ fun TelaGerenciarEquipeAdmin(
                             val eqIdx = listaGlobalEquipes.indexOfFirst { it.id == equipeAtual.id }
                             if (eqIdx != -1) {
                                 val novoElenco = equipeAtual.jogadores.filter { it.id != jogador.id }
-                                listaGlobalEquipes[eqIdx] = listaGlobalEquipes[eqIdx].copy(jogadores = novoElenco)
+                                val updatedEq = listaGlobalEquipes[eqIdx].copy(jogadores = novoElenco)
+                                listaGlobalEquipes[eqIdx] = updatedEq
+                                repository.salvarEquipe(updatedEq)
                                 
                                 val jogIdx = listaGlobalJogadores.indexOfFirst { it.id == jogador.id }
                                 if (jogIdx != -1) {
-                                    listaGlobalJogadores[jogIdx] = listaGlobalJogadores[jogIdx].copy(equipeId = -1)
+                                    val updatedJog = listaGlobalJogadores[jogIdx].copy(equipeId = -1)
+                                    listaGlobalJogadores[jogIdx] = updatedJog
+                                    repository.salvarJogador(updatedJog)
                                 }
                             }
                         }) {
@@ -384,7 +392,24 @@ fun TelaGerenciarEquipeAdmin(
                     }
                 }
             }
-            Spacer(Modifier.height(60.dp))
+            Spacer(Modifier.height(32.dp))
+            Button(
+                onClick = {
+                    val index = listaGlobalEquipes.indexOfFirst { it.id == equipeAtual.id }
+                    if (index != -1) {
+                        listaGlobalEquipes.removeAt(index)
+                        repository.deletarEquipe(equipeAtual)
+                        onVoltar()
+                    }
+                },
+                modifier = Modifier.fillMaxWidth(),
+                colors = ButtonDefaults.buttonColors(containerColor = Color.Red.copy(alpha = 0.8f))
+            ) {
+                Icon(Icons.Default.Delete, null)
+                Spacer(Modifier.width(8.dp))
+                Text("EXCLUIR EQUIPE")
+            }
+            Spacer(Modifier.height(40.dp))
         }
     }
 }

@@ -1,6 +1,7 @@
 package com.studiosrios.scoreboardpro
 
 import android.net.Uri
+import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
@@ -27,10 +28,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
+import com.studiosrios.scoreboardpro.data.repository.DataRepository
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -142,6 +145,7 @@ fun TelaListaJogadoresGerenciar(
 fun TelaGerenciarJogadorAdmin(
     jogador: JogadorExemplo,
     listaGlobalJogadores: SnapshotStateList<JogadorExemplo>,
+    repository: DataRepository,
     onVoltar: () -> Unit
 ) {
     var fotoUri by remember { mutableStateOf(jogador.fotoUri) }
@@ -149,14 +153,16 @@ fun TelaGerenciarJogadorAdmin(
     var posicao by remember { mutableStateOf(jogador.posicao) }
     var expanded by remember { mutableStateOf(false) }
     val posicoes = listOf("GOL", "ZAG", "LAT", "VOL", "MEI", "MAT", "ALA", "PT", "CA")
-    
+
     val launcher = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri: Uri? ->
         uri?.let {
             val novaUri = it.toString()
             fotoUri = novaUri
             val index = listaGlobalJogadores.indexOfFirst { it.id == jogador.id }
             if (index != -1) {
-                listaGlobalJogadores[index] = listaGlobalJogadores[index].copy(fotoUri = novaUri)
+                val updated = listaGlobalJogadores[index].copy(fotoUri = novaUri)
+                listaGlobalJogadores[index] = updated
+                repository.salvarJogador(updated)
             }
         }
     }
@@ -181,7 +187,6 @@ fun TelaGerenciarJogadorAdmin(
                 .padding(24.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            // 1. Mostrar dados de cadastro + 2. Alterar Foto
             Box(contentAlignment = Alignment.BottomEnd) {
                 AsyncImage(
                     model = if (fotoUri.isBlank()) R.drawable.ic_launcher_background else fotoUri,
@@ -226,7 +231,9 @@ fun TelaGerenciarJogadorAdmin(
                     apelido = it 
                     val index = listaGlobalJogadores.indexOfFirst { it.id == jogador.id }
                     if (index != -1) {
-                        listaGlobalJogadores[index] = listaGlobalJogadores[index].copy(apelido = it)
+                        val updated = listaGlobalJogadores[index].copy(apelido = it)
+                        listaGlobalJogadores[index] = updated
+                        repository.salvarJogador(updated)
                     }
                 },
                 label = { Text("Apelido (Nome de Guerra)") },
@@ -259,7 +266,9 @@ fun TelaGerenciarJogadorAdmin(
                                 expanded = false
                                 val index = listaGlobalJogadores.indexOfFirst { it.id == jogador.id }
                                 if (index != -1) {
-                                    listaGlobalJogadores[index] = listaGlobalJogadores[index].copy(posicao = p)
+                                    val updated = listaGlobalJogadores[index].copy(posicao = p)
+                                    listaGlobalJogadores[index] = updated
+                                    repository.salvarJogador(updated)
                                 }
                             }
                         )
@@ -293,6 +302,9 @@ fun TelaGerenciarJogadorAdmin(
                     val index = listaGlobalJogadores.indexOfFirst { it.id == jogador.id }
                     if (index != -1) {
                         listaGlobalJogadores.removeAt(index)
+                        // Note: DataRepository should ideally have a delete method too.
+                        // For now, it's removing from SnapshotStateList, and repo doesn't have delete yet.
+                        // I will add delete methods to repository.
                         onVoltar()
                     }
                 },

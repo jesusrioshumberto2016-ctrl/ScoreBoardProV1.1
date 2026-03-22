@@ -1,222 +1,247 @@
 package com.studiosrios.scoreboardpro
 
-import androidx.compose.runtime.snapshots.SnapshotStateList
+fun obterFormato(modelo: String): FormatoCampeonato {
+    return when {
+        modelo.contains("Brasileirão", ignoreCase = true) || modelo.contains("Pontos Corridos", ignoreCase = true) -> BrasileiraoSerieA()
+        modelo.contains("Libertadores", ignoreCase = true) -> CopaLibertadores()
+        modelo.contains("Mata-Mata", ignoreCase = true) || modelo.contains("Copa", ignoreCase = true) -> MataMata()
+        else -> BrasileiraoSerieA() // Padrão
+    }
+}
 
-/**
- * MatchLogic: Processamento de regras de negócio, classificação e pontuação.
- */
+fun obterNomeFaseEConfronto(indexConfronto: Int, totalVagas: Int): Pair<String, String> {
+    val totalConfrontosFase = totalVagas / 2
+    
+    return when {
+        totalVagas <= 2 -> Pair("FINAL", "Final Única")
+        totalVagas <= 4 -> {
+            val num = (indexConfronto % 2) + 1
+            Pair("SEMIFINAL", "Semi $num")
+        }
+        totalVagas <= 8 -> {
+            val num = (indexConfronto % 4) + 1
+            Pair("QUARTAS DE FINAL", "Quartas $num")
+        }
+        totalVagas <= 16 -> {
+            val num = (indexConfronto % 8) + 1
+            Pair("OITAVAS DE FINAL", "Oitavas $num")
+        }
+        else -> {
+            val num = indexConfronto + 1
+            Pair("ELIMINATÓRIA", "Jogo $num")
+        }
+    }
+}
 
-data class PontuacaoDetalhada(
+data class PontuacaoJogadorResult(
     val total: Double = 0.0,
     val gols: Int = 0,
     val assistencias: Int = 0,
     val sg: Int = 0,
+    val mvp: Int = 0,
     val amarelos: Int = 0,
     val vermelhos: Int = 0,
-    val golsContra: Int = 0,
-    val mvp: Int = 0
+    val golsContra: Int = 0
 )
 
-@JvmOverloads
-fun calcularPontuacaoJogador(jogador: JogadorExemplo, partidas: List<Partida>, equipes: List<EquipeExemplo> = emptyList()): PontuacaoDetalhada {
-    var countGols = 0; var countAssists = 0; var countSG = 0
-    var countAmarelos = 0; var countVermelhos = 0; var countContra = 0; var countMVP = 0
+fun calcularPontuacaoJogador(
+    jogador: JogadorExemplo,
+    partidas: List<Partida>,
+    equipes: List<EquipeExemplo>
+): PontuacaoJogadorResult {
+    var g = 0; var a = 0; var sg = 0; var mvp = 0; var am = 0; var vm = 0; var gc = 0
 
-    partidas.filter { it.finalizada }.forEach { p ->
-        // 1. Eventos individuais
-        p.eventos.filter { it.jogadorNome == jogador.nome }.forEach { ev ->
+    val partidasDoJogador = partidas.filter { p ->
+        p.finalizada && (p.mandanteId == jogador.equipeId || p.visitanteId == jogador.equipeId)
+    }
+
+    partidasDoJogador.forEach { p ->
+        // Gols, Assistências e Cartões via Eventos
+        p.eventos.filter { it.jogadorNome == jogador.nome || (jogador.apelido.isNotBlank() && it.jogadorNome == jogador.apelido) }.forEach { ev ->
             when (ev.tipo) {
-                "GOL", "GOL (PÊNALTI)" -> countGols++
-                "ASSISTÊNCIA" -> countAssists++
-                "YELLOW CARD" -> countAmarelos++
-                "RED CARD" -> countVermelhos++
-                "GOL CONTRA" -> countContra++
+                "GOL", "GOL (PÊNALTI)" -> g++
+                "ASSISTÊNCIA" -> a++
+                "YELLOW CARD" -> am++
+                "RED CARD" -> vm++
+                "GOL CONTRA" -> gc++
             }
         }
 
-        // 2. MVP (Melhor da Partida)
-        if (p.melhorJogador == jogador.nome) {
-            countMVP++
+        // Melhor da Partida
+        if (p.melhorJogador == jogador.nome || (jogador.apelido.isNotBlank() && p.melhorJogador == jogador.apelido)) {
+            mvp++
         }
 
-        // 3. Defesa sem sofrer gol (SG) - LÓGICA RESTRITA A GOLEIROS
-        val posBase = jogador.posicao.take(3).uppercase()
-        val ehGoleiro = posBase == "GOL"
-        
-        if (ehGoleiro) {
-            val foiTitular = p.titularesMandante.contains(jogador.id) || p.titularesVisitante.contains(jogador.id)
-            val eventoEntrada = p.eventos.find { it.tipo.contains("SUB") && it.tipo.contains(jogador.nome) && it.tipo.contains("Entra") }
-            
-            if (foiTitular || eventoEntrada != null) {
-                val minEntrada = if (foiTitular) 0 else (eventoEntrada?.minuto?.toIntOrNull() ?: 0)
-                val eventoSaida = p.eventos.find { it.tipo.contains("SUB") && it.tipo.contains(jogador.nome) && it.tipo.contains("Sai") }
-                val minSaida = if (eventoSaida != null) (eventoSaida.minuto.toIntOrNull() ?: 90) else 999 
-
-                val ehMandante = jogador.equipeId == p.mandanteId
-                val mNome = equipes.find { it.id == p.mandanteId }?.nome ?: p.labelMandante
-                val vNome = equipes.find { it.id == p.visitanteId }?.nome ?: p.labelVisitante
-                val minhaEquipeNome = if (ehMandante) mNome else vNome
-                val adversarioNome = if (ehMandante) vNome else mNome
-
-                var sofreuGolEnquantoEmCampo = false
-                
-                p.eventos.forEach { ev ->
-                    if (ev.tipo == "GOL" || ev.tipo == "GOL (PÊNALTI)" || ev.tipo == "GOL CONTRA") {
-                        val minGol = ev.minuto.toIntOrNull() ?: -1
-                        val ehGolContraSuaEquipe = (ev.tipo != "GOL CONTRA" && ev.equipeNome == adversarioNome) ||
-                                                   (ev.tipo == "GOL CONTRA" && ev.equipeNome == minhaEquipeNome)
-                        
-                        if (ehGolContraSuaEquipe) {
-                            if (minGol != -1 && minGol >= minEntrada && minGol <= minSaida) {
-                                sofreuGolEnquantoEmCampo = true
-                            } else if (minGol == -1) {
-                                sofreuGolEnquantoEmCampo = true
-                            }
-                        }
-                    }
-                }
-
-                val totalGolsSofridosFinal = if (ehMandante) (p.golsVisitante ?: 0) else (p.golsMandante ?: 0)
-                if (totalGolsSofridosFinal == 0 || !sofreuGolEnquantoEmCampo) {
-                    countSG++
-                }
-            }
+        // Saldo de Gols (SG) para Defensores e Goleiros
+        val ehDefensor = jogador.posicao in listOf("GOL", "ZAG", "LAT", "VOL")
+        if (ehDefensor) {
+            val sofridos = if (p.mandanteId == jogador.equipeId) (p.golsVisitante ?: 0) else (p.golsMandante ?: 0)
+            if (sofridos == 0) sg++
         }
     }
 
-    val total = (countGols * 5.0) + (countAssists * 2.5) + (countSG * 3.0) + 
-                (countAmarelos * -0.5) + (countContra * -5.0) + (countVermelhos * -3.0) + (countMVP * 5.0)
+    val total = (g * 5.0) + (a * 2.5) + (sg * 3.0) + (mvp * 5.0) + (am * -0.5) + (vm * -3.0) + (gc * -5.0)
 
-    return PontuacaoDetalhada(
+    return PontuacaoJogadorResult(
         total = total,
-        gols = countGols,
-        assistencias = countAssists,
-        sg = countSG,
-        amarelos = countAmarelos,
-        vermelhos = countVermelhos,
-        golsContra = countContra,
-        mvp = countMVP
+        gols = g,
+        assistencias = a,
+        sg = sg,
+        mvp = mvp,
+        amarelos = am,
+        vermelhos = vm,
+        golsContra = gc
     )
 }
 
-fun obterPartidasOrdenadas(partidas: List<Partida>): List<Partida> {
-    return partidas.sortedWith(
-        compareBy<Partida>(
-            { !it.fase.contains("Rodada", ignoreCase = true) },
-            { it.data.split("/").reversed().joinToString("") },
-            { it.horario }
-        )
+fun obterPartidasOrdenadas(lista: List<Partida>): List<Partida> {
+    return lista.sortedWith(
+        compareBy<Partida> { p ->
+            when {
+                p.fase.contains("FINAL", ignoreCase = true) && !p.fase.contains("OITAVAS", ignoreCase = true) && !p.fase.contains("QUARTAS", ignoreCase = true) && !p.fase.contains("SEMI", ignoreCase = true) -> 1
+                p.fase.contains("SEMIFINAL", ignoreCase = true) -> 2
+                p.fase.contains("QUARTAS", ignoreCase = true) -> 3
+                p.fase.contains("OITAVAS", ignoreCase = true) -> 4
+                p.fase.contains("Rodada", ignoreCase = true) -> {
+                    val r = p.fase.filter { it.isDigit() }.toIntOrNull() ?: 100
+                    r + 10
+                }
+                else -> 200
+            }
+        }.thenBy { it.id }
     )
 }
 
-fun calcularClassificacao(equipes: List<EquipeExemplo>, partidas: List<Partida>, configs: ConfiguracoesCampeonato): List<LinhaTabela> {
+fun calcularClassificacao(
+    equipes: List<EquipeExemplo>,
+    partidas: List<Partida>,
+    configs: ConfiguracoesCampeonato
+): List<LinhaTabela> {
     return BrasileiraoSerieA().calcularRanking(equipes, partidas, configs)
 }
 
-fun verificarFaseGruposFinalizada(partidas: List<Partida>): Boolean {
-    val partidasGrupos = partidas.filter { 
-        it.fase.contains("Rodada", ignoreCase = true) || it.fase.contains("ÚNICA", ignoreCase = true)
+fun calcularTotalJogos(totalVagas: Int): Int {
+    if (totalVagas < 2) return 0
+    var soma = 0
+    var current = totalVagas
+    while (current >= 2) {
+        soma += current / 2
+        current /= 2
     }
-    if (partidasGrupos.isEmpty()) return false
-    return partidasGrupos.all { it.finalizada }
+    return soma
+}
+
+fun verificarFaseGruposFinalizada(partidas: List<Partida>): Boolean {
+    val matchesGrupos = partidas.filter { it.fase.contains("Rodada", ignoreCase = true) }
+    if (matchesGrupos.isEmpty()) return false
+    return matchesGrupos.all { it.finalizada }
 }
 
 fun promoverClassificadosMataMata(
-    partidas: SnapshotStateList<Partida>,
+    partidas: MutableList<Partida>,
     equipes: List<EquipeExemplo>,
     configsGrupos: List<ConfigGrupo>,
     configs: ConfiguracoesCampeonato
 ) {
-    val mapaVagas = mutableMapOf<String, Int>()
+    // 1. Calcular classificações da fase de grupos
+    val classificacoesPorGrupo = mutableMapOf<String, List<LinhaTabela>>()
     var indiceInicio = 0
-
-    // 1. Promoção dos Grupos para a Primeira Fase Eliminatória
     configsGrupos.forEach { grupo ->
         val fim = (indiceInicio + grupo.qtdTimes).coerceAtMost(equipes.size)
-        val equipesDoGrupo = equipes.subList(indiceInicio, fim)
-        val idsEquipes = equipesDoGrupo.map { it.id }
-        val partidasDoGrupo = partidas.filter { it.mandanteId in idsEquipes && it.visitanteId in idsEquipes }
+        val equipesDesteGrupo = if (indiceInicio < equipes.size) equipes.subList(indiceInicio, fim) else emptyList()
+        val idsEquipes = equipesDesteGrupo.map { it.id }
+        val partidasDesteGrupo = partidas.filter { it.mandanteId in idsEquipes && it.visitanteId in idsEquipes && it.fase.contains("Rodada", ignoreCase = true) }
         
-        val ranking = calcularClassificacao(equipesDoGrupo, partidasDoGrupo, configs)
-        
-        ranking.forEachIndexed { index, linha ->
-            mapaVagas["${index + 1}º ${grupo.nome}"] = linha.equipeId
-        }
+        val ranking = BrasileiraoSerieA().calcularRanking(equipesDesteGrupo, partidasDesteGrupo, configs)
+        classificacoesPorGrupo[grupo.nome] = ranking
         indiceInicio += grupo.qtdTimes
     }
 
-    // 2. Promoção dos Vencedores (Considerando Agregado e Pênaltis)
-    val confrontos = partidas.filter { it.finalizada && it.nomeConfronto.isNotBlank() }.groupBy { it.nomeConfronto }
-
+    // 2. Coletar vencedores de confrontos de mata-mata já finalizados
+    val vencedoresConfrontos = mutableMapOf<String, Int>() 
+    val confrontos = partidas.filter { it.nomeConfronto.isNotBlank() }.groupBy { it.nomeConfronto }
+    
     confrontos.forEach { (nome, jogos) ->
-        val jogoIda = jogos.first()
-        val jogoVolta = if (jogos.size > 1) jogos.last() else null
-        
-        val idA = jogoIda.mandanteId
-        val idB = jogoIda.visitanteId
-        
-        val golsA = (jogoIda.golsMandante ?: 0) + (jogoVolta?.golsVisitante ?: 0)
-        val golsB = (jogoIda.golsVisitante ?: 0) + (jogoVolta?.golsMandante ?: 0)
-        
-        val vencedorId = when {
-            golsA > golsB -> idA
-            golsB > golsA -> idB
-            else -> {
-                // No jogo de volta, idA é visitante. Então penA é penaltisVisitante do jogo de volta.
-                val pA = if (jogoVolta != null) (jogoVolta.penaltisVisitante ?: 0) else (jogoIda.penaltisMandante ?: 0)
-                val pB = if (jogoVolta != null) (jogoVolta.penaltisMandante ?: 0) else (jogoIda.penaltisVisitante ?: 0)
+        if (jogos.all { it.finalizada }) {
+            val idA = jogos[0].mandanteId
+            val idB = jogos[0].visitanteId
+            if (idA != -1 && idB != -1) {
+                var golsA = 0
+                var golsB = 0
+                jogos.forEach { j ->
+                    if (j.mandanteId == idA) {
+                        golsA += (j.golsMandante ?: 0)
+                        golsB += (j.golsVisitante ?: 0)
+                    } else {
+                        golsB += (j.golsMandante ?: 0)
+                        golsA += (j.golsVisitante ?: 0)
+                    }
+                }
                 
-                if (pA >= pB) idA else idB
+                if (golsA > golsB) {
+                    vencedoresConfrontos[nome] = idA
+                } else if (golsB > golsA) {
+                    vencedoresConfrontos[nome] = idB
+                } else {
+                    val ultimoJogo = jogos.last()
+                    val pM = ultimoJogo.penaltisMandante ?: 0
+                    val pV = ultimoJogo.penaltisVisitante ?: 0
+                    if (pM > pV) {
+                        vencedoresConfrontos[nome] = ultimoJogo.mandanteId
+                    } else if (pV > pM) {
+                        vencedoresConfrontos[nome] = ultimoJogo.visitanteId
+                    }
+                }
             }
         }
-        mapaVagas["Vence $nome"] = vencedorId
     }
 
-    // 3. Atualiza os IDs nas partidas futuras
+    // 3. Atualizar placeholders (Ex: "1º Grupo A" ou "Vence Oitavas 1")
     for (i in partidas.indices) {
         val p = partidas[i]
-        val novoM = mapaVagas[p.labelMandante] ?: p.mandanteId
-        val novoV = mapaVagas[p.labelVisitante] ?: p.visitanteId
-        if (novoM != p.mandanteId || novoV != p.visitanteId) {
-            partidas[i] = p.copy(mandanteId = novoM, visitanteId = novoV)
-        }
-    }
-}
+        if (!p.fase.contains("Rodada", ignoreCase = true)) {
+            var novoMandanteId = p.mandanteId
+            var novoVisitanteId = p.visitanteId
 
-fun calcularTotalJogos(vagas: Int): Int {
-    var total = 0
-    var atual = vagas
-    while (atual > 1) {
-        atual /= 2
-        total += atual
-    }
-    return total
-}
-
-fun obterNomeFaseEConfronto(index: Int, vagas: Int): Pair<String, String> {
-    var count = 0
-    var fV = vagas
-    val nomesFasesShort = listOf("PF", "Oitavas", "QF", "Semi", "Final")
-    
-    // Determina o índice inicial do nome da fase baseado no total de vagas
-    var fI = if (vagas == 32) 0 else if (vagas == 16) 1 else if (vagas == 8) 2 else if (vagas == 4) 3 else 4
-    
-    while (fV > 1) {
-        val jogosNaFase = fV / 2
-        if (index < count + jogosNaFase) {
-            val num = index - count + 1
-            val nomeFaseFull = when(fV) {
-                32 -> "PRIMEIRA FASE"
-                16 -> "OITAVAS DE FINAL"
-                8 -> "QUARTAS DE FINAL"
-                4 -> "SEMIFINAIS"
-                else -> "GRANDE FINAL"
+            // Tentar resolver mandante
+            if (novoMandanteId == -1) {
+                val label = p.labelMandante
+                if (label.contains("º")) {
+                    val regex = """(\d+)º\s+(.+)""".toRegex()
+                    regex.find(label)?.let { match ->
+                        val pos = match.groupValues[1].toInt()
+                        val grupoNome = match.groupValues[2]
+                        classificacoesPorGrupo[grupoNome]?.let { ranking ->
+                            if (ranking.size >= pos) novoMandanteId = ranking[pos - 1].equipeId
+                        }
+                    }
+                } else if (label.startsWith("Vence ")) {
+                    val nomeConf = label.removePrefix("Vence ")
+                    vencedoresConfrontos[nomeConf]?.let { novoMandanteId = it }
+                }
             }
-            return Pair(nomeFaseFull, "${nomesFasesShort[fI]} $num")
+
+            // Tentar resolver visitante
+            if (novoVisitanteId == -1) {
+                val label = p.labelVisitante
+                if (label.contains("º")) {
+                    val regex = """(\d+)º\s+(.+)""".toRegex()
+                    regex.find(label)?.let { match ->
+                        val pos = match.groupValues[1].toInt()
+                        val grupoNome = match.groupValues[2]
+                        classificacoesPorGrupo[grupoNome]?.let { ranking ->
+                            if (ranking.size >= pos) novoVisitanteId = ranking[pos - 1].equipeId
+                        }
+                    }
+                } else if (label.startsWith("Vence ")) {
+                    val nomeConf = label.removePrefix("Vence ")
+                    vencedoresConfrontos[nomeConf]?.let { novoVisitanteId = it }
+                }
+            }
+
+            if (novoMandanteId != p.mandanteId || novoVisitanteId != p.visitanteId) {
+                partidas[i] = p.copy(mandanteId = novoMandanteId, visitanteId = novoVisitanteId)
+            }
         }
-        count += jogosNaFase
-        fV /= 2
-        fI++
     }
-    return Pair("FINAL", "Final")
 }

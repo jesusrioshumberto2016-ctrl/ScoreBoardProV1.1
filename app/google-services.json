@@ -1,0 +1,48 @@
+{
+  "project_info": {
+    "project_number": "286321993719",
+    "firebase_url": "https://scoreboard-pro-a9cd5-default-rtdb.firebaseio.com",
+    "project_id": "scoreboard-pro-a9cd5",
+    "storage_bucket": "scoreboard-pro-a9cd5.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:286321993719:android:640d3e4bbb961830fbf0f2",
+        "android_client_info": {
+          "package_name": "com.studiosrios.scoreboardpro"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "286321993719-9ojl7htce721llvrtao01qs3sr32pcju.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.studiosrios.scoreboardpro",
+            "certificate_hash": "93db337c5d0bc678ff5c20da99ee9ac43669ce17"
+          }
+        },
+        {
+          "client_id": "286321993719-tv84rrstdbev5tro5hj8l6din5r931v4.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBZzCgyCaO85mNvN8t3RvtETEpR3K94z6A"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "286321993719-tv84rrstdbev5tro5hj8l6din5r931v4.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

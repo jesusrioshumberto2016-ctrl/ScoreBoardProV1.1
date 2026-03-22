@@ -89,7 +89,7 @@ fun TelaPainelLibertadores(
                           editandoSumulaId != null || 
                           editandoPreJogoId != null
 
-    // Função para tentar sair do painel para o menu
+    // Função para tentar sair do painel para le menu
     val tentarSairDoPainel = {
         abaPretendida = -1 
         // Avisa se houver alteração geral não salva no banco
@@ -279,7 +279,10 @@ fun TelaPainelLibertadores(
                                     ConteudoChaveamentoLibertadores(equipes, partidasMataMata, { p: Partida -> partidaParaVerPreJogo = p }, { p: Partida -> partidaParaVerDetalhes = p }, { e: EquipeExemplo -> equipeSelecionada = e })
                                 }
                                 "Equipes" -> AbaEquipesTelespectador(equipes, onEquipeClick = { e: EquipeExemplo -> equipeSelecionada = e })
-                                "Resultados" -> ResultadosTab(partidas, equipes, onConfirmarResultado = { _: Partida -> houveAlteracaoGeral = true })
+                                "Resultados" -> ResultadosTab(partidas, equipes, onConfirmarResultado = { _: Partida -> 
+                                    houveAlteracaoGeral = true
+                                    onSalvarGeral(idCamp, configsIniciais) 
+                                })
                                 "Partidas" -> PartidasTab(partidas, equipes, {p: Partida -> partidaParaVerPreJogo = p}, {p: Partida -> partidaParaVerDetalhes = p}, false, {e: EquipeExemplo -> equipeSelecionada = e})
                                 "Súmula" -> SumulaTab(
                                     partidas = partidas, 
@@ -288,7 +291,10 @@ fun TelaPainelLibertadores(
                                     onEntrarEdicao = {id: Int -> editandoSumulaId = id}, 
                                     onSairEdicao = {editandoSumulaId = null},
                                     onAlteracao = { houveAlteracaoGeral = true },
-                                    onSalvar = { houveAlteracaoGeral = true }
+                                    onSalvar = { 
+                                        houveAlteracaoGeral = true
+                                        onSalvarGeral(idCamp, configsIniciais)
+                                    }
                                 )
                                 "Pré-Jogo" -> PreJogoTab(
                                     equipes = equipes, 
@@ -296,7 +302,11 @@ fun TelaPainelLibertadores(
                                     listaGlobalJogadores = listaGlobalJogadores, 
                                     onEntrarEdicao = {id: Int -> editandoPreJogoId = id}, 
                                     onSairEdicao = {editandoPreJogoId = null},
-                                    onAlteracao = { houveAlteracaoGeral = true }
+                                    onAlteracao = { houveAlteracaoGeral = true },
+                                    onSalvar = {
+                                        houveAlteracaoGeral = true
+                                        onSalvarGeral(idCamp, configsIniciais)
+                                    }
                                 )
                                 "Artilharia" -> TelaArtilharia(
                                     equipes = equipes, 
@@ -328,6 +338,7 @@ fun TelaPainelLibertadores(
                                     onClick = { 
                                         promoverClassificadosMataMata(partidas, equipes, listaGruposConfig, configsIniciais)
                                         houveAlteracaoGeral = true
+                                        onSalvarGeral(idCamp, configsIniciais)
                                         scope.launch { snackbarHostState.showSnackbar("Classificados definidos!") }
                                     },
                                     enabled = gruposFinalizados,

@@ -1,6 +1,8 @@
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
+    id("com.google.gms.google-services")
+    id("com.google.devtools.ksp")
 }
 
 android {
@@ -40,7 +42,6 @@ android {
         compose = true
     }
     composeOptions {
-        // Versão estável para Kotlin 1.9.x
         kotlinCompilerExtensionVersion = "1.5.11"
     }
     packaging {
@@ -62,6 +63,22 @@ dependencies {
     implementation("androidx.compose.ui:ui-tooling-preview")
     implementation("androidx.compose.material3:material3")
     implementation("androidx.compose.material:material-icons-extended")
+
+    // Firebase
+    implementation(platform("com.google.firebase:firebase-bom:32.8.1"))
+    implementation("com.google.firebase:firebase-database-ktx")
+    implementation("com.google.firebase:firebase-auth-ktx")
+    implementation("com.google.firebase:firebase-storage-ktx") // Adicionado para fotos
+    implementation("com.google.android.gms:play-services-auth:21.0.0")
+
+    // Room
+    val room_version = "2.6.1"
+    implementation("androidx.room:room-runtime:$room_version")
+    implementation("androidx.room:room-ktx:$room_version")
+    ksp("androidx.room:room-compiler:$room_version")
+
+    // Gson for TypeConverters
+    implementation("com.google.code.gson:gson:2.10.1")
 
     // Coil para imagens
     implementation("io.coil-kt:coil-compose:2.6.0")

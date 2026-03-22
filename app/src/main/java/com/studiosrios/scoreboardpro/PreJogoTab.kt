@@ -37,7 +37,8 @@ fun PreJogoTab(
     listaGlobalJogadores: List<JogadorExemplo>,
     onEntrarEdicao: (Int) -> Unit = {},
     onSairEdicao: () -> Unit = {},
-    onAlteracao: () -> Unit = {}
+    onAlteracao: () -> Unit = {},
+    onSalvar: () -> Unit = {}
 ) {
     var partidaParaPreJogo by remember { mutableStateOf<Partida?>(null) }
 
@@ -87,7 +88,8 @@ fun PreJogoTab(
                     partidaParaPreJogo = null 
                     onSairEdicao()
                 },
-                onAlteracao = onAlteracao
+                onAlteracao = onAlteracao,
+                onSalvar = onSalvar
             )
         }
     }
@@ -101,7 +103,8 @@ fun ConfiguracaoPreJogoDetalhada(
     equipes: List<EquipeExemplo>,
     listaGlobalJogadores: List<JogadorExemplo>,
     onVoltar: () -> Unit,
-    onAlteracao: () -> Unit
+    onAlteracao: () -> Unit,
+    onSalvar: () -> Unit
 ) {
     var pEditada by remember { mutableStateOf(p) }
     
@@ -318,6 +321,7 @@ fun ConfiguracaoPreJogoDetalhada(
             onClick = { 
                 partidas[idx] = pEditada 
                 onAlteracao()
+                onSalvar()
                 onVoltar() 
             }, 
             modifier = Modifier.fillMaxWidth().padding(top = 8.dp), 

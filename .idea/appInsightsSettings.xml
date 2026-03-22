@@ -8,10 +8,10 @@
             <InsightsFilterSettings>
               <option name="connection">
                 <ConnectionSetting>
-                  <option name="appId" value="PLACEHOLDER" />
-                  <option name="mobileSdkAppId" value="" />
-                  <option name="projectId" value="" />
-                  <option name="projectNumber" value="" />
+                  <option name="appId" value="com.studiosrios.scoreboardpro" />
+                  <option name="mobileSdkAppId" value="1:286321993719:android:640d3e4bbb961830fbf0f2" />
+                  <option name="projectId" value="scoreboard-pro-a9cd5" />
+                  <option name="projectNumber" value="286321993719" />
                 </ConnectionSetting>
               </option>
               <option name="signal" value="SIGNAL_UNSPECIFIED" />

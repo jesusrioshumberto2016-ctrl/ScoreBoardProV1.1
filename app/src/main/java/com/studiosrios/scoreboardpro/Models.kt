@@ -1,12 +1,15 @@
 package com.studiosrios.scoreboardpro
 
+import androidx.room.Entity
+import androidx.room.PrimaryKey
 import java.util.*
 
 // --- MODELOS DE DADOS ---
 
+@Entity(tableName = "jogadores")
 data class JogadorExemplo(
-    val id: Int,
-    val nome: String,
+    @PrimaryKey val id: Int = 0,
+    val nome: String = "",
     var posicao: String = "",
     val altura: String = "",
     val idade: String = "",
@@ -21,11 +24,12 @@ data class Patrocinador(
     val fotoUri: String = ""
 )
 
+@Entity(tableName = "equipes")
 data class EquipeExemplo(
-    val id: Int,
-    val identificacao: String,
-    val nome: String,
-    val city: String,
+    @PrimaryKey val id: Int = 0,
+    val identificacao: String = "",
+    val nome: String = "",
+    val city: String = "",
     val jogadores: List<JogadorExemplo> = emptyList(),
     val patrocinadores: List<Patrocinador> = emptyList(),
     val escudoUri: String = "" 
@@ -40,11 +44,11 @@ data class EventoPartida(
 )
 
 data class Partida(
-    val id: Int,
-    val mandanteId: Int,
-    val visitanteId: Int,
-    val fase: String = "", // Nome da Fase (ex: OITAVAS DE FINAL)
-    val nomeConfronto: String = "", // Identificador único do confronto (ex: Oitavas 1)
+    val id: Int = 0,
+    val mandanteId: Int = 0,
+    val visitanteId: Int = 0,
+    val fase: String = "",
+    val nomeConfronto: String = "",
     val labelMandante: String = "", 
     val labelVisitante: String = "",
     val data: String = "",
@@ -55,7 +59,6 @@ data class Partida(
     var golsVisitante: Int? = null,
     var finalizada: Boolean = false,
     
-    // Disputa de pênaltis
     var penaltisMandante: Int? = null,
     var penaltisVisitante: Int? = null,
 
@@ -91,16 +94,16 @@ data class Partida(
 )
 
 data class LinhaTabela(
-    val equipeId: Int,
-    val nome: String,
-    val pontos: Int,
-    val jogos: Int,
-    val vitorias: Int,
-    val empates: Int,
-    val derrotas: Int,
-    val gm: Int,
-    val gs: Int,
-    val sg: Int,
+    val equipeId: Int = 0,
+    val nome: String = "",
+    val pontos: Int = 0,
+    val jogos: Int = 0,
+    val vitorias: Int = 0,
+    val empates: Int = 0,
+    val derrotas: Int = 0,
+    val gm: Int = 0,
+    val gs: Int = 0,
+    val sg: Int = 0,
     val amarelos: Int = 0,
     val vermelhos: Int = 0
 )
@@ -109,7 +112,6 @@ data class ConfiguracoesCampeonato(
     val modoReturno: Boolean = false, 
     val modoIdaEVoltaMataMata: Boolean = true,
     val modoIdaEVoltaFinal: Boolean = false,
-    // Corrigido para ter 6 slots de critérios de desempate
     val criteriosDesempate: List<String> = listOf("Selecionar", "Selecionar", "Selecionar", "Selecionar", "Selecionar", "Selecionar"),
     val exibirCartoesNaTabela: Boolean = false
 )
@@ -120,12 +122,13 @@ data class ConfigGrupo(
     val qtdClassificados: Int = 0
 )
 
+@Entity(tableName = "campeonatos")
 data class CampeonatoSalvo(
-    val id: Int,
-    val nomeExibicao: String,
-    val modelo: String,
-    val equipes: List<EquipeExemplo>,
-    val partidas: List<Partida>,
+    @PrimaryKey val id: Int = 0,
+    val nomeExibicao: String = "",
+    val modelo: String = "",
+    val equipes: List<EquipeExemplo> = emptyList(),
+    val partidas: List<Partida> = emptyList(),
     val configs: ConfiguracoesCampeonato = ConfiguracoesCampeonato(),
     val gruposConfig: List<ConfigGrupo> = emptyList(),
     val fotoUri: String = ""
