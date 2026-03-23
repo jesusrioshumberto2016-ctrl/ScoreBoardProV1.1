@@ -10,7 +10,7 @@
         android:label="ScoreBoard Pro"
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
-        android:theme="@android:style/Theme.DeviceDefault.NoActionBar">
+        android:theme="@style/Theme.AppCompat.Light.DarkActionBar">
 
         <activity
             android:name="com.studiosrios.scoreboardpro.MainActivity"
@@ -22,6 +22,12 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+
+        <activity
+            android:name="com.studiosrios.scoreboardpro.ui.ListaCampeonatosActivity"
+            android:exported="false"
+            android:label="Campeonatos"
+            android:screenOrientation="portrait" />
 
     </application>
 </manifest>
