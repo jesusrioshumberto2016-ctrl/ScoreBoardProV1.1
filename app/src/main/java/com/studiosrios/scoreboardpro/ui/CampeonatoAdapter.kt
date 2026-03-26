@@ -11,7 +11,9 @@ import com.studiosrios.scoreboardpro.databinding.ItemCampeonatoBinding
 class CampeonatoAdapter(
     private var campeonatos: List<Campeonato>,
     private val onEditClick: (Campeonato) -> Unit,
-    private val onDeleteClick: (Campeonato) -> Unit
+    private val onDeleteClick: (Campeonato) -> Unit,
+    private val onPinClick: (Campeonato) -> Unit,
+    private val onFavoriteClick: (Campeonato) -> Unit
 ) : RecyclerView.Adapter<CampeonatoAdapter.CampeonatoViewHolder>() {
 
     inner class CampeonatoViewHolder(private val binding: ItemCampeonatoBinding) :
@@ -21,11 +23,11 @@ class CampeonatoAdapter(
             binding.tvNomeCampeonato.text = campeonato.nome
             binding.tvStatusCampeonato.text = if (campeonato.ownerId != null) "Organizador: ${campeonato.ownerId}" else ""
 
-            // 1. Verificação do usuário atual
+            // Verificação do usuário atual
             val currentUser = FirebaseAuth.getInstance().currentUser
             val currentUserId = currentUser?.uid
 
-            // 2 e 3. Comparação do UID com ownerId para mostrar/esconder botões
+            // Mostrar/esconder botões de edição/exclusão apenas para o dono
             if (currentUserId != null && currentUserId == campeonato.ownerId) {
                 binding.btnEdit.visibility = View.VISIBLE
                 binding.btnDelete.visibility = View.VISIBLE
@@ -34,14 +36,19 @@ class CampeonatoAdapter(
                 binding.btnDelete.visibility = View.GONE
             }
 
-            // 4. Listeners de clique para editar e excluir
-            binding.btnEdit.setOnClickListener {
-                onEditClick(campeonato)
-            }
+            // Atualizar ícones de fixar e favoritar
+            binding.btnPin.setImageResource(
+                if (campeonato.isPinned) android.R.drawable.btn_star_big_on else android.R.drawable.btn_star_big_off
+            )
+            binding.btnFavorite.setImageResource(
+                if (campeonato.isFavorite) android.R.drawable.star_big_on else android.R.drawable.star_big_off
+            )
 
-            binding.btnDelete.setOnClickListener {
-                onDeleteClick(campeonato)
-            }
+            // Listeners
+            binding.btnEdit.setOnClickListener { onEditClick(campeonato) }
+            binding.btnDelete.setOnClickListener { onDeleteClick(campeonato) }
+            binding.btnPin.setOnClickListener { onPinClick(campeonato) }
+            binding.btnFavorite.setOnClickListener { onFavoriteClick(campeonato) }
         }
     }
 
