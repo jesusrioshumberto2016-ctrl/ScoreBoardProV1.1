@@ -20,6 +20,7 @@ class ListaCampeonatosActivity : AppCompatActivity() {
     private lateinit var binding: ActivityListaCampeonatosBinding
     private lateinit var adapter: CampeonatoAdapter
     private lateinit var databaseReference: DatabaseReference
+    private var listaCampeonatos = mutableListOf<Campeonato>()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -30,7 +31,6 @@ class ListaCampeonatosActivity : AppCompatActivity() {
         val uid = currentUser?.uid
 
         if (uid != null) {
-            // Configura o caminho específico do usuário: users/{UID}/campeonatos
             databaseReference = FirebaseDatabase.getInstance().getReference("users")
                 .child(uid)
                 .child("campeonatos")
@@ -51,6 +51,12 @@ class ListaCampeonatosActivity : AppCompatActivity() {
             },
             onDeleteClick = { campeonato ->
                 excluirCampeonato(campeonato)
+            },
+            onPinClick = { campeonato ->
+                togglePin(campeonato)
+            },
+            onFavoriteClick = { campeonato ->
+                toggleFavorite(campeonato)
             }
         )
         
@@ -66,12 +72,12 @@ class ListaCampeonatosActivity : AppCompatActivity() {
         databaseReference.addValueEventListener(object : ValueEventListener {
             override fun onDataChange(snapshot: DataSnapshot) {
                 binding.progressBar.visibility = View.GONE
-                val listaCampeonatos = mutableListOf<Campeonato>()
+                listaCampeonatos.clear()
                 
                 for (campeonatoSnapshot in snapshot.children) {
                     val campeonato = campeonatoSnapshot.getValue(Campeonato::class.java)
                     campeonato?.let { 
-                        if (it.id == null || it.id.isEmpty()) {
+                        if (it.id.isEmpty()) {
                              it.id = campeonatoSnapshot.key ?: ""
                         }
                         listaCampeonatos.add(it) 
@@ -89,6 +95,41 @@ class ListaCampeonatosActivity : AppCompatActivity() {
                 ).show()
             }
         })
+    }
+
+    private fun togglePin(campeonato: Campeonato) {
+        val newState = !campeonato.isPinned
+        val updates = mutableMapOf<String, Any?>()
+
+        if (newState) {
+            // Se estamos fixando este, desfixar todos os outros
+            listaCampeonatos.forEach {
+                if (it.isPinned && it.id != campeonato.id) {
+                    updates["${it.id}/isPinned"] = false
+                }
+            }
+        }
+        
+        updates["${campeonato.id}/isPinned"] = newState
+        
+        databaseReference.updateChildren(updates).addOnFailureListener {
+            Toast.makeText(this, "Erro ao fixar campeonato", Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    private fun toggleFavorite(campeonato: Campeonato) {
+        val favoritesCount = listaCampeonatos.count { it.isFavorite }
+        val newState = !campeonato.isFavorite
+
+        if (newState && favoritesCount >= 5) {
+            Toast.makeText(this, "Limite de 5 favoritos atingido", Toast.LENGTH_SHORT).show()
+            return
+        }
+
+        databaseReference.child(campeonato.id).child("isFavorite").setValue(newState)
+            .addOnFailureListener {
+                Toast.makeText(this, "Erro ao favoritar campeonato", Toast.LENGTH_SHORT).show()
+            }
     }
 
     private fun excluirCampeonato(campeonato: Campeonato) {

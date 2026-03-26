@@ -1,5 +1,7 @@
 package com.studiosrios.scoreboardpro
 
+import android.content.Context
+import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -13,8 +15,12 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.EmojiEvents
 import androidx.compose.material.icons.filled.Groups
 import androidx.compose.material.icons.filled.PersonAdd
+import androidx.compose.material.icons.filled.PushPin
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.SportsSoccer
+import androidx.compose.material.icons.filled.Star
+import androidx.compose.material.icons.outlined.PushPin
+import androidx.compose.material.icons.outlined.StarBorder
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -22,8 +28,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -37,9 +45,28 @@ fun TelaInicialTelespectador(
     onAbrirCampeonato: (CampeonatoSalvo) -> Unit,
     onEntrarComoOrganizador: () -> Unit
 ) {
+    val context = LocalContext.current
+    val prefs = remember { context.getSharedPreferences("prefs_exibicao", Context.MODE_PRIVATE) }
+    
+    // Estados para fixados e favoritos
+    var idFixado by remember { mutableIntStateOf(prefs.getInt("id_fixado", -1)) }
+    val idsFavoritos = remember { 
+        mutableStateListOf<Int>().apply {
+            addAll(prefs.getStringSet("ids_favoritos", emptySet())?.map { it.toInt() } ?: emptyList())
+        }
+    }
+
     var busca by remember { mutableStateOf("") }
-    val campeonatosFiltrados = listaC.filter { 
-        it.nomeExibicao.contains(busca, ignoreCase = true)
+
+    // Lógica de reordenação: Fixado > Favoritos > Restante
+    val listaOrdenada = remember(listaC, idFixado, idsFavoritos.size, busca) {
+        val filtrados = listaC.filter { it.nomeExibicao.contains(busca, ignoreCase = true) }
+        
+        val fixado = filtrados.filter { it.id == idFixado }
+        val favoritos = filtrados.filter { idsFavoritos.contains(it.id) && it.id != idFixado }
+        val outros = filtrados.filter { it.id != idFixado && !idsFavoritos.contains(it.id) }
+        
+        fixado + favoritos + outros
     }
 
     Scaffold(
@@ -57,9 +84,7 @@ fun TelaInicialTelespectador(
                         Button(
                             onClick = onEntrarComoOrganizador,
                             colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primaryContainer, contentColor = MaterialTheme.colorScheme.onPrimaryContainer),
-                            shape = RoundedCornerShape(8.dp),
-                            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp),
-                            modifier = Modifier.padding(end = 8.dp)
+                            shape = RoundedCornerShape(8.dp)
                         ) {
                             Text("ORGANIZAR", fontWeight = FontWeight.Bold, fontSize = 12.sp)
                         }
@@ -68,29 +93,18 @@ fun TelaInicialTelespectador(
                 OutlinedTextField(
                     value = busca,
                     onValueChange = { busca = it },
-                    placeholder = { Text("Buscar competições em andamento...") },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 16.dp, vertical = 8.dp),
+                    placeholder = { Text("Buscar competições...") },
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
                     shape = RoundedCornerShape(12.dp),
                     leadingIcon = { Icon(Icons.Default.Search, null) },
-                    singleLine = true,
-                    colors = OutlinedTextFieldDefaults.colors(
-                        focusedContainerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f),
-                        unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)
-                    )
+                    singleLine = true
                 )
             }
         }
     ) { padding ->
         if (listaC.isEmpty()) {
             Box(Modifier.fillMaxSize().padding(padding), contentAlignment = Alignment.Center) {
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Icon(Icons.Default.EmojiEvents, null, modifier = Modifier.size(64.dp), tint = Color.LightGray)
-                    Spacer(Modifier.height(16.dp))
-                    Text("Nenhum campeonato ativo", fontWeight = FontWeight.Bold, color = Color.Gray)
-                    Text("Acompanhe aqui as melhores competições em breve.", fontSize = 12.sp, color = Color.LightGray)
-                }
+                Text("Nenhum campeonato ativo.", color = Color.Gray)
             }
         } else {
             LazyVerticalGrid(
@@ -100,30 +114,43 @@ fun TelaInicialTelespectador(
                 verticalArrangement = Arrangement.spacedBy(16.dp),
                 modifier = Modifier.padding(padding)
             ) {
-                // Se houver pelo menos um campeonato e nenhuma busca ativa, mostramos o primeiro como destaque
-                if (campeonatosFiltrados.isNotEmpty() && busca.isEmpty()) {
-                    item(span = { GridItemSpan(2) }) {
-                        CardDestaqueTelespectador(campeonatosFiltrados.first()) { onAbrirCampeonato(campeonatosFiltrados.first()) }
-                    }
-                    item(span = { GridItemSpan(2) }) {
-                        Text(
-                            "OUTRAS COMPETIÇÕES",
-                            fontSize = 12.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = Color.Gray,
-                            modifier = Modifier.padding(top = 8.dp)
+                items(listaOrdenada, key = { it.id }) { camp ->
+                    val isFixado = camp.id == idFixado
+                    val isFavorito = idsFavoritos.contains(camp.id)
+
+                    // Se for o primeiro da lista e não houver busca, mostramos maior (Destaque)
+                    val span = if (listaOrdenada.indexOf(camp) == 0 && busca.isEmpty()) 2 else 1
+                    
+                    Box(modifier = Modifier.animateItem().graphicsLayer {  }.then(
+                        if (span == 2) Modifier.fillMaxWidth() else Modifier
+                    )) {
+                        CardCampeonatoInterativo(
+                            camp = camp,
+                            isFixado = isFixado,
+                            isFavorito = isFavorito,
+                            isDestaque = span == 2,
+                            onToggleFixar = {
+                                if (isFixado) {
+                                    idFixado = -1
+                                } else {
+                                    idFixado = camp.id
+                                }
+                                prefs.edit().putInt("id_fixado", idFixado).apply()
+                            },
+                            onToggleFavorito = {
+                                if (isFavorito) {
+                                    idsFavoritos.remove(camp.id)
+                                    prefs.edit().putStringSet("ids_favoritos", idsFavoritos.map { it.toString() }.toSet()).apply()
+                                } else if (idsFavoritos.size < 5) {
+                                    idsFavoritos.add(camp.id)
+                                    prefs.edit().putStringSet("ids_favoritos", idsFavoritos.map { it.toString() }.toSet()).apply()
+                                } else {
+                                    Toast.makeText(context, "Limite de 5 favoritos atingido", Toast.LENGTH_SHORT).show()
+                                }
+                            },
+                            onClick = { onAbrirCampeonato(camp) }
                         )
                     }
-                }
-
-                val listaRestante = if (busca.isEmpty() && campeonatosFiltrados.isNotEmpty()) {
-                    campeonatosFiltrados.drop(1)
-                } else {
-                    campeonatosFiltrados
-                }
-
-                items(listaRestante) { camp ->
-                    CardTelespectador(camp) { onAbrirCampeonato(camp) }
                 }
             }
         }
@@ -131,126 +158,63 @@ fun TelaInicialTelespectador(
 }
 
 @Composable
-fun CardDestaqueTelespectador(camp: CampeonatoSalvo, onClick: () -> Unit) {
+fun CardCampeonatoInterativo(
+    camp: CampeonatoSalvo,
+    isFixado: Boolean,
+    isFavorito: Boolean,
+    isDestaque: Boolean,
+    onToggleFixar: () -> Unit,
+    onToggleFavorito: () -> Unit,
+    onClick: () -> Unit
+) {
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .height(220.dp)
+            .height(if (isDestaque) 200.dp else 180.dp)
             .clickable { onClick() },
         shape = RoundedCornerShape(16.dp),
-        elevation = CardDefaults.cardElevation(6.dp)
+        elevation = CardDefaults.cardElevation(if (isFixado) 8.dp else 2.dp)
     ) {
         Box {
             AsyncImage(
-                model = camp.fotoUri.ifBlank { R.drawable.logo_login }, 
+                model = camp.fotoUri.ifBlank { R.drawable.logo_login },
                 contentDescription = null,
                 modifier = Modifier.fillMaxSize(),
                 contentScale = ContentScale.Crop
             )
-            // Gradiente para leitura
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .background(
-                        Brush.verticalGradient(
-                            colors = listOf(Color.Transparent, Color.Black.copy(alpha = 0.8f)),
-                            startY = 300f
-                        )
-                    )
-            )
             
-            Column(
-                modifier = Modifier
-                    .align(Alignment.BottomStart)
-                    .padding(16.dp)
+            Box(Modifier.fillMaxSize().background(Brush.verticalGradient(listOf(Color.Transparent, Color.Black.copy(alpha = 0.7f)))))
+
+            // Ícones de Ação (Topo)
+            Row(
+                Modifier.fillMaxWidth().padding(8.dp),
+                horizontalArrangement = Arrangement.End
             ) {
-                Surface(
-                    color = MaterialTheme.colorScheme.primary,
-                    shape = RoundedCornerShape(4.dp)
-                ) {
-                    Text(
-                        "AO VIVO / EM ALTA",
-                        color = Color.White,
-                        fontSize = 10.sp,
-                        fontWeight = FontWeight.Bold,
-                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                IconButton(onClick = onToggleFixar, modifier = Modifier.size(32.dp)) {
+                    Icon(
+                        imageVector = if (isFixado) Icons.Default.PushPin else Icons.Outlined.PushPin,
+                        contentDescription = null,
+                        tint = if (isFixado) Color.Yellow else Color.White
                     )
                 }
-                Spacer(Modifier.height(8.dp))
-                Text(
-                    text = camp.nomeExibicao.uppercase(),
-                    color = Color.White,
-                    fontWeight = FontWeight.Black,
-                    fontSize = 22.sp,
-                    maxLines = 2,
-                    overflow = TextOverflow.Ellipsis
-                )
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(Icons.Default.Groups, null, tint = Color.LightGray, modifier = Modifier.size(14.dp))
-                    Spacer(Modifier.width(4.dp))
-                    Text(
-                        text = "${camp.equipes.size} Equipes participando",
-                        color = Color.LightGray,
-                        fontSize = 12.sp
+                IconButton(onClick = onToggleFavorito, modifier = Modifier.size(32.dp)) {
+                    Icon(
+                        imageVector = if (isFavorito) Icons.Default.Star else Icons.Outlined.StarBorder,
+                        contentDescription = null,
+                        tint = if (isFavorito) Color.Cyan else Color.White
                     )
                 }
             }
-        }
-    }
-}
 
-@Composable
-fun CardTelespectador(camp: CampeonatoSalvo, onClick: () -> Unit) {
-    Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(180.dp)
-            .clickable { onClick() },
-        shape = RoundedCornerShape(12.dp),
-        elevation = CardDefaults.cardElevation(3.dp),
-        colors = CardDefaults.cardColors(containerColor = Color.White)
-    ) {
-        Column {
-            AsyncImage(
-                model = camp.fotoUri.ifBlank { R.drawable.ic_launcher_background },
-                contentDescription = null,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(110.dp),
-                contentScale = ContentScale.Crop
-            )
-            
-            Column(Modifier.padding(10.dp)) {
-                Text(
-                    text = camp.nomeExibicao,
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 14.sp,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
-                Spacer(Modifier.height(4.dp))
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(
-                        Icons.Default.SportsSoccer, 
-                        null, 
-                        modifier = Modifier.size(12.dp), 
-                        tint = MaterialTheme.colorScheme.primary
-                    )
-                    Spacer(Modifier.width(4.dp))
-                    Text(
-                        text = camp.modelo,
-                        fontSize = 10.sp,
-                        color = Color.Gray,
-                        maxLines = 1
-                    )
+            // Info (Base)
+            Column(Modifier.align(Alignment.BottomStart).padding(12.dp)) {
+                if (isFixado) {
+                    Surface(color = Color.Yellow, shape = RoundedCornerShape(4.dp)) {
+                        Text("FIXADO", color = Color.Black, fontSize = 8.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(horizontal = 4.dp))
+                    }
                 }
-                Spacer(Modifier.weight(1f))
-                Text(
-                    text = "Ver detalhes",
-                    fontSize = 10.sp,
-                    color = MaterialTheme.colorScheme.primary,
-                    fontWeight = FontWeight.Bold
-                )
+                Text(camp.nomeExibicao, color = Color.White, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                Text("${camp.equipes.size} Equipes • ${camp.modelo}", color = Color.LightGray, fontSize = 10.sp)
             }
         }
     }
