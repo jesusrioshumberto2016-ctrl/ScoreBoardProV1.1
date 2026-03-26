@@ -15,8 +15,8 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Search
@@ -29,6 +29,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -43,9 +44,9 @@ fun TelaListaEquipesGerenciar(
     onGerenciar: (EquipeExemplo) -> Unit
 ) {
     var searchQuery by remember { mutableStateOf("") }
-    
+
     val listaFiltrada = remember(searchQuery, listaE) {
-        if (searchQuery.isEmpty()) {
+        if (searchQuery.isBlank()) {
             listaE
         } else {
             listaE.filter { it.nome.contains(searchQuery, ignoreCase = true) }
@@ -58,7 +59,7 @@ fun TelaListaEquipesGerenciar(
                 title = { Text("Gerenciar Equipes", fontWeight = FontWeight.Bold) },
                 navigationIcon = {
                     IconButton(onClick = onVoltar) {
-                        Icon(Icons.Default.ArrowBack, contentDescription = "Voltar")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Voltar")
                     }
                 }
             )
@@ -104,7 +105,7 @@ fun TelaListaEquipesGerenciar(
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             AsyncImage(
-                                model = if (equipe.escudoUri.isBlank()) R.drawable.ic_launcher_background else equipe.escudoUri,
+                                model = equipe.escudoUri.ifBlank { R.drawable.ic_launcher_background },
                                 contentDescription = null,
                                 modifier = Modifier
                                     .size(50.dp)
@@ -150,6 +151,9 @@ fun TelaGerenciarEquipeAdmin(
     var nomePatrocinador by remember { mutableStateOf("") }
     var fotoPatrocinadorUri by remember { mutableStateOf("") }
 
+    var showConfirmDeleteEquipe by remember { mutableStateOf(false) }
+    var patrocinadorParaExcluir by remember { mutableStateOf<Patrocinador?>(null) }
+
     val launcherEscudo = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri: Uri? ->
         uri?.let {
             val novaUri = it.toString()
@@ -165,6 +169,59 @@ fun TelaGerenciarEquipeAdmin(
 
     val launcherPatrocinador = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri: Uri? ->
         uri?.let { fotoPatrocinadorUri = it.toString() }
+    }
+
+    // Diálogo Excluir Equipe
+    if (showConfirmDeleteEquipe) {
+        AlertDialog(
+            onDismissRequest = { showConfirmDeleteEquipe = false },
+            title = { Text("Excluir Equipe") },
+            text = { Text("Tem certeza que deseja excluir permanentemente '${equipeAtual.nome}'?") },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        val index = listaGlobalEquipes.indexOfFirst { it.id == equipeAtual.id }
+                        if (index != -1) {
+                            listaGlobalEquipes.removeAt(index)
+                            repository.deletarEquipe(equipeAtual)
+                            onVoltar()
+                        }
+                        showConfirmDeleteEquipe = false
+                    },
+                    colors = ButtonDefaults.textButtonColors(contentColor = Color.Red)
+                ) { Text("EXCLUIR") }
+            },
+            dismissButton = {
+                TextButton(onClick = { showConfirmDeleteEquipe = false }) { Text("CANCELAR") }
+            }
+        )
+    }
+
+    // Diálogo Excluir Patrocinador
+    patrocinadorParaExcluir?.let { pat ->
+        AlertDialog(
+            onDismissRequest = { patrocinadorParaExcluir = null },
+            title = { Text("Excluir Patrocinador") },
+            text = { Text("Tem certeza que deseja excluir permanentemente o patrocinador '${pat.nome}'?") },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        val index = listaGlobalEquipes.indexOfFirst { it.id == equipeAtual.id }
+                        if (index != -1) {
+                            val novosPatrocinadores = equipeAtual.patrocinadores.filter { it != pat }
+                            val updated = listaGlobalEquipes[index].copy(patrocinadores = novosPatrocinadores)
+                            listaGlobalEquipes[index] = updated
+                            repository.salvarEquipe(updated)
+                        }
+                        patrocinadorParaExcluir = null
+                    },
+                    colors = ButtonDefaults.textButtonColors(contentColor = Color.Red)
+                ) { Text("EXCLUIR") }
+            },
+            dismissButton = {
+                TextButton(onClick = { patrocinadorParaExcluir = null }) { Text("CANCELAR") }
+            }
+        )
     }
 
     if (showDialogPatrocinador) {
@@ -216,14 +273,16 @@ fun TelaGerenciarEquipeAdmin(
                 title = { Text("Dados da Equipe") },
                 navigationIcon = {
                     IconButton(onClick = onVoltar) {
-                        Icon(Icons.Default.ArrowBack, contentDescription = "Voltar")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Voltar")
                     }
                 }
             )
         },
         floatingActionButton = {
-            FloatingActionButton(onClick = onAdicionarJogador, containerColor = Color(0xFF2E7D32), contentColor = Color.White) {
-                Icon(Icons.Default.Add, "Adicionar Jogador")
+            if (listaGlobalJogadores.any { it.equipeId == -1 }) { // Só mostra se houver jogadores sem time
+                FloatingActionButton(onClick = onAdicionarJogador, containerColor = Color(0xFF2E7D32), contentColor = Color.White) {
+                    Icon(Icons.Default.Add, "Adicionar Jogador")
+                }
             }
         }
     ) { padding ->
@@ -237,7 +296,7 @@ fun TelaGerenciarEquipeAdmin(
         ) {
             Box(contentAlignment = Alignment.BottomEnd) {
                 AsyncImage(
-                    model = if (escudoUri.isBlank()) R.drawable.ic_launcher_background else escudoUri,
+                    model = escudoUri.ifBlank { R.drawable.ic_launcher_background },
                     contentDescription = null,
                     modifier = Modifier
                         .size(130.dp)
@@ -301,7 +360,7 @@ fun TelaGerenciarEquipeAdmin(
                             Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.width(80.dp)) {
                                 Box(contentAlignment = Alignment.TopEnd) {
                                     AsyncImage(
-                                        model = if (pat.fotoUri.isBlank()) R.drawable.ic_launcher_background else pat.fotoUri,
+                                        model = pat.fotoUri.ifBlank { R.drawable.ic_launcher_background },
                                         contentDescription = null,
                                         modifier = Modifier
                                             .size(70.dp)
@@ -311,15 +370,7 @@ fun TelaGerenciarEquipeAdmin(
                                         contentScale = ContentScale.Fit
                                     )
                                     IconButton(
-                                        onClick = {
-                                            val index = listaGlobalEquipes.indexOfFirst { it.id == equipeAtual.id }
-                                            if (index != -1) {
-                                                val novosPatrocinadores = equipeAtual.patrocinadores.filter { it != pat }
-                                                val updated = listaGlobalEquipes[index].copy(patrocinadores = novosPatrocinadores)
-                                                listaGlobalEquipes[index] = updated
-                                                repository.salvarEquipe(updated)
-                                            }
-                                        },
+                                        onClick = { patrocinadorParaExcluir = pat },
                                         modifier = Modifier.size(24.dp).offset(x = 8.dp, y = (-8).dp)
                                     ) {
                                         Icon(Icons.Default.Delete, contentDescription = "Remover", tint = Color.Red, modifier = Modifier.size(16.dp))
@@ -361,7 +412,7 @@ fun TelaGerenciarEquipeAdmin(
                 ) {
                     Row(modifier = Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
                         AsyncImage(
-                            model = if (jogador.fotoUri.isBlank()) R.drawable.ic_launcher_background else jogador.fotoUri,
+                            model = jogador.fotoUri.ifBlank { R.drawable.ic_launcher_background },
                             contentDescription = null,
                             modifier = Modifier.size(45.dp).clip(CircleShape).background(Color.LightGray),
                             contentScale = ContentScale.Crop
@@ -394,14 +445,7 @@ fun TelaGerenciarEquipeAdmin(
             }
             Spacer(Modifier.height(32.dp))
             Button(
-                onClick = {
-                    val index = listaGlobalEquipes.indexOfFirst { it.id == equipeAtual.id }
-                    if (index != -1) {
-                        listaGlobalEquipes.removeAt(index)
-                        repository.deletarEquipe(equipeAtual)
-                        onVoltar()
-                    }
-                },
+                onClick = { showConfirmDeleteEquipe = true },
                 modifier = Modifier.fillMaxWidth(),
                 colors = ButtonDefaults.buttonColors(containerColor = Color.Red.copy(alpha = 0.8f))
             ) {

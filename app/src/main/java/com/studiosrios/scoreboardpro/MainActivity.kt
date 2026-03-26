@@ -1,6 +1,8 @@
 package com.studiosrios.scoreboardpro
 
+import android.content.Context
 import android.os.Bundle
+import android.util.Log
 import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
@@ -13,6 +15,7 @@ import androidx.compose.runtime.*
 import androidx.compose.runtime.snapshots.SnapshotStateList
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.lifecycle.lifecycleScope
 import com.google.android.gms.auth.api.signin.GoogleSignIn
 import com.google.android.gms.auth.api.signin.GoogleSignInOptions
 import com.google.android.gms.common.api.ApiException
@@ -20,11 +23,16 @@ import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.GoogleAuthProvider
 import com.studiosrios.scoreboardpro.data.local.AppDatabase
 import com.studiosrios.scoreboardpro.data.repository.DataRepository
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 
 class MainActivity : ComponentActivity() {
-    private val listaGlobalJogadores = mutableStateListOf<JogadorExemplo>()
-    private val listaGlobalEquipes = mutableStateListOf<EquipeExemplo>()
-    private val listaGlobalCampeonatos = mutableStateListOf<CampeonatoSalvo>()
+    private val TAG = "ScoreBoardDebug"
+    private val listaPublicaCampeonatos = mutableStateListOf<CampeonatoSalvo>()
+    private val listaMuralExibicao = mutableStateListOf<CampeonatoSalvo>()
+    private val listaMeusJogadores = mutableStateListOf<JogadorExemplo>()
+    private val listaMinhasEquipes = mutableStateListOf<EquipeExemplo>()
+    private val listaMeusCampeonatos = mutableStateListOf<CampeonatoSalvo>()
     private lateinit var repository: DataRepository
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -37,34 +45,42 @@ class MainActivity : ComponentActivity() {
             MaterialTheme {
                 val auth = FirebaseAuth.getInstance()
                 var user by remember { mutableStateOf(auth.currentUser) }
+                var showLogin by remember { mutableStateOf(false) } 
                 val context = LocalContext.current
 
-                // 1. Observar o Banco de Dados Room (Fonte de Verdade)
+                LaunchedEffect(Unit) {
+                    repository.startPublicSync()
+                    repository.startExhibitonSync { list ->
+                        listaMuralExibicao.clear()
+                        listaMuralExibicao.addAll(list)
+                    }
+                }
+
+                LaunchedEffect(Unit) {
+                    db.campeonatoDao().getAll().collect { list ->
+                        listaPublicaCampeonatos.clear()
+                        listaPublicaCampeonatos.addAll(list)
+                    }
+                }
+
                 LaunchedEffect(Unit) {
                     db.jogadorDao().getAll().collect { list ->
-                        listaGlobalJogadores.clear()
-                        listaGlobalJogadores.addAll(list)
+                        listaMeusJogadores.clear(); listaMeusJogadores.addAll(list)
                     }
                 }
                 LaunchedEffect(Unit) {
                     db.equipeDao().getAll().collect { list ->
-                        listaGlobalEquipes.clear()
-                        listaGlobalEquipes.addAll(list)
-                    }
-                }
-                LaunchedEffect(Unit) {
-                    db.campeonatoDao().getAll().collect { list ->
-                        listaGlobalCampeonatos.clear()
-                        listaGlobalCampeonatos.addAll(list)
+                        listaMinhasEquipes.clear(); listaMinhasEquipes.addAll(list)
                     }
                 }
 
-                // 2. Sincronizar Firebase -> Room em segundo plano
                 LaunchedEffect(user) {
-                    user?.let { repository.startSync() }
+                    user?.let { 
+                        showLogin = false
+                        repository.startSync()
+                    }
                 }
 
-                // Configuração do Google Sign-In
                 val gso = remember {
                     val resourceId = context.resources.getIdentifier("default_web_client_id", "string", context.packageName)
                     val builder = GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN).requestEmail()
@@ -79,7 +95,10 @@ class MainActivity : ComponentActivity() {
                         val account = task.getResult(ApiException::class.java)
                         val credential = GoogleAuthProvider.getCredential(account.idToken, null)
                         auth.signInWithCredential(credential).addOnCompleteListener { taskAuth ->
-                            if (taskAuth.isSuccessful) user = auth.currentUser
+                            if (taskAuth.isSuccessful) {
+                                user = auth.currentUser
+                                showLogin = false
+                            }
                         }
                     } catch (e: ApiException) {
                         Toast.makeText(context, "Erro Google: ${e.message}", Toast.LENGTH_SHORT).show()
@@ -87,18 +106,33 @@ class MainActivity : ComponentActivity() {
                 }
 
                 Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
-                    if (user == null) {
-                        TelaLoginGoogle(onLoginSuccess = { launcher.launch(googleSignInClient.signInIntent) })
+                    if (showLogin && user == null) {
+                        TelaLoginGoogle(
+                            onLoginSuccess = { launcher.launch(googleSignInClient.signInIntent) },
+                            onEntrarComoTelespectador = { showLogin = false }
+                        )
                     } else {
                         ScoreBoardNavigation(
-                            listaJ = listaGlobalJogadores,
-                            listaE = listaGlobalEquipes,
-                            listaC = listaGlobalCampeonatos,
+                            listaPublica = listaPublicaCampeonatos,
+                            listaMural = listaMuralExibicao,
+                            listaJ = listaMeusJogadores,
+                            listaE = listaMinhasEquipes,
+                            listaC = listaPublicaCampeonatos,
                             repository = repository,
+                            onShowLogin = { showLogin = true },
                             onLogout = {
                                 auth.signOut()
                                 googleSignInClient.signOut().addOnCompleteListener {
+                                    listaMeusJogadores.clear()
+                                    listaMinhasEquipes.clear()
+                                    listaMeusCampeonatos.clear()
+                                    lifecycleScope.launch(Dispatchers.IO) {
+                                        db.jogadorDao().deleteAll()
+                                        db.equipeDao().deleteAll()
+                                        db.campeonatoDao().deleteAll()
+                                    }
                                     user = null
+                                    showLogin = false
                                 }
                             }
                         )
@@ -111,14 +145,18 @@ class MainActivity : ComponentActivity() {
 
 @Composable
 fun ScoreBoardNavigation(
+    listaPublica: SnapshotStateList<CampeonatoSalvo>,
+    listaMural: SnapshotStateList<CampeonatoSalvo>,
     listaJ: SnapshotStateList<JogadorExemplo>,
     listaE: SnapshotStateList<EquipeExemplo>,
     listaC: SnapshotStateList<CampeonatoSalvo>,
     repository: DataRepository,
+    onShowLogin: () -> Unit,
     onLogout: () -> Unit
 ) {
     var telaAtual by remember { mutableStateOf("telespectador") }
     var isOrganizador by remember { mutableStateOf(false) }
+    val currentUser = FirebaseAuth.getInstance().currentUser
     
     var jogadorSelecionado by remember { mutableStateOf<JogadorExemplo?>(null) }
     var equipeSelecionada by remember { mutableStateOf<EquipeExemplo?>(null) }
@@ -133,16 +171,16 @@ fun ScoreBoardNavigation(
     val equipesNoCampeonato = remember { mutableStateListOf<EquipeExemplo>() }
     var configsCampeonatoAtual by remember { mutableStateOf(ConfiguracoesCampeonato()) }
 
-    BackHandler(enabled = telaAtual != "telespectador" && telaAtual != "menu") {
+    // Corrigido: O BackHandler agora está habilitado no Menu para permitir voltar à tela pública
+    BackHandler(enabled = telaAtual != "telespectador") {
         telaAtual = when (telaAtual) {
+            "menu" -> "telespectador" // Volta para a tela inicial pública
+            "mural_exibicao" -> "telespectador"
             "gerenciar_campeonato" -> "menu"
             "cadastrar_campeonato" -> "menu"
             "selecao_grupos" -> "cadastrar_campeonato"
             "config_chaveamento" -> "selecao_grupos"
-            "selecao_equipes_campeonato" -> {
-                if (modeloCampeonatoEscolhido.contains("Libertadores", ignoreCase = true)) "config_chaveamento"
-                else "cadastrar_campeonato"
-            }
+            "selecao_equipes_campeonato" -> if (modeloCampeonatoEscolhido.contains("Libertadores", ignoreCase = true)) "config_chaveamento" else "cadastrar_campeonato"
             "distribuicao_grupos" -> "selecao_equipes_campeonato"
             "painel_campeonato" -> if (isOrganizador) "menu" else "telespectador"
             "cadastrar_jogador" -> "menu"
@@ -158,7 +196,7 @@ fun ScoreBoardNavigation(
 
     when (telaAtual) {
         "telespectador" -> TelaInicialTelespectador(
-            listaC = listaC,
+            listaC = listaPublica,
             onAbrirCampeonato = { camp ->
                 isOrganizador = false
                 equipesNoCampeonato.clear(); equipesNoCampeonato.addAll(camp.equipes)
@@ -168,7 +206,23 @@ fun ScoreBoardNavigation(
                 configsCampeonatoAtual = camp.configs.copy(); configuracaoFinalGrupos = camp.gruposConfig
                 telaAtual = "painel_campeonato"
             },
-            onEntrarComoOrganizador = { telaAtual = "menu" }
+            onEntrarComoOrganizador = { 
+                if (currentUser != null) telaAtual = "menu" else onShowLogin()
+            }
+        )
+
+        "mural_exibicao" -> TelaCampeonatosTelespectadores(
+            listaC = listaMural,
+            onAbrir = { camp ->
+                isOrganizador = false
+                equipesNoCampeonato.clear(); equipesNoCampeonato.addAll(camp.equipes)
+                listaPartidasCampeonato.clear(); listaPartidasCampeonato.addAll(camp.partidas)
+                modeloCampeonatoEscolhido = camp.modelo; nomeCampeonatoEscolhido = camp.nomeExibicao 
+                fotoCampeonatoEscolhida = camp.fotoUri; idCampeonatoAtual = camp.id
+                configsCampeonatoAtual = camp.configs.copy(); configuracaoFinalGrupos = camp.gruposConfig
+                telaAtual = "painel_campeonato"
+            },
+            onVoltar = { telaAtual = "telespectador" }
         )
 
         "menu" -> TelaInicialMenu(
@@ -183,7 +237,6 @@ fun ScoreBoardNavigation(
                 telaAtual = "painel_campeonato"
             },
             onNavegar = { destino -> 
-                if (destino == "cadastrar_campeonato") isOrganizador = true
                 if (destino == "logout") onLogout() else telaAtual = destino 
             }
         )
@@ -240,11 +293,6 @@ fun ScoreBoardNavigation(
                     val formato = obterFormato(modeloCampeonatoEscolhido)
                     val partidasGeradas = formato.gerarCalendario(equipesNoCampeonato.toList(), configsCampeonatoAtual.modoReturno, configuracaoFinalGrupos, confrontosDefinidos, configsCampeonatoAtual.modoIdaEVoltaMataMata, configsCampeonatoAtual.modoIdaEVoltaFinal)
                     listaPartidasCampeonato.addAll(partidasGeradas)
-                    if (idCampeonatoAtual == -1) {
-                        val novoId = (listaC.maxOfOrNull { it.id } ?: 0) + 1
-                        val novoCamp = CampeonatoSalvo(novoId, nomeCampeonatoEscolhido, modeloCampeonatoEscolhido, equipesNoCampeonato.toList(), listaPartidasCampeonato.toList(), configsCampeonatoAtual, configuracaoFinalGrupos, fotoCampeonatoEscolhida)
-                        repository.salvarCampeonato(novoCamp)
-                    }
                     telaAtual = "painel_campeonato"
                 }
             }
@@ -259,11 +307,6 @@ fun ScoreBoardNavigation(
                 val formato = obterFormato(modeloCampeonatoEscolhido)
                 val partidasGeradas = formato.gerarCalendario(equipesNoCampeonato.toList(), configsCampeonatoAtual.modoReturno, configuracaoFinalGrupos, confrontosDefinidos, configsCampeonatoAtual.modoIdaEVoltaMataMata, configsCampeonatoAtual.modoIdaEVoltaFinal)
                 listaPartidasCampeonato.addAll(partidasGeradas)
-                if (idCampeonatoAtual == -1) {
-                    val novoId = (listaC.maxOfOrNull { it.id } ?: 0) + 1
-                    val novoCamp = CampeonatoSalvo(novoId, nomeCampeonatoEscolhido, modeloCampeonatoEscolhido, equipesNoCampeonato.toList(), listaPartidasCampeonato.toList(), configsCampeonatoAtual, configuracaoFinalGrupos, fotoCampeonatoEscolhida)
-                    repository.salvarCampeonato(novoCamp)
-                }
                 telaAtual = "painel_campeonato"
             }
         )
@@ -271,11 +314,15 @@ fun ScoreBoardNavigation(
             idCamp = idCampeonatoAtual, nomeCamp = nomeCampeonatoEscolhido, fotoCamp = fotoCampeonatoEscolhida,
             equipes = equipesNoCampeonato, partidas = listaPartidasCampeonato, modelo = modeloCampeonatoEscolhido,
             listaGlobalJogadores = listaJ, configsIniciais = configsCampeonatoAtual, listaGruposConfig = configuracaoFinalGrupos,
-            isOrganizador = isOrganizador,
-            onSalvarGeral = { idExistente, novasConfigs ->
-                configsCampeonatoAtual = novasConfigs
-                val camp = listaC.find { it.id == idExistente }?.copy(configs = novasConfigs, equipes = equipesNoCampeonato.toList(), partidas = listaPartidasCampeonato.toList())
-                camp?.let { repository.salvarCampeonato(it) }
+            isOrganizador = isOrganizador && currentUser != null,
+            onSalvarGeral = { id, configs -> 
+                val campAtualizado = CampeonatoSalvo(
+                    id = id, nomeExibicao = nomeCampeonatoEscolhido, nome = nomeCampeonatoEscolhido,
+                    ownerId = currentUser?.uid ?: "", modelo = modeloCampeonatoEscolhido,
+                    equipes = equipesNoCampeonato.toList(), partidas = listaPartidasCampeonato.toList(),
+                    configs = configs, gruposConfig = configuracaoFinalGrupos, fotoUri = fotoCampeonatoEscolhida
+                )
+                repository.salvarCampeonato(campAtualizado)
             },
             onVoltar = { telaAtual = if (isOrganizador) "menu" else "telespectador" }
         )

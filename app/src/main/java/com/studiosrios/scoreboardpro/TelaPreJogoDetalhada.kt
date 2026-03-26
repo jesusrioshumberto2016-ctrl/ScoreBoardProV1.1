@@ -51,7 +51,7 @@ fun TelaPreJogoDetalhada(
             title = { 
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     AsyncImage(
-                        model = jog.fotoUri.ifBlank { R.drawable.ic_launcher_background },
+                        model = jog.fotoUri.ifBlank { "" },
                         contentDescription = null,
                         modifier = Modifier.size(40.dp).clip(CircleShape).background(Color.LightGray),
                         contentScale = ContentScale.Crop
@@ -96,12 +96,12 @@ fun TelaPreJogoDetalhada(
                     Spacer(Modifier.height(8.dp))
                     Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
                         Column(Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally) {
-                            AsyncImage(model = mandante?.escudoUri?.ifBlank { R.drawable.ic_launcher_background } ?: R.drawable.ic_launcher_background, contentDescription = null, modifier = Modifier.size(50.dp))
+                            AsyncImage(model = mandante?.escudoUri?.ifBlank { "" } ?: "", contentDescription = null, modifier = Modifier.size(50.dp))
                             Text(mandante?.nome ?: partida.labelMandante, textAlign = TextAlign.Center, fontWeight = FontWeight.Bold)
                         }
                         Text("VS", fontSize = 20.sp, fontWeight = FontWeight.Black, modifier = Modifier.padding(horizontal = 16.dp))
                         Column(Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally) {
-                            AsyncImage(model = visitante?.escudoUri?.ifBlank { R.drawable.ic_launcher_background } ?: R.drawable.ic_launcher_background, contentDescription = null, modifier = Modifier.size(50.dp))
+                            AsyncImage(model = visitante?.escudoUri?.ifBlank { "" } ?: "", contentDescription = null, modifier = Modifier.size(50.dp))
                             Text(visitante?.nome ?: partida.labelVisitante, textAlign = TextAlign.Center, fontWeight = FontWeight.Bold)
                         }
                     }
@@ -140,7 +140,7 @@ fun TelaPreJogoDetalhada(
                     }
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         AsyncImage(
-                            model = mandante?.escudoUri?.ifBlank { R.drawable.ic_launcher_background } ?: R.drawable.ic_launcher_background,
+                            model = mandante?.escudoUri?.ifBlank { "" } ?: "",
                             contentDescription = null,
                             modifier = Modifier.size(24.dp).clip(CircleShape)
                         )
@@ -150,7 +150,7 @@ fun TelaPreJogoDetalhada(
                     reservasM.forEach { res ->
                         Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(vertical = 4.dp).clickable { jogadorParaVerAcoes = res }) {
                             Box(contentAlignment = Alignment.BottomEnd) {
-                                AsyncImage(model = res.fotoUri.ifBlank { R.drawable.ic_launcher_background }, contentDescription = null, modifier = Modifier.size(24.dp).clip(CircleShape).background(Color.LightGray))
+                                AsyncImage(model = res.fotoUri.ifBlank { "" }, contentDescription = null, modifier = Modifier.size(24.dp).clip(CircleShape).background(Color.LightGray))
                             }
                             Spacer(Modifier.width(8.dp))
                             Text(res.apelido.ifBlank { res.nome }, fontSize = 12.sp)
@@ -165,7 +165,7 @@ fun TelaPreJogoDetalhada(
                         Text("RESERVAS", fontWeight = FontWeight.Bold, color = Color.Gray, fontSize = 12.sp, textAlign = TextAlign.End)
                         Spacer(Modifier.width(8.dp))
                         AsyncImage(
-                            model = visitante?.escudoUri?.ifBlank { R.drawable.ic_launcher_background } ?: R.drawable.ic_launcher_background,
+                            model = visitante?.escudoUri?.ifBlank { "" } ?: "",
                             contentDescription = null,
                             modifier = Modifier.size(24.dp).clip(CircleShape)
                         )
@@ -175,7 +175,7 @@ fun TelaPreJogoDetalhada(
                             Text(res.apelido.ifBlank { res.nome }, fontSize = 12.sp)
                             Spacer(Modifier.width(8.dp))
                             Box(contentAlignment = Alignment.BottomEnd) {
-                                AsyncImage(model = res.fotoUri.ifBlank { R.drawable.ic_launcher_background }, contentDescription = null, modifier = Modifier.size(24.dp).clip(CircleShape).background(Color.LightGray))
+                                AsyncImage(model = res.fotoUri.ifBlank { "" }, contentDescription = null, modifier = Modifier.size(24.dp).clip(CircleShape).background(Color.LightGray))
                             }
                         }
                     }
@@ -220,7 +220,7 @@ fun InfoPreJogoItem(label: String, value: String) {
 
 @Composable
 fun BoxScope.DistribuirJogadoresNoCampoDetalhado(jogadores: List<JogadorExemplo>, p: Partida, isVisitante: Boolean, onClick: (JogadorExemplo) -> Unit) {
-    fun filtrar(pos: List<String>) = jogadores.filter { (p.posicoesNoJogo[it.id] ?: it.posicao).split(" ").first() in pos }
+    fun filtrar(pos: List<String>) = jogadores.filter { (p.posicoesNoJogo[it.id.toString()] ?: it.posicao).split(" ").first() in pos }
 
     val goleiros = filtrar(listOf("GOL"))
     val defesas = filtrar(listOf("ZAG", "LAT"))
@@ -233,8 +233,8 @@ fun BoxScope.DistribuirJogadoresNoCampoDetalhado(jogadores: List<JogadorExemplo>
 
     Column(Modifier.fillMaxSize(), verticalArrangement = Arrangement.SpaceEvenly) {
         linhas.forEach { linha ->
-            val linhaOrdenada = linha.sortedWith(compareBy { jog ->
-                val pos = p.posicoesNoJogo[jog.id] ?: jog.posicao
+            val linhaOrdenada = linha.sortedWith(compareBy<JogadorExemplo> { jog ->
+                val pos = p.posicoesNoJogo[jog.id.toString()] ?: jog.posicao
                 when {
                     pos.contains("(E)") -> 0
                     pos.contains("(D)") -> 2
@@ -254,7 +254,7 @@ fun BoxScope.DistribuirJogadoresNoCampoDetalhado(jogadores: List<JogadorExemplo>
                             ) {
                                 Box(contentAlignment = Alignment.Center) {
                                     AsyncImage(
-                                        model = jog.fotoUri.ifBlank { R.drawable.ic_launcher_background },
+                                        model = jog.fotoUri.ifBlank { "" },
                                         contentDescription = null,
                                         modifier = Modifier.fillMaxSize().clip(CircleShape),
                                         contentScale = ContentScale.Crop

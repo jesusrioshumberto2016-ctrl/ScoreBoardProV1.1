@@ -1,11 +1,11 @@
 package com.studiosrios.scoreboardpro
 
+import androidx.annotation.Keep
 import androidx.room.Entity
 import androidx.room.PrimaryKey
 import java.util.*
 
-// --- MODELOS DE DADOS ---
-
+@Keep
 @Entity(tableName = "jogadores")
 data class JogadorExemplo(
     @PrimaryKey val id: Int = 0,
@@ -19,11 +19,13 @@ data class JogadorExemplo(
     val apelido: String = ""
 )
 
+@Keep
 data class Patrocinador(
     val nome: String = "",
     val fotoUri: String = ""
 )
 
+@Keep
 @Entity(tableName = "equipes")
 data class EquipeExemplo(
     @PrimaryKey val id: Int = 0,
@@ -35,6 +37,7 @@ data class EquipeExemplo(
     val escudoUri: String = "" 
 )
 
+@Keep
 data class EventoPartida(
     val id: String = UUID.randomUUID().toString(),
     val jogadorNome: String = "",
@@ -43,6 +46,7 @@ data class EventoPartida(
     val minuto: String = ""
 )
 
+@Keep
 data class Partida(
     val id: Int = 0,
     val mandanteId: Int = 0,
@@ -54,30 +58,24 @@ data class Partida(
     val data: String = "",
     val horario: String = "",
     val local: String = "A DEFINIR",
-
     var golsMandante: Int? = null,
     var golsVisitante: Int? = null,
     var finalizada: Boolean = false,
-    
     var penaltisMandante: Int? = null,
     var penaltisVisitante: Int? = null,
-
     val melhorJogador: String = "",
     val cartoesAmarelosMandante: Int = 0,
     val cartoesVermelhosMandante: Int = 0,
     val cartoesAmarelosVisitante: Int = 0,
     val cartoesVermelhosVisitante: Int = 0,
     val eventos: List<EventoPartida> = emptyList(),
-
     val titularesMandante: List<Int> = emptyList(),
     val reservasMandante: List<Int> = emptyList(),
     val titularesVisitante: List<Int> = emptyList(),
     val reservasVisitante: List<Int> = emptyList(),
-    
-    val posicoesNoJogo: Map<Int, String> = emptyMap(),
+    val posicoesNoJogo: Map<String, String> = emptyMap(),
     val formacaoMandante: String = "4-4-2",
     val formacaoVisitante: String = "4-4-2",
-
     val arbitroPrincipal: String = "",
     val assistente1: String = "", 
     val assistente2: String = "",
@@ -89,10 +87,10 @@ data class Partida(
     val auxiliar1Visitante: String = "",
     val auxiliar2Visitante: String = "",
     val massagistaVisitante: String = "",
-    
-    val notasJogadores: Map<Int, Double> = emptyMap()
+    val notasJogadores: Map<String, Double> = emptyMap()
 )
 
+@Keep
 data class LinhaTabela(
     val equipeId: Int = 0,
     val nome: String = "",
@@ -108,6 +106,7 @@ data class LinhaTabela(
     val vermelhos: Int = 0
 )
 
+@Keep
 data class ConfiguracoesCampeonato(
     val modoReturno: Boolean = false, 
     val modoIdaEVoltaMataMata: Boolean = true,
@@ -116,16 +115,20 @@ data class ConfiguracoesCampeonato(
     val exibirCartoesNaTabela: Boolean = false
 )
 
+@Keep
 data class ConfigGrupo(
     val nome: String = "",
     val qtdTimes: Int = 0,
     val qtdClassificados: Int = 0
 )
 
+@Keep
 @Entity(tableName = "campeonatos")
 data class CampeonatoSalvo(
     @PrimaryKey val id: Int = 0,
     val nomeExibicao: String = "",
+    val nome: String = "", 
+    val ownerId: String = "",
     val modelo: String = "",
     val equipes: List<EquipeExemplo> = emptyList(),
     val partidas: List<Partida> = emptyList(),

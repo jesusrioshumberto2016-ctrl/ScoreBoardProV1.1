@@ -26,6 +26,16 @@ fun TelaPainelMataMata(
     var abaSelecionada by remember { mutableIntStateOf(0) }
     val titulosAbas = listOf("Chaveamento", "Jogos", "Artilharia", "Configs")
 
+    // Ordenação global para o Mata-Mata
+    val partidasOrdenadas by remember {
+        derivedStateOf {
+            partidas.sortedWith(
+                compareBy<Partida> { it.data.split("/").reversed().joinToString("") }
+                .thenBy { it.horario }
+            )
+        }
+    }
+
     var partidaParaVerPreJogo by remember { mutableStateOf<Partida?>(null) }
     var partidaParaVerDetalhes by remember { mutableStateOf<Partida?>(null) }
     var equipeSelecionada by remember { mutableStateOf<EquipeExemplo?>(null) }
@@ -33,7 +43,6 @@ fun TelaPainelMataMata(
     
     var subAbaArtilhariaSelecionada by remember { mutableIntStateOf(0) }
 
-    // Gerenciamento do botão voltar do sistema
     BackHandler(enabled = true) {
         when {
             jogadorSelecionadoParaDetalhes != null -> jogadorSelecionadoParaDetalhes = null
@@ -104,7 +113,7 @@ fun TelaPainelMataMata(
                         0 -> {
                             ConteudoChaveamentoMataMata(
                                 equipes = equipes,
-                                partidas = partidas,
+                                partidas = partidasOrdenadas,
                                 onPreJogo = { p -> partidaParaVerPreJogo = p },
                                 onDetalhes = { p -> partidaParaVerDetalhes = p },
                                 onEquipeClick = { e: EquipeExemplo -> equipeSelecionada = e }
@@ -112,7 +121,7 @@ fun TelaPainelMataMata(
                         }
                         1 -> {
                             PartidasTab(
-                                partidas = partidas,
+                                partidas = SnapshotStateList<Partida>().apply { addAll(partidasOrdenadas) },
                                 equipes = equipes,
                                 onPreJogoClick = { p -> partidaParaVerPreJogo = p },
                                 onDetalhesClick = { p -> partidaParaVerDetalhes = p },

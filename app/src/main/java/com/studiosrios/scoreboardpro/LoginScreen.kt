@@ -16,7 +16,10 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
 @Composable
-fun TelaLoginGoogle(onLoginSuccess: () -> Unit) {
+fun TelaLoginGoogle(
+    onLoginSuccess: () -> Unit,
+    onEntrarComoTelespectador: () -> Unit // Novo callback
+) {
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -25,7 +28,7 @@ fun TelaLoginGoogle(onLoginSuccess: () -> Unit) {
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {
-        // Logo ScoreBoard Pro - Utilizando recurso local logo_login
+        // Logo ScoreBoard Pro
         Image(
             painter = painterResource(id = R.drawable.logo_login),
             contentDescription = "Logo ScoreBoard Pro",
@@ -59,7 +62,6 @@ fun TelaLoginGoogle(onLoginSuccess: () -> Unit) {
             colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFF1F1F1))
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                // Ícone G estilizado
                 Surface(
                     modifier = Modifier.size(24.dp),
                     shape = RoundedCornerShape(4.dp),
@@ -77,6 +79,25 @@ fun TelaLoginGoogle(onLoginSuccess: () -> Unit) {
                     fontSize = 16.sp
                 )
             }
+        }
+        
+        Spacer(Modifier.height(16.dp))
+
+        // Botão para entrar como Telespectador
+        OutlinedButton(
+            onClick = onEntrarComoTelespectador,
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(55.dp),
+            shape = RoundedCornerShape(12.dp),
+            border = androidx.compose.foundation.BorderStroke(1.dp, Color.LightGray)
+        ) {
+            Text(
+                text = "Entrar como Telespectador",
+                color = Color.Gray,
+                fontWeight = FontWeight.Medium,
+                fontSize = 16.sp
+            )
         }
         
         Spacer(Modifier.height(24.dp))

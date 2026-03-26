@@ -11,7 +11,7 @@ import com.studiosrios.scoreboardpro.JogadorExemplo
 
 @Database(
     entities = [JogadorExemplo::class, EquipeExemplo::class, CampeonatoSalvo::class],
-    version = 1,
+    version = 2,
     exportSchema = false
 )
 @TypeConverters(RoomConverters::class)
@@ -30,7 +30,9 @@ abstract class AppDatabase : RoomDatabase() {
                     context.applicationContext,
                     AppDatabase::class.java,
                     "scoreboard_database"
-                ).build()
+                )
+                .fallbackToDestructiveMigration() // Isso deletará o banco antigo e criará um novo com a estrutura atual
+                .build()
                 INSTANCE = instance
                 instance
             }

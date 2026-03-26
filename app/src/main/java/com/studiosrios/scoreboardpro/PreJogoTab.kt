@@ -221,7 +221,7 @@ fun ConfiguracaoPreJogoDetalhada(
                         items(jogadoresDoTime) { jog ->
                             val isTitular = if (isMandante) pEditada.titularesMandante.contains(jog.id) else pEditada.titularesVisitante.contains(jog.id)
                             val isReserva = if (isMandante) pEditada.reservasMandante.contains(jog.id) else pEditada.reservasVisitante.contains(jog.id)
-                            val posicaoNoJogo = pEditada.posicoesNoJogo[jog.id] ?: jog.posicao
+                            val posicaoNoJogo = pEditada.posicoesNoJogo[jog.id.toString()] ?: jog.posicao
 
                             Card(
                                 modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
@@ -258,7 +258,7 @@ fun ConfiguracaoPreJogoDetalhada(
                                                     text = { Text(pos) },
                                                     onClick = {
                                                         val novoMapa = pEditada.posicoesNoJogo.toMutableMap()
-                                                        novoMapa[jog.id] = pos
+                                                        novoMapa[jog.id.toString()] = pos
                                                         pEditada = pEditada.copy(posicoesNoJogo = novoMapa)
                                                         showPosMenu = false
                                                     }
@@ -418,7 +418,7 @@ fun PainelCampoSimulado(
 
 @Composable
 fun DistribuirJogadoresNoCampoLocal(jogadores: List<JogadorExemplo>, p: Partida, isVisitante: Boolean, onJogadorClick: (JogadorExemplo) -> Unit) {
-    fun filtrar(pos: List<String>) = jogadores.filter { (p.posicoesNoJogo[it.id] ?: it.posicao).split(" ").first() in pos }
+    fun filtrar(pos: List<String>) = jogadores.filter { (p.posicoesNoJogo[it.id.toString()] ?: it.posicao).split(" ").first() in pos }
 
     val goleiros = filtrar(listOf("GOL"))
     val defesas = filtrar(listOf("ZAG", "LAT"))
@@ -432,7 +432,7 @@ fun DistribuirJogadoresNoCampoLocal(jogadores: List<JogadorExemplo>, p: Partida,
     Column(Modifier.fillMaxSize(), verticalArrangement = Arrangement.SpaceEvenly) {
         linhas.forEach { linha ->
             val linhaOrdenada = linha.sortedWith(compareBy { jog ->
-                val pos = p.posicoesNoJogo[jog.id] ?: jog.posicao
+                val pos = p.posicoesNoJogo[jog.id.toString()] ?: jog.posicao
                 when {
                     pos.contains("(E)") -> 0
                     pos.contains("(D)") -> 2

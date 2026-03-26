@@ -13,6 +13,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ExitToApp
+import androidx.compose.material.icons.filled.CastConnected
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Save
 import androidx.compose.material3.*
@@ -27,6 +28,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
+import com.studiosrios.scoreboardpro.data.repository.DataRepository
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -41,6 +43,7 @@ fun TelaPainelLibertadores(
     configsIniciais: ConfiguracoesCampeonato,
     listaGruposConfig: List<ConfigGrupo>,
     isOrganizador: Boolean = true,
+    repository: DataRepository? = null,
     onSalvarGeral: (Int, ConfiguracoesCampeonato) -> Unit,
     onVoltar: () -> Unit
 ) {
@@ -50,6 +53,16 @@ fun TelaPainelLibertadores(
         listOf("Grupos", "Mata-Mata", "Resultados", "Partidas", "Súmula", "Pré-Jogo", "Artilharia", "Configs")
     } else {
         listOf("Grupos", "Mata-Mata", "Partidas", "Artilharia", "Equipes")
+    }
+
+    // Ordenação global para ser usada em todas as abas
+    val partidasOrdenadas by remember {
+        derivedStateOf {
+            partidas.sortedWith(
+                compareBy<Partida> { it.data.split("/").reversed().joinToString("") }
+                .thenBy { it.horario }
+            )
+        }
     }
 
     var partidaParaVerPreJogo by remember { mutableStateOf<Partida?>(null) }
@@ -62,12 +75,8 @@ fun TelaPainelLibertadores(
     var editandoSumulaId by remember { mutableStateOf<Int?>(null) }
     var editandoPreJogoId by remember { mutableStateOf<Int?>(null) }
 
-    // Controle de alterações não salvas no banco de dados (Geral)
     var houveAlteracaoGeral by remember { mutableStateOf(false) }
-    
-    // Controle de alterações pendentes de confirmação em sub-telas ou abas específicas
     var temTrabalhoNaoConfirmado by remember { mutableStateOf(false) }
-    
     var mostrarDialogoConfirmacaoSair by remember { mutableStateOf(false) }
     var abaPretendida by remember { mutableIntStateOf(-1) }
 
@@ -89,10 +98,8 @@ fun TelaPainelLibertadores(
                           editandoSumulaId != null || 
                           editandoPreJogoId != null
 
-    // Função para tentar sair do painel para le menu
     val tentarSairDoPainel = {
         abaPretendida = -1 
-        // Avisa se houver alteração geral não salva no banco
         if (isOrganizador && houveAlteracaoGeral && !ocultarNavegacao) {
             mostrarDialogoConfirmacaoSair = true
         } else {
@@ -100,14 +107,13 @@ fun TelaPainelLibertadores(
         }
     }
 
-    // Gerenciamento do botão voltar do sistema
     BackHandler(enabled = true) {
         when {
             jogadorSelecionadoParaDetalhes != null -> jogadorSelecionadoParaDetalhes = null
             equipeSelecionada != null -> equipeSelecionada = null
             partidaParaVerPreJogo != null -> partidaParaVerPreJogo = null
             partidaParaVerDetalhes != null -> partidaParaVerDetalhes = null
-            editandoSumulaId != null || editandoPreJogoId != null -> { /* O BackHandler interno do componente cuidará disso */ }
+            editandoSumulaId != null || editandoPreJogoId != null -> { }
             else -> tentarSairDoPainel()
         }
     }
@@ -181,6 +187,26 @@ fun TelaPainelLibertadores(
                         actions = {
                             if (isOrganizador) {
                                 IconButton(onClick = {
+                                    repository?.let { repo ->
+                                        val campParaExibicao = CampeonatoSalvo(
+                                            id = idCamp,
+                                            nomeExibicao = nomeCamp,
+                                            nome = nomeCamp,
+                                            fotoUri = fotoCamp,
+                                            equipes = equipes,
+                                            partidas = partidas.toList(),
+                                            modelo = "Libertadores",
+                                            configs = configsIniciais,
+                                            gruposConfig = listaGruposConfig
+                                        )
+                                        repo.salvarEmExibicao(campParaExibicao)
+                                        scope.launch { snackbarHostState.showSnackbar("Publicado no Mural de Telespectadores!") }
+                                    }
+                                }) {
+                                    Icon(Icons.Default.CastConnected, contentDescription = "Publicar Mural", tint = MaterialTheme.colorScheme.primary)
+                                }
+
+                                IconButton(onClick = {
                                     onSalvarGeral(idCamp, configsIniciais)
                                     houveAlteracaoGeral = false
                                     temTrabalhoNaoConfirmado = false
@@ -194,40 +220,24 @@ fun TelaPainelLibertadores(
                         }
                     )
                     
-                    if (isOrganizador) {
-                        ScrollableTabRow(
-                            selectedTabIndex = abaSelecionada,
-                            edgePadding = 0.dp,
-                            containerColor = MaterialTheme.colorScheme.surface
-                        ) {
-                            titulosAbas.forEachIndexed { index, titulo ->
-                                Tab(
-                                    selected = abaSelecionada == index,
-                                    onClick = {
-                                        if (temTrabalhoNaoConfirmado && abaSelecionada != index) {
-                                            abaPretendida = index
-                                            mostrarDialogoConfirmacaoSair = true
-                                        } else {
-                                            abaSelecionada = index
-                                        }
-                                    },
-                                    text = { Text(titulo, fontSize = 11.sp) }
-                                )
-                            }
-                        }
-                    } else {
-                        ScrollableTabRow(
-                            selectedTabIndex = abaSelecionada,
-                            edgePadding = 0.dp,
-                            containerColor = MaterialTheme.colorScheme.surface
-                        ) {
-                            titulosAbas.forEachIndexed { index, titulo ->
-                                Tab(
-                                    selected = abaSelecionada == index,
-                                    onClick = { abaSelecionada = index },
-                                    text = { Text(titulo, fontSize = 11.sp, fontWeight = FontWeight.Bold, maxLines = 1) }
-                                )
-                            }
+                    ScrollableTabRow(
+                        selectedTabIndex = abaSelecionada,
+                        edgePadding = 0.dp,
+                        containerColor = MaterialTheme.colorScheme.surface
+                    ) {
+                        titulosAbas.forEachIndexed { index, titulo ->
+                            Tab(
+                                selected = abaSelecionada == index,
+                                onClick = {
+                                    if (isOrganizador && temTrabalhoNaoConfirmado && abaSelecionada != index) {
+                                        abaPretendida = index
+                                        mostrarDialogoConfirmacaoSair = true
+                                    } else {
+                                        abaSelecionada = index
+                                    }
+                                },
+                                text = { Text(titulo, fontSize = 11.sp, fontWeight = if(isOrganizador) FontWeight.Normal else FontWeight.Bold) }
+                            )
                         }
                     }
                 }
@@ -271,21 +281,21 @@ fun TelaPainelLibertadores(
                     Column(Modifier.fillMaxSize()) {
                         Box(modifier = Modifier.weight(1f)) {
                             when (abaNome) {
-                                "Grupos" -> PainelGruposLibertadores(equipes, partidas, configsIniciais, listaGruposConfig, onEquipeClick = { e: EquipeExemplo -> equipeSelecionada = e })
+                                "Grupos" -> PainelGruposLibertadores(equipes, partidasOrdenadas, configsIniciais, listaGruposConfig, onEquipeClick = { e: EquipeExemplo -> equipeSelecionada = e })
                                 "Mata-Mata" -> { 
-                                    val partidasMataMata = partidas.filter { 
+                                    val partidasMataMata = partidasOrdenadas.filter { 
                                         !it.fase.contains("RODADA", ignoreCase = true) && !it.fase.contains("ÚNICA", ignoreCase = true) && it.fase.isNotBlank() 
-                                    }.sortedWith(compareBy<Partida> { it.data.split("/").reversed().joinToString("") }.thenBy { it.horario })
+                                    }
                                     ConteudoChaveamentoLibertadores(equipes, partidasMataMata, { p: Partida -> partidaParaVerPreJogo = p }, { p: Partida -> partidaParaVerDetalhes = p }, { e: EquipeExemplo -> equipeSelecionada = e })
                                 }
                                 "Equipes" -> AbaEquipesTelespectador(equipes, onEquipeClick = { e: EquipeExemplo -> equipeSelecionada = e })
-                                "Resultados" -> ResultadosTab(partidas, equipes, onConfirmarResultado = { _: Partida -> 
+                                "Resultados" -> ResultadosTab(SnapshotStateList<Partida>().apply { addAll(partidasOrdenadas) }, equipes, onConfirmarResultado = { _: Partida -> 
                                     houveAlteracaoGeral = true
                                     onSalvarGeral(idCamp, configsIniciais) 
                                 })
-                                "Partidas" -> PartidasTab(partidas, equipes, {p: Partida -> partidaParaVerPreJogo = p}, {p: Partida -> partidaParaVerDetalhes = p}, false, {e: EquipeExemplo -> equipeSelecionada = e})
+                                "Partidas" -> PartidasTab(SnapshotStateList<Partida>().apply { addAll(partidasOrdenadas) }, equipes, {p: Partida -> partidaParaVerPreJogo = p}, {p: Partida -> partidaParaVerDetalhes = p}, false, {e: EquipeExemplo -> equipeSelecionada = e})
                                 "Súmula" -> SumulaTab(
-                                    partidas = partidas, 
+                                    partidas = SnapshotStateList<Partida>().apply { addAll(partidasOrdenadas) }, 
                                     equipes = equipes, 
                                     todosJogadores = listaGlobalJogadores,
                                     onEntrarEdicao = {id: Int -> editandoSumulaId = id}, 
@@ -298,7 +308,7 @@ fun TelaPainelLibertadores(
                                 )
                                 "Pré-Jogo" -> PreJogoTab(
                                     equipes = equipes, 
-                                    partidas = partidas, 
+                                    partidas = SnapshotStateList<Partida>().apply { addAll(partidasOrdenadas) },
                                     listaGlobalJogadores = listaGlobalJogadores, 
                                     onEntrarEdicao = {id: Int -> editandoPreJogoId = id}, 
                                     onSairEdicao = {editandoPreJogoId = null},

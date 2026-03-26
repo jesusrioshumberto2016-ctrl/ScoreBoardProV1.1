@@ -4,6 +4,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -19,10 +20,12 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
@@ -47,19 +50,25 @@ fun TelaInicialTelespectador(
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Icon(Icons.Default.SportsSoccer, null, tint = MaterialTheme.colorScheme.primary)
                             Spacer(Modifier.width(8.dp))
-                            Text("ScoreBoard Pro", fontWeight = FontWeight.Black)
+                            Text("ScoreBoard Pro", fontWeight = FontWeight.Black, fontSize = 20.sp)
                         }
                     },
                     actions = {
-                        TextButton(onClick = onEntrarComoOrganizador) {
-                            Text("ORGANIZAR", fontWeight = FontWeight.Bold)
+                        Button(
+                            onClick = onEntrarComoOrganizador,
+                            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primaryContainer, contentColor = MaterialTheme.colorScheme.onPrimaryContainer),
+                            shape = RoundedCornerShape(8.dp),
+                            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp),
+                            modifier = Modifier.padding(end = 8.dp)
+                        ) {
+                            Text("ORGANIZAR", fontWeight = FontWeight.Bold, fontSize = 12.sp)
                         }
                     }
                 )
                 OutlinedTextField(
                     value = busca,
                     onValueChange = { busca = it },
-                    placeholder = { Text("Buscar campeonato...") },
+                    placeholder = { Text("Buscar competições em andamento...") },
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(horizontal = 16.dp, vertical = 8.dp),
@@ -74,38 +83,174 @@ fun TelaInicialTelespectador(
             }
         }
     ) { padding ->
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(padding)
-                .background(MaterialTheme.colorScheme.background)
-        ) {
-            if (listaC.isEmpty()) {
-                Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Text("Nenhum campeonato ativo", color = Color.Gray)
-                        Text("Os organizadores ainda não criaram competições.", fontSize = 12.sp, color = Color.LightGray)
+        if (listaC.isEmpty()) {
+            Box(Modifier.fillMaxSize().padding(padding), contentAlignment = Alignment.Center) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Icon(Icons.Default.EmojiEvents, null, modifier = Modifier.size(64.dp), tint = Color.LightGray)
+                    Spacer(Modifier.height(16.dp))
+                    Text("Nenhum campeonato ativo", fontWeight = FontWeight.Bold, color = Color.Gray)
+                    Text("Acompanhe aqui as melhores competições em breve.", fontSize = 12.sp, color = Color.LightGray)
+                }
+            }
+        } else {
+            LazyVerticalGrid(
+                columns = GridCells.Fixed(2),
+                contentPadding = PaddingValues(16.dp),
+                horizontalArrangement = Arrangement.spacedBy(16.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp),
+                modifier = Modifier.padding(padding)
+            ) {
+                // Se houver pelo menos um campeonato e nenhuma busca ativa, mostramos o primeiro como destaque
+                if (campeonatosFiltrados.isNotEmpty() && busca.isEmpty()) {
+                    item(span = { GridItemSpan(2) }) {
+                        CardDestaqueTelespectador(campeonatosFiltrados.first()) { onAbrirCampeonato(campeonatosFiltrados.first()) }
+                    }
+                    item(span = { GridItemSpan(2) }) {
+                        Text(
+                            "OUTRAS COMPETIÇÕES",
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color.Gray,
+                            modifier = Modifier.padding(top = 8.dp)
+                        )
                     }
                 }
-            } else {
-                Text(
-                    "COMPETIÇÕES DISPONÍVEIS",
-                    modifier = Modifier.padding(16.dp),
-                    fontSize = 12.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = Color.Gray
-                )
 
-                LazyVerticalGrid(
-                    columns = GridCells.Fixed(2),
-                    contentPadding = PaddingValues(16.dp),
-                    horizontalArrangement = Arrangement.spacedBy(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(16.dp)
-                ) {
-                    items(campeonatosFiltrados) { camp ->
-                        CardTelespectador(camp) { onAbrirCampeonato(camp) }
-                    }
+                val listaRestante = if (busca.isEmpty() && campeonatosFiltrados.isNotEmpty()) {
+                    campeonatosFiltrados.drop(1)
+                } else {
+                    campeonatosFiltrados
                 }
+
+                items(listaRestante) { camp ->
+                    CardTelespectador(camp) { onAbrirCampeonato(camp) }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun CardDestaqueTelespectador(camp: CampeonatoSalvo, onClick: () -> Unit) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(220.dp)
+            .clickable { onClick() },
+        shape = RoundedCornerShape(16.dp),
+        elevation = CardDefaults.cardElevation(6.dp)
+    ) {
+        Box {
+            AsyncImage(
+                model = camp.fotoUri.ifBlank { R.drawable.logo_login }, 
+                contentDescription = null,
+                modifier = Modifier.fillMaxSize(),
+                contentScale = ContentScale.Crop
+            )
+            // Gradiente para leitura
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(
+                        Brush.verticalGradient(
+                            colors = listOf(Color.Transparent, Color.Black.copy(alpha = 0.8f)),
+                            startY = 300f
+                        )
+                    )
+            )
+            
+            Column(
+                modifier = Modifier
+                    .align(Alignment.BottomStart)
+                    .padding(16.dp)
+            ) {
+                Surface(
+                    color = MaterialTheme.colorScheme.primary,
+                    shape = RoundedCornerShape(4.dp)
+                ) {
+                    Text(
+                        "AO VIVO / EM ALTA",
+                        color = Color.White,
+                        fontSize = 10.sp,
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                    )
+                }
+                Spacer(Modifier.height(8.dp))
+                Text(
+                    text = camp.nomeExibicao.uppercase(),
+                    color = Color.White,
+                    fontWeight = FontWeight.Black,
+                    fontSize = 22.sp,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis
+                )
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(Icons.Default.Groups, null, tint = Color.LightGray, modifier = Modifier.size(14.dp))
+                    Spacer(Modifier.width(4.dp))
+                    Text(
+                        text = "${camp.equipes.size} Equipes participando",
+                        color = Color.LightGray,
+                        fontSize = 12.sp
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun CardTelespectador(camp: CampeonatoSalvo, onClick: () -> Unit) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(180.dp)
+            .clickable { onClick() },
+        shape = RoundedCornerShape(12.dp),
+        elevation = CardDefaults.cardElevation(3.dp),
+        colors = CardDefaults.cardColors(containerColor = Color.White)
+    ) {
+        Column {
+            AsyncImage(
+                model = camp.fotoUri.ifBlank { R.drawable.ic_launcher_background },
+                contentDescription = null,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(110.dp),
+                contentScale = ContentScale.Crop
+            )
+            
+            Column(Modifier.padding(10.dp)) {
+                Text(
+                    text = camp.nomeExibicao,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 14.sp,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+                Spacer(Modifier.height(4.dp))
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(
+                        Icons.Default.SportsSoccer, 
+                        null, 
+                        modifier = Modifier.size(12.dp), 
+                        tint = MaterialTheme.colorScheme.primary
+                    )
+                    Spacer(Modifier.width(4.dp))
+                    Text(
+                        text = camp.modelo,
+                        fontSize = 10.sp,
+                        color = Color.Gray,
+                        maxLines = 1
+                    )
+                }
+                Spacer(Modifier.weight(1f))
+                Text(
+                    text = "Ver detalhes",
+                    fontSize = 10.sp,
+                    color = MaterialTheme.colorScheme.primary,
+                    fontWeight = FontWeight.Bold
+                )
             }
         }
     }
@@ -187,54 +332,6 @@ fun CardGerenciamento(titulo: String, sub: String, icon: ImageVector, onClick: (
             Column {
                 Text(titulo, fontWeight = FontWeight.Bold)
                 Text(sub, fontSize = 12.sp, color = Color.Gray)
-            }
-        }
-    }
-}
-
-@Composable
-fun CardTelespectador(camp: CampeonatoSalvo, onClick: () -> Unit) {
-    Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(200.dp)
-            .clickable { onClick() },
-        elevation = CardDefaults.cardElevation(4.dp),
-        colors = CardDefaults.cardColors(containerColor = Color.White)
-    ) {
-        Column {
-            AsyncImage(
-                model = camp.fotoUri.ifBlank { R.drawable.ic_launcher_background },
-                contentDescription = null,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(130.dp),
-                contentScale = ContentScale.Crop
-            )
-            
-            Column(Modifier.padding(12.dp)) {
-                Text(
-                    text = camp.nomeExibicao,
-                    fontWeight = FontWeight.ExtraBold,
-                    fontSize = 14.sp,
-                    maxLines = 2,
-                    lineHeight = 18.sp
-                )
-                Spacer(Modifier.weight(1f))
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(
-                        Icons.Default.SportsSoccer, 
-                        null, 
-                        modifier = Modifier.size(12.dp), 
-                        tint = MaterialTheme.colorScheme.primary
-                    )
-                    Spacer(Modifier.width(4.dp))
-                    Text(
-                        text = "${camp.equipes.size} Equipes",
-                        fontSize = 10.sp,
-                        color = Color.Gray
-                    )
-                }
             }
         }
     }

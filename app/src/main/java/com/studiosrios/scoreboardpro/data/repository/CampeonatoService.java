@@ -23,22 +23,21 @@ public class CampeonatoService {
                              FirebaseAuth.getInstance().getCurrentUser().getUid() : null;
     }
 
-    /**
-     * 1. CRIAR: Qualquer usuário logado pode criar um campeonato.
-     */
     public void salvarCampeonato(String nome) {
         if (currentUserId == null) return;
 
         String key = mDatabase.push().getKey();
         if (key != null) {
-            Campeonato novoCampeonato = new Campeonato(key, nome, currentUserId);
+            // Ajustado para usar o construtor do Kotlin (que pode exigir todos os argumentos dependendo de como foi definido)
+            Campeonato novoCampeonato = new Campeonato();
+            novoCampeonato.setId(key);
+            novoCampeonato.setNome(nome);
+            novoCampeonato.setOwnerId(currentUserId);
+            
             mDatabase.child(key).setValue(novoCampeonato);
         }
     }
 
-    /**
-     * 2. LER: Todos os usuários logados podem ler todos os campeonatos.
-     */
     public void listarTodos(final OnCampeonatosDataChanged listener) {
         mDatabase.addValueEventListener(new ValueEventListener() {
             @Override
@@ -60,22 +59,17 @@ public class CampeonatoService {
         });
     }
 
-    /**
-     * 3. EDITAR: Somente o usuário cujo uid seja igual ao ownerId pode editar.
-     */
     public void editarCampeonato(Campeonato campeonato, String novoNome) {
-        if (currentUserId != null && currentUserId.equals(campeonato.ownerId)) {
-            campeonato.nome = novoNome;
-            mDatabase.child(campeonato.id).setValue(campeonato);
+        // No Java, acessamos propriedades Kotlin via getters/setters
+        if (currentUserId != null && currentUserId.equals(campeonato.getOwnerId())) {
+            campeonato.setNome(novoNome);
+            mDatabase.child(campeonato.getId()).setValue(campeonato);
         }
     }
 
-    /**
-     * 4. EXCLUIR: Somente o usuário cujo uid seja igual ao ownerId pode excluir.
-     */
     public void excluirCampeonato(Campeonato campeonato) {
-        if (currentUserId != null && currentUserId.equals(campeonato.ownerId)) {
-            mDatabase.child(campeonato.id).removeValue();
+        if (currentUserId != null && currentUserId.equals(campeonato.getOwnerId())) {
+            mDatabase.child(campeonato.getId()).removeValue();
         }
     }
 

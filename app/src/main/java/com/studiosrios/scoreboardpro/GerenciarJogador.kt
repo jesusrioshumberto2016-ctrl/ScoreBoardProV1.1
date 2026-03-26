@@ -152,6 +152,7 @@ fun TelaGerenciarJogadorAdmin(
     var apelido by remember { mutableStateOf(jogador.apelido) }
     var posicao by remember { mutableStateOf(jogador.posicao) }
     var expanded by remember { mutableStateOf(false) }
+    var showConfirmDelete by remember { mutableStateOf(false) }
     val posicoes = listOf("GOL", "ZAG", "LAT", "VOL", "MEI", "MAT", "ALA", "PT", "CA")
 
     val launcher = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri: Uri? ->
@@ -165,6 +166,31 @@ fun TelaGerenciarJogadorAdmin(
                 repository.salvarJogador(updated)
             }
         }
+    }
+
+    if (showConfirmDelete) {
+        AlertDialog(
+            onDismissRequest = { showConfirmDelete = false },
+            title = { Text("Excluir Jogador") },
+            text = { Text("Tem certeza que deseja excluir permanentemente '${jogador.nome}'?") },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        val index = listaGlobalJogadores.indexOfFirst { it.id == jogador.id }
+                        if (index != -1) {
+                            listaGlobalJogadores.removeAt(index)
+                            // Adicionar chamada de deletar no repositório aqui se necessário
+                            onVoltar()
+                        }
+                        showConfirmDelete = false
+                    },
+                    colors = ButtonDefaults.textButtonColors(contentColor = Color.Red)
+                ) { Text("EXCLUIR") }
+            },
+            dismissButton = {
+                TextButton(onClick = { showConfirmDelete = false }) { Text("CANCELAR") }
+            }
+        )
     }
 
     Scaffold(
@@ -298,16 +324,7 @@ fun TelaGerenciarJogadorAdmin(
             Spacer(Modifier.height(32.dp))
 
             Button(
-                onClick = {
-                    val index = listaGlobalJogadores.indexOfFirst { it.id == jogador.id }
-                    if (index != -1) {
-                        listaGlobalJogadores.removeAt(index)
-                        // Note: DataRepository should ideally have a delete method too.
-                        // For now, it's removing from SnapshotStateList, and repo doesn't have delete yet.
-                        // I will add delete methods to repository.
-                        onVoltar()
-                    }
-                },
+                onClick = { showConfirmDelete = true },
                 modifier = Modifier.fillMaxWidth(),
                 colors = ButtonDefaults.buttonColors(containerColor = Color.Red.copy(alpha = 0.8f))
             ) {

@@ -2,6 +2,7 @@ package com.studiosrios.scoreboardpro.data.repository
 
 import android.content.Context
 import android.net.Uri
+import android.util.Log
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.database.DataSnapshot
 import com.google.firebase.database.DatabaseError
@@ -23,7 +24,8 @@ import java.util.UUID
 
 class DataRepository(private val db: AppDatabase, private val context: Context) {
     private val scope = CoroutineScope(Dispatchers.IO)
-    private val firebase = FirebaseDatabase.getInstance()
+    
+    private val firebase = FirebaseDatabase.getInstance("https://scoreboard-pro-a9cd5-default-rtdb.firebaseio.com/")
     private val storage = FirebaseStorage.getInstance()
     private val auth = FirebaseAuth.getInstance()
 
@@ -63,6 +65,60 @@ class DataRepository(private val db: AppDatabase, private val context: Context) 
         }
     }
 
+    /**
+     * Sincroniza campeonatos do Mural de Exibição (Pasta Independente: campeonatostelespectadores)
+     * Sincroniza com qualquer usuário, mesmo sem login.
+     */
+    fun startExhibitonSync(onUpdate: (List<CampeonatoSalvo>) -> Unit) {
+        val exhibitionRef = firebase.getReference("campeonatostelespectadores")
+        exhibitionRef.addValueEventListener(object : ValueEventListener {
+            override fun onDataChange(snapshot: DataSnapshot) {
+                val list = mutableListOf<CampeonatoSalvo>()
+                snapshot.children.forEach { child ->
+                    try {
+                        child.getValue(CampeonatoSalvo::class.java)?.let { list.add(it) }
+                    } catch (e: Exception) {
+                        Log.e("DataRepository", "Erro Mural: ${e.message}")
+                    }
+                }
+                onUpdate(list)
+                scope.launch { db.campeonatoDao().insertAll(list) }
+            }
+            override fun onCancelled(error: DatabaseError) {}
+        })
+    }
+
+    /**
+     * Sincroniza campeonatos públicos do Firebase para o Room.
+     * Funciona para todos, inclusive VISITANTES (sem conta Google).
+     */
+    fun startPublicSync() {
+        Log.d("DataRepository", "Iniciando sincronização pública (Visitante)")
+        val publicRef = firebase.getReference("campeonatos")
+        publicRef.addValueEventListener(object : ValueEventListener {
+            override fun onDataChange(snapshot: DataSnapshot) {
+                val list = mutableListOf<CampeonatoSalvo>()
+                snapshot.children.forEach { child ->
+                    try {
+                        child.getValue(CampeonatoSalvo::class.java)?.let { list.add(it) }
+                    } catch (e: Exception) {
+                        Log.e("DataRepository", "Erro conversão pública: ${e.message}")
+                    }
+                }
+                scope.launch {
+                    db.campeonatoDao().insertAll(list)
+                    Log.d("DataRepository", "Room Offline atualizado com ${list.size} campeonatos públicos")
+                }
+            }
+            override fun onCancelled(error: DatabaseError) {
+                Log.e("DataRepository", "Erro Firebase Público: ${error.message}")
+            }
+        })
+    }
+
+    /**
+     * Sincroniza os dados privados do organizador.
+     */
     fun startSync(
         onJogadoresUpdate: (List<JogadorExemplo>) -> Unit = {},
         onEquipesUpdate: (List<EquipeExemplo>) -> Unit = {},
@@ -75,9 +131,13 @@ class DataRepository(private val db: AppDatabase, private val context: Context) 
             override fun onDataChange(snapshot: DataSnapshot) {
                 val list = mutableListOf<JogadorExemplo>()
                 snapshot.children.forEach { child ->
-                    child.getValue(JogadorExemplo::class.java)?.let { list.add(it) }
+                    try {
+                        child.getValue(JogadorExemplo::class.java)?.let { list.add(it) }
+                    } catch (e: Exception) {
+                        Log.e("DataRepository", "Erro Jogador: ${e.message}")
+                    }
                 }
-                scope.launch { if (list.isNotEmpty()) db.jogadorDao().insertAll(list) }
+                scope.launch { db.jogadorDao().insertAll(list) }
                 onJogadoresUpdate(list)
             }
             override fun onCancelled(error: DatabaseError) {}
@@ -87,9 +147,13 @@ class DataRepository(private val db: AppDatabase, private val context: Context) 
             override fun onDataChange(snapshot: DataSnapshot) {
                 val list = mutableListOf<EquipeExemplo>()
                 snapshot.children.forEach { child ->
-                    child.getValue(EquipeExemplo::class.java)?.let { list.add(it) }
+                    try {
+                        child.getValue(EquipeExemplo::class.java)?.let { list.add(it) }
+                    } catch (e: Exception) {
+                        Log.e("DataRepository", "Erro Equipe: ${e.message}")
+                    }
                 }
-                scope.launch { if (list.isNotEmpty()) db.equipeDao().insertAll(list) }
+                scope.launch { db.equipeDao().insertAll(list) }
                 onEquipesUpdate(list)
             }
             override fun onCancelled(error: DatabaseError) {}
@@ -99,23 +163,17 @@ class DataRepository(private val db: AppDatabase, private val context: Context) 
             override fun onDataChange(snapshot: DataSnapshot) {
                 val list = mutableListOf<CampeonatoSalvo>()
                 snapshot.children.forEach { child ->
-                    child.getValue(CampeonatoSalvo::class.java)?.let { list.add(it) }
+                    try {
+                        child.getValue(CampeonatoSalvo::class.java)?.let { list.add(it) }
+                    } catch (e: Exception) {
+                        Log.e("DataRepository", "Erro Camp Privado: ${e.message}")
+                    }
                 }
-                scope.launch { if (list.isNotEmpty()) db.campeonatoDao().insertAll(list) }
+                scope.launch { db.campeonatoDao().insertAll(list) }
                 onCampeonatosUpdate(list)
             }
             override fun onCancelled(error: DatabaseError) {}
         })
-    }
-
-    suspend fun loadLocalData(
-        onJogadores: (List<JogadorExemplo>) -> Unit,
-        onEquipes: (List<EquipeExemplo>) -> Unit,
-        onCampeonatos: (List<CampeonatoSalvo>) -> Unit
-    ) {
-        onJogadores(db.jogadorDao().getAll().first())
-        onEquipes(db.equipeDao().getAll().first())
-        onCampeonatos(db.campeonatoDao().getAll().first())
     }
 
     fun salvarJogador(jogador: JogadorExemplo) {
@@ -128,15 +186,6 @@ class DataRepository(private val db: AppDatabase, private val context: Context) 
                 val fotoUrl = uploadParaFirebase(fotoLocal, "jogadores")
                 val jogadorNuvem = jogadorLocal.copy(fotoUri = fotoUrl)
                 firebase.getReference("users/$userId/jogadores").child(jogador.id.toString()).setValue(jogadorNuvem)
-            }
-        }
-    }
-
-    fun deletarJogador(jogador: JogadorExemplo) {
-        scope.launch {
-            db.jogadorDao().delete(jogador)
-            getUserId()?.let { userId ->
-                firebase.getReference("users/$userId/jogadores").child(jogador.id.toString()).removeValue()
             }
         }
     }
@@ -168,24 +217,56 @@ class DataRepository(private val db: AppDatabase, private val context: Context) 
 
     fun salvarCampeonato(campeonato: CampeonatoSalvo) {
         scope.launch {
+            val userId = getUserId() ?: return@launch
             val fotoLocal = persistirImagemLocal(campeonato.fotoUri)
-            val campLocal = campeonato.copy(fotoUri = fotoLocal)
+            val campLocal = campeonato.copy(fotoUri = fotoLocal, ownerId = userId, nome = campeonato.nomeExibicao)
             db.campeonatoDao().insert(campLocal)
 
-            getUserId()?.let { userId ->
-                val fotoUrl = uploadParaFirebase(fotoLocal, "campeonatos")
-                val campNuvem = campLocal.copy(fotoUri = fotoUrl)
-                firebase.getReference("users/$userId/campeonatos").child(campeonato.id.toString()).setValue(campNuvem)
-            }
+            val fotoUrl = uploadParaFirebase(fotoLocal, "campeonatos")
+            val campNuvem = campLocal.copy(fotoUri = fotoUrl)
+            
+            firebase.getReference("users/$userId/campeonatos").child(campeonato.id.toString()).setValue(campNuvem)
+            firebase.getReference("campeonatos").child(campeonato.id.toString()).setValue(campNuvem)
+        }
+    }
+
+    /**
+     * Salva um campeonato diretamente na pasta independente de exibição (campeonatostelespectadores).
+     */
+    fun salvarEmExibicao(campeonato: CampeonatoSalvo) {
+        scope.launch {
+            val userId = getUserId() ?: return@launch
+            val fotoLocal = persistirImagemLocal(campeonato.fotoUri)
+            val campLocal = campeonato.copy(fotoUri = fotoLocal, ownerId = userId, nome = campeonato.nomeExibicao)
+            
+            val fotoUrl = uploadParaFirebase(fotoLocal, "campeonatos_exibicao")
+            val campNuvem = campLocal.copy(fotoUri = fotoUrl)
+            
+            firebase.getReference("campeonatostelespectadores").child(campeonato.id.toString()).setValue(campNuvem)
+        }
+    }
+
+    /**
+     * Move um campeonato ativo para o modo de exibição de forma atômica (campeonatostelespectadores).
+     */
+    fun moverParaExibicao(campeonato: CampeonatoSalvo) {
+        scope.launch {
+            val userId = getUserId() ?: return@launch
+            val updates = hashMapOf<String, Any?>(
+                "campeonatos/${campeonato.id}" to null,
+                "users/$userId/campeonatos/${campeonato.id}" to null,
+                "campeonatostelespectadores/${campeonato.id}" to campeonato
+            )
+            firebase.getReference().updateChildren(updates).await()
         }
     }
 
     fun deletarCampeonato(campeonato: CampeonatoSalvo) {
         scope.launch {
+            val userId = getUserId() ?: return@launch
             db.campeonatoDao().delete(campeonato)
-            getUserId()?.let { userId ->
-                firebase.getReference("users/$userId/campeonatos").child(campeonato.id.toString()).removeValue()
-            }
+            firebase.getReference("users/$userId/campeonatos").child(campeonato.id.toString()).removeValue()
+            firebase.getReference("campeonatos").child(campeonato.id.toString()).removeValue()
         }
     }
 }

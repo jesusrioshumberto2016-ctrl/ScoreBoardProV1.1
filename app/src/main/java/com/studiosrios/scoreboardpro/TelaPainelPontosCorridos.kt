@@ -25,6 +25,16 @@ fun TelaPainelPontosCorridos(
     val titulosAbas = listOf("Tabela", "Jogos", "Artilharia", "Configs")
     var equipeSelecionada by remember { mutableStateOf<EquipeExemplo?>(null) }
 
+    // Ordenação das partidas para pontos corridos
+    val partidasOrdenadas by remember {
+        derivedStateOf {
+            partidas.sortedWith(
+                compareBy<Partida> { it.data.split("/").reversed().joinToString("") }
+                .thenBy { it.horario }
+            )
+        }
+    }
+
     Scaffold(
         topBar = {
             if (equipeSelecionada == null) {
@@ -63,7 +73,7 @@ fun TelaPainelPontosCorridos(
                         configs = configsIniciais,
                         onEquipeClick = { e -> equipeSelecionada = e }
                     )
-                    1 -> PartidasTab(partidas, equipes, {}, {})
+                    1 -> PartidasTab(SnapshotStateList<Partida>().apply { addAll(partidasOrdenadas) }, equipes, {}, {})
                     2 -> TelaArtilharia(equipes, partidas, listaGlobalJogadores)
                     3 -> {
                         TelaConfiguracoesCampeonato(
