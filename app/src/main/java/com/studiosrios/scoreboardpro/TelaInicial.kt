@@ -61,9 +61,13 @@ fun TelaInicialTelespectador(
     val listaOrdenada = remember(listaC, idFixado, idsFavoritos.size, busca) {
         val filtrados = listaC.filter { it.nomeExibicao.contains(busca, ignoreCase = true) }
         
-        val fixado = filtrados.filter { it.id == idFixado }
-        val favoritos = filtrados.filter { idsFavoritos.contains(it.id) && it.id != idFixado }
-        val outros = filtrados.filter { it.id != idFixado && !idsFavoritos.contains(it.id) }
+        // Verifica se o idFixado realmente existe na lista atual
+        val idExiste = filtrados.any { it.id == idFixado }
+        val idEfetivo = if (idExiste) idFixado else -1
+
+        val fixado = filtrados.filter { it.id == idEfetivo }
+        val favoritos = filtrados.filter { idsFavoritos.contains(it.id) && it.id != idEfetivo }
+        val outros = filtrados.filter { it.id != idEfetivo && !idsFavoritos.contains(it.id) }
         
         fixado + favoritos + outros
     }
@@ -114,11 +118,11 @@ fun TelaInicialTelespectador(
                 modifier = Modifier.padding(padding)
             ) {
                 items(listaOrdenada, key = { it.id }) { camp ->
-                    val isFixado = camp.id == idFixado
+                    val isFixado = idFixado != -1 && camp.id == idFixado
                     val isFavorito = idsFavoritos.contains(camp.id)
 
-                    // Se for o primeiro da lista e não houver busca, mostramos maior (Destaque)
-                    val span = if (listaOrdenada.indexOf(camp) == 0 && busca.isEmpty()) 2 else 1
+                    // Só mostramos como destaque (span 2) se ele REALMENTE estiver fixado pelo usuário
+                    val span = if (isFixado && busca.isEmpty()) 2 else 1
                     
                     Box(modifier = Modifier.graphicsLayer {  }.then(
                         if (span == 2) Modifier.fillMaxWidth() else Modifier

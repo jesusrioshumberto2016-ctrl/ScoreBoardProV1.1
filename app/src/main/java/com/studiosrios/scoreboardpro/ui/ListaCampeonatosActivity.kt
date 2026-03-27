@@ -83,7 +83,15 @@ class ListaCampeonatosActivity : AppCompatActivity() {
                         listaCampeonatos.add(it) 
                     }
                 }
-                adapter.updateData(listaCampeonatos)
+                
+                // Ordenar: Fixado (true primeiro) > Favoritos (true primeiro) > Nome
+                val listaOrdenada = listaCampeonatos.sortedWith(
+                    compareByDescending<Campeonato> { it.isPinned }
+                        .thenByDescending { it.isFavorite }
+                        .thenBy { it.nome }
+                )
+                
+                adapter.updateData(listaOrdenada)
             }
 
             override fun onCancelled(error: DatabaseError) {
@@ -101,10 +109,11 @@ class ListaCampeonatosActivity : AppCompatActivity() {
         val newState = !campeonato.isPinned
         val updates = mutableMapOf<String, Any?>()
 
+        // Se o usuário clicar em um campeonato que já está fixado, ele será desfixado (newState = false)
+        // Se o usuário clicar em um campeonato que não está fixado (newState = true), ele fixa esse e desfixa todos os outros.
         if (newState) {
-            // Se estamos fixando este, desfixar todos os outros
             listaCampeonatos.forEach {
-                if (it.isPinned && it.id != campeonato.id) {
+                if (it.isPinned) {
                     updates["${it.id}/isPinned"] = false
                 }
             }
@@ -113,7 +122,7 @@ class ListaCampeonatosActivity : AppCompatActivity() {
         updates["${campeonato.id}/isPinned"] = newState
         
         databaseReference.updateChildren(updates).addOnFailureListener {
-            Toast.makeText(this, "Erro ao fixar campeonato", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, "Erro ao atualizar fixação", Toast.LENGTH_SHORT).show()
         }
     }
 
