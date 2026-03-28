@@ -1,5 +1,8 @@
 package com.studiosrios.scoreboardpro
 
+import java.text.SimpleDateFormat
+import java.util.Locale
+
 fun obterFormato(modelo: String): FormatoCampeonato {
     return when {
         modelo.contains("Brasileirão", ignoreCase = true) || modelo.contains("Pontos Corridos", ignoreCase = true) -> BrasileiraoSerieA()
@@ -95,18 +98,21 @@ fun calcularPontuacaoJogador(
 }
 
 fun obterPartidasOrdenadas(lista: List<Partida>): List<Partida> {
+    val sdfData = SimpleDateFormat("dd/MM", Locale.getDefault())
+    val sdfHora = SimpleDateFormat("HH:mm", Locale.getDefault())
+
     return lista.sortedWith(
         compareBy<Partida> { p ->
-            when {
-                p.fase.contains("FINAL", ignoreCase = true) && !p.fase.contains("OITAVAS", ignoreCase = true) && !p.fase.contains("QUARTAS", ignoreCase = true) && !p.fase.contains("SEMI", ignoreCase = true) -> 1
-                p.fase.contains("SEMIFINAL", ignoreCase = true) -> 2
-                p.fase.contains("QUARTAS", ignoreCase = true) -> 3
-                p.fase.contains("OITAVAS", ignoreCase = true) -> 4
-                p.fase.contains("Rodada", ignoreCase = true) -> {
-                    val r = p.fase.filter { it.isDigit() }.toIntOrNull() ?: 100
-                    r + 10
-                }
-                else -> 200
+            try {
+                if (p.data.isNotBlank()) sdfData.parse(p.data)?.time ?: Long.MAX_VALUE else Long.MAX_VALUE
+            } catch (e: Exception) {
+                Long.MAX_VALUE
+            }
+        }.thenBy { p ->
+            try {
+                if (p.horario.isNotBlank()) sdfHora.parse(p.horario)?.time ?: Long.MAX_VALUE else Long.MAX_VALUE
+            } catch (e: Exception) {
+                Long.MAX_VALUE
             }
         }.thenBy { it.id }
     )

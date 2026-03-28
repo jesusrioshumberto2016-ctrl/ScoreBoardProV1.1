@@ -12,7 +12,6 @@ class CampeonatoAdapter(
     private var campeonatos: List<Campeonato>,
     private val onEditClick: (Campeonato) -> Unit,
     private val onDeleteClick: (Campeonato) -> Unit,
-    private val onPinClick: (Campeonato) -> Unit,
     private val onFavoriteClick: (Campeonato) -> Unit
 ) : RecyclerView.Adapter<CampeonatoAdapter.CampeonatoViewHolder>() {
 
@@ -36,10 +35,7 @@ class CampeonatoAdapter(
                 binding.btnDelete.visibility = View.GONE
             }
 
-            // Atualizar ícones de fixar e favoritar
-            binding.btnPin.setImageResource(
-                if (campeonato.isPinned) android.R.drawable.btn_star_big_on else android.R.drawable.btn_star_big_off
-            )
+            // Atualizar ícone de favoritar
             binding.btnFavorite.setImageResource(
                 if (campeonato.isFavorite) android.R.drawable.star_big_on else android.R.drawable.star_big_off
             )
@@ -47,7 +43,6 @@ class CampeonatoAdapter(
             // Listeners
             binding.btnEdit.setOnClickListener { onEditClick(campeonato) }
             binding.btnDelete.setOnClickListener { onDeleteClick(campeonato) }
-            binding.btnPin.setOnClickListener { onPinClick(campeonato) }
             binding.btnFavorite.setOnClickListener { onFavoriteClick(campeonato) }
         }
     }

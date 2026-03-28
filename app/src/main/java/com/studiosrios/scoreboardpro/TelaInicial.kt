@@ -14,11 +14,9 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.EmojiEvents
 import androidx.compose.material.icons.filled.Groups
 import androidx.compose.material.icons.filled.PersonAdd
-import androidx.compose.material.icons.filled.PushPin
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.SportsSoccer
 import androidx.compose.material.icons.filled.Star
-import androidx.compose.material.icons.outlined.PushPin
 import androidx.compose.material.icons.outlined.StarBorder
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -27,7 +25,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
@@ -47,8 +44,7 @@ fun TelaInicialTelespectador(
     val context = LocalContext.current
     val prefs = remember { context.getSharedPreferences("prefs_exibicao", Context.MODE_PRIVATE) }
     
-    // Estados para fixados e favoritos
-    var idFixado by remember { mutableIntStateOf(prefs.getInt("id_fixado", -1)) }
+    // Estados para favoritos
     val idsFavoritos = remember { 
         mutableStateListOf<Int>().apply {
             addAll(prefs.getStringSet("ids_favoritos", emptySet())?.map { it.toInt() } ?: emptyList())
@@ -57,19 +53,18 @@ fun TelaInicialTelespectador(
 
     var busca by remember { mutableStateOf("") }
 
-    // Lógica de reordenação: Fixado > Favoritos > Restante
-    val listaOrdenada = remember(listaC, idFixado, idsFavoritos.size, busca) {
-        val filtrados = listaC.filter { it.nomeExibicao.contains(busca, ignoreCase = true) }
+    // Lógica de reordenação: Favoritos > Restante
+    val listaOrdenada = remember(listaC, idsFavoritos.size, busca) {
+        val filtrados = if (busca.isEmpty()) {
+            listaC.sortedByDescending { it.id }
+        } else {
+            listaC.filter { it.nomeExibicao.contains(busca, ignoreCase = true) }
+        }
         
-        // Verifica se o idFixado realmente existe na lista atual
-        val idExiste = filtrados.any { it.id == idFixado }
-        val idEfetivo = if (idExiste) idFixado else -1
-
-        val fixado = filtrados.filter { it.id == idEfetivo }
-        val favoritos = filtrados.filter { idsFavoritos.contains(it.id) && it.id != idEfetivo }
-        val outros = filtrados.filter { it.id != idEfetivo && !idsFavoritos.contains(it.id) }
+        val favoritos = filtrados.filter { idsFavoritos.contains(it.id) }
+        val outros = filtrados.filter { !idsFavoritos.contains(it.id) }
         
-        fixado + favoritos + outros
+        favoritos + outros
     }
 
     Scaffold(
@@ -118,38 +113,24 @@ fun TelaInicialTelespectador(
                 modifier = Modifier.padding(padding)
             ) {
                 items(listaOrdenada, key = { it.id }) { camp ->
-                    val isFixado = idFixado != -1 && camp.id == idFixado
                     val isFavorito = idsFavoritos.contains(camp.id)
 
-                    // Só mostramos como destaque (span 2) se ele REALMENTE estiver fixado pelo usuário
-                    val span = if (isFixado && busca.isEmpty()) 2 else 1
-                    
-                    Box(modifier = Modifier.graphicsLayer {  }.then(
-                        if (span == 2) Modifier.fillMaxWidth() else Modifier
-                    )) {
-                        CardCampeonatoInterativo(
-                            camp = camp,
-                            isFixado = isFixado,
-                            isFavorito = isFavorito,
-                            isDestaque = span == 2,
-                            onToggleFixar = {
-                                idFixado = if (isFixado) -1 else camp.id
-                                prefs.edit().putInt("id_fixado", idFixado).apply()
-                            },
-                            onToggleFavorito = {
-                                if (isFavorito) {
-                                    idsFavoritos.remove(camp.id)
-                                    prefs.edit().putStringSet("ids_favoritos", idsFavoritos.map { it.toString() }.toSet()).apply()
-                                } else if (idsFavoritos.size < 5) {
-                                    idsFavoritos.add(camp.id)
-                                    prefs.edit().putStringSet("ids_favoritos", idsFavoritos.map { it.toString() }.toSet()).apply()
-                                } else {
-                                    Toast.makeText(context, "Limite de 5 favoritos atingido", Toast.LENGTH_SHORT).show()
-                                }
-                            },
-                            onClick = { onAbrirCampeonato(camp) }
-                        )
-                    }
+                    CardCampeonatoInterativo(
+                        camp = camp,
+                        isFavorito = isFavorito,
+                        onToggleFavorito = {
+                            if (isFavorito) {
+                                idsFavoritos.remove(camp.id)
+                                prefs.edit().putStringSet("ids_favoritos", idsFavoritos.map { it.toString() }.toSet()).apply()
+                            } else if (idsFavoritos.size < 5) {
+                                idsFavoritos.add(camp.id)
+                                prefs.edit().putStringSet("ids_favoritos", idsFavoritos.map { it.toString() }.toSet()).apply()
+                            } else {
+                                Toast.makeText(context, "Limite de 5 favoritos atingido", Toast.LENGTH_SHORT).show()
+                            }
+                        },
+                        onClick = { onAbrirCampeonato(camp) }
+                    )
                 }
             }
         }
@@ -159,20 +140,17 @@ fun TelaInicialTelespectador(
 @Composable
 fun CardCampeonatoInterativo(
     camp: CampeonatoSalvo,
-    isFixado: Boolean,
     isFavorito: Boolean,
-    isDestaque: Boolean,
-    onToggleFixar: () -> Unit,
     onToggleFavorito: () -> Unit,
     onClick: () -> Unit
 ) {
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .height(if (isDestaque) 200.dp else 180.dp)
+            .height(180.dp)
             .clickable { onClick() },
         shape = RoundedCornerShape(16.dp),
-        elevation = CardDefaults.cardElevation(if (isFixado) 8.dp else 2.dp)
+        elevation = CardDefaults.cardElevation(2.dp)
     ) {
         Box {
             AsyncImage(
@@ -189,13 +167,6 @@ fun CardCampeonatoInterativo(
                 Modifier.fillMaxWidth().padding(8.dp),
                 horizontalArrangement = Arrangement.End
             ) {
-                IconButton(onClick = onToggleFixar, modifier = Modifier.size(32.dp)) {
-                    Icon(
-                        imageVector = if (isFixado) Icons.Default.PushPin else Icons.Outlined.PushPin,
-                        contentDescription = null,
-                        tint = if (isFixado) Color.Yellow else Color.White
-                    )
-                }
                 IconButton(onClick = onToggleFavorito, modifier = Modifier.size(32.dp)) {
                     Icon(
                         imageVector = if (isFavorito) Icons.Default.Star else Icons.Outlined.StarBorder,
@@ -207,11 +178,6 @@ fun CardCampeonatoInterativo(
 
             // Info (Base)
             Column(Modifier.align(Alignment.BottomStart).padding(12.dp)) {
-                if (isFixado) {
-                    Surface(color = Color.Yellow, shape = RoundedCornerShape(4.dp)) {
-                        Text("FIXADO", color = Color.Black, fontSize = 8.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(horizontal = 4.dp))
-                    }
-                }
                 Text(camp.nomeExibicao, color = Color.White, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 Text("${camp.equipes.size} Equipes • ${camp.modelo}", color = Color.LightGray, fontSize = 10.sp)
             }

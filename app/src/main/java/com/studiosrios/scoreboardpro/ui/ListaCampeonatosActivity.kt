@@ -52,9 +52,6 @@ class ListaCampeonatosActivity : AppCompatActivity() {
             onDeleteClick = { campeonato ->
                 excluirCampeonato(campeonato)
             },
-            onPinClick = { campeonato ->
-                togglePin(campeonato)
-            },
             onFavoriteClick = { campeonato ->
                 toggleFavorite(campeonato)
             }
@@ -77,17 +74,15 @@ class ListaCampeonatosActivity : AppCompatActivity() {
                 for (campeonatoSnapshot in snapshot.children) {
                     val campeonato = campeonatoSnapshot.getValue(Campeonato::class.java)
                     campeonato?.let { 
-                        if (it.id.isEmpty()) {
-                             it.id = campeonatoSnapshot.key ?: ""
-                        }
+                        // Sincroniza sempre o ID com a chave do Firebase para evitar erros de referência
+                        it.id = campeonatoSnapshot.key ?: ""
                         listaCampeonatos.add(it) 
                     }
                 }
                 
-                // Ordenar: Fixado (true primeiro) > Favoritos (true primeiro) > Nome
+                // Ordenar: Favoritos (true primeiro) > Nome
                 val listaOrdenada = listaCampeonatos.sortedWith(
-                    compareByDescending<Campeonato> { it.isPinned }
-                        .thenByDescending { it.isFavorite }
+                    compareByDescending<Campeonato> { it.isFavorite }
                         .thenBy { it.nome }
                 )
                 
@@ -105,28 +100,9 @@ class ListaCampeonatosActivity : AppCompatActivity() {
         })
     }
 
-    private fun togglePin(campeonato: Campeonato) {
-        val newState = !campeonato.isPinned
-        val updates = mutableMapOf<String, Any?>()
-
-        // Se o usuário clicar em um campeonato que já está fixado, ele será desfixado (newState = false)
-        // Se o usuário clicar em um campeonato que não está fixado (newState = true), ele fixa esse e desfixa todos os outros.
-        if (newState) {
-            listaCampeonatos.forEach {
-                if (it.isPinned) {
-                    updates["${it.id}/isPinned"] = false
-                }
-            }
-        }
-        
-        updates["${campeonato.id}/isPinned"] = newState
-        
-        databaseReference.updateChildren(updates).addOnFailureListener {
-            Toast.makeText(this, "Erro ao atualizar fixação", Toast.LENGTH_SHORT).show()
-        }
-    }
-
     private fun toggleFavorite(campeonato: Campeonato) {
+        if (campeonato.id.isEmpty()) return
+
         val favoritesCount = listaCampeonatos.count { it.isFavorite }
         val newState = !campeonato.isFavorite
 
@@ -142,6 +118,8 @@ class ListaCampeonatosActivity : AppCompatActivity() {
     }
 
     private fun excluirCampeonato(campeonato: Campeonato) {
+        if (campeonato.id.isEmpty()) return
+
         val currentUserUid = FirebaseAuth.getInstance().currentUser?.uid
         if (campeonato.ownerId != currentUserUid) {
             Toast.makeText(this, "Ação não permitida: Você não é o dono.", Toast.LENGTH_SHORT).show()

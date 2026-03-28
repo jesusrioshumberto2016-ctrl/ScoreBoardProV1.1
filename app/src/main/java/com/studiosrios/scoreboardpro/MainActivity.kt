@@ -45,7 +45,8 @@ class MainActivity : ComponentActivity() {
             MaterialTheme {
                 val auth = FirebaseAuth.getInstance()
                 var user by remember { mutableStateOf(auth.currentUser) }
-                var showLogin by remember { mutableStateOf(false) } 
+                // Inicia como true para sempre mostrar a tela de escolha ao abrir o app sem estar logado
+                var showLogin by remember { mutableStateOf(user == null) } 
                 val context = LocalContext.current
 
                 LaunchedEffect(Unit) {
@@ -132,7 +133,7 @@ class MainActivity : ComponentActivity() {
                                         db.campeonatoDao().deleteAll()
                                     }
                                     user = null
-                                    showLogin = false
+                                    showLogin = true // Após logout, volta para a tela de escolha
                                 }
                             }
                         )
@@ -178,8 +179,8 @@ fun ScoreBoardNavigation(
             "mural_exibicao" -> "telespectador"
             "gerenciar_campeonato" -> "menu"
             "cadastrar_campeonato" -> "menu"
-            "selecao_grupos" -> "cadastrar_campeonato"
-            "config_chaveamento" -> "selecao_grupos"
+            "selecao_groups" -> "cadastrar_campeonato"
+            "config_chaveamento" -> "selecao_groups"
             "selecao_equipes_campeonato" -> if (modeloCampeonatoEscolhido.contains("Libertadores", ignoreCase = true)) "config_chaveamento" else "cadastrar_campeonato"
             "distribuicao_grupos" -> "selecao_equipes_campeonato"
             "painel_campeonato" -> if (isOrganizador) "menu" else "telespectador"
@@ -261,10 +262,10 @@ fun ScoreBoardNavigation(
                 modeloCampeonatoEscolhido = modelo; nomeCampeonatoEscolhido = nome; fotoCampeonatoEscolhida = foto
                 isOrganizador = true; idCampeonatoAtual = -1; configsCampeonatoAtual = ConfiguracoesCampeonato()
                 confrontosDefinidos = emptyList(); configuracaoFinalGrupos = emptyList()
-                telaAtual = if (modelo.contains("Libertadores", ignoreCase = true)) "selecao_grupos" else "selecao_equipes_campeonato"
+                telaAtual = if (modelo.contains("Libertadores", ignoreCase = true)) "selecao_groups" else "selecao_equipes_campeonato"
             }
         )
-        "selecao_grupos" -> TelaSelecaoGrupos(
+        "selecao_groups" -> TelaSelecaoGrupos(
             onVoltar = { telaAtual = "cadastrar_campeonato" },
             onConfirmar = { lista, idaEVolta ->
                 configuracaoFinalGrupos = lista; configsCampeonatoAtual = configsCampeonatoAtual.copy(modoReturno = idaEVolta)
@@ -273,7 +274,7 @@ fun ScoreBoardNavigation(
         )
         "config_chaveamento" -> TelaConfiguracaoChaveamento(
             listaGrupos = configuracaoFinalGrupos,
-            onVoltar = { telaAtual = "selecao_grupos" },
+            onVoltar = { telaAtual = "selecao_groups" },
             onConfirmar = { idaEVolta, finalIdaEVolta, confrontos ->
                 confrontosDefinidos = confrontos
                 configsCampeonatoAtual = configsCampeonatoAtual.copy(modoIdaEVoltaMataMata = idaEVolta, modoIdaEVoltaFinal = finalIdaEVolta)

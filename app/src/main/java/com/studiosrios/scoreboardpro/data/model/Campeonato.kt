@@ -7,6 +7,5 @@ data class Campeonato(
     var organizadorId: String = "",
     var data: String = "",
     var status: String = "",
-    var isPinned: Boolean = false,
     var isFavorite: Boolean = false
 )
