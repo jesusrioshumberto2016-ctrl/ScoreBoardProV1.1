@@ -3,14 +3,22 @@ package com.studiosrios.scoreboardpro
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ExitToApp
+import androidx.compose.material.icons.filled.Save
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.snapshots.SnapshotStateList
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.studiosrios.scoreboardpro.data.repository.DataRepository
+import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -20,11 +28,17 @@ fun TelaPainelMataMata(
     partidas: SnapshotStateList<Partida>,
     listaGlobalJogadores: List<JogadorExemplo>,
     configsIniciais: ConfiguracoesCampeonato,
+    isOrganizador: Boolean = true,
+    repository: DataRepository? = null,
     onSalvarGeral: (Int, ConfiguracoesCampeonato) -> Unit,
     onVoltar: () -> Unit
 ) {
     var abaSelecionada by remember { mutableIntStateOf(0) }
     val titulosAbas = listOf("Chaveamento", "Jogos", "Artilharia", "Configs")
+
+    val scope = rememberCoroutineScope()
+    val snackbarHostState = remember { SnackbarHostState() }
+    var houveAlteracaoGeral by remember { mutableStateOf(false) }
 
     // Ordenação global para o Mata-Mata
     val partidasOrdenadas by remember {
@@ -54,13 +68,36 @@ fun TelaPainelMataMata(
     }
 
     Scaffold(
+        snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             if (partidaParaVerPreJogo == null && partidaParaVerDetalhes == null && equipeSelecionada == null && jogadorSelecionadoParaDetalhes == null) {
                 Column {
                     CenterAlignedTopAppBar(
                         title = { Text("Painel Mata-Mata", fontWeight = FontWeight.Bold) },
                         navigationIcon = {
-                            TextButton(onClick = onVoltar) { Text("Sair") }
+                            Button(
+                                onClick = onVoltar,
+                                modifier = Modifier.padding(start = 8.dp).height(36.dp),
+                                colors = ButtonDefaults.buttonColors(containerColor = Color.Red.copy(alpha = 0.1f), contentColor = Color.Red),
+                                shape = RoundedCornerShape(8.dp)
+                            ) {
+                                Icon(Icons.AutoMirrored.Filled.ExitToApp, null, modifier = Modifier.size(16.dp))
+                                Spacer(Modifier.width(4.dp))
+                                Text("SAIR", fontSize = 11.sp, fontWeight = FontWeight.Black)
+                            }
+                        },
+                        actions = {
+                            if (isOrganizador) {
+                                IconButton(onClick = {
+                                    onSalvarGeral(idCamp, configsIniciais)
+                                    houveAlteracaoGeral = false
+                                    scope.launch { snackbarHostState.showSnackbar("Dados salvos!") }
+                                }) { 
+                                    BadgedBox(badge = { if(houveAlteracaoGeral) Badge(containerColor = Color.Red) }) {
+                                        Icon(Icons.Default.Save, contentDescription = "Salvar") 
+                                    }
+                                }
+                            }
                         }
                     )
                     TabRow(selectedTabIndex = abaSelecionada) {
@@ -143,6 +180,7 @@ fun TelaPainelMataMata(
                                 configs = configsIniciais,
                                 onSalvar = { novasConfigs ->
                                     onSalvarGeral(idCamp, novasConfigs)
+                                    scope.launch { snackbarHostState.showSnackbar("Configurações salvas!") }
                                 }
                             )
                         }

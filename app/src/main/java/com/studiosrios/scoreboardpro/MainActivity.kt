@@ -313,15 +313,27 @@ fun ScoreBoardNavigation(
         )
         "painel_campeonato" -> TelaPainelCampeonato(
             idCamp = idCampeonatoAtual, nomeCamp = nomeCampeonatoEscolhido, fotoCamp = fotoCampeonatoEscolhida,
-            equipes = equipesNoCampeonato, partidas = listaPartidasCampeonato, modelo = modeloCampeonatoEscolhido,
-            listaGlobalJogadores = listaJ, configsIniciais = configsCampeonatoAtual, listaGruposConfig = configuracaoFinalGrupos,
+            equipes = equipesNoCampeonato.toList(), // Passa como cópia estável
+            partidas = listaPartidasCampeonato, 
+            modelo = modeloCampeonatoEscolhido,
+            listaGlobalJogadores = listaJ, 
+            configsIniciais = configsCampeonatoAtual, 
+            listaGruposConfig = configuracaoFinalGrupos,
             isOrganizador = isOrganizador && currentUser != null,
+            repository = repository, // Passando o repository para permitir persistência direta
             onSalvarGeral = { id, configs -> 
+                // Garantir que estamos pegando a lista de partidas mais atualizada do SnapshotStateList
                 val campAtualizado = CampeonatoSalvo(
-                    id = id, nomeExibicao = nomeCampeonatoEscolhido, nome = nomeCampeonatoEscolhido,
-                    ownerId = currentUser?.uid ?: "", modelo = modeloCampeonatoEscolhido,
-                    equipes = equipesNoCampeonato.toList(), partidas = listaPartidasCampeonato.toList(),
-                    configs = configs, gruposConfig = configuracaoFinalGrupos, fotoUri = fotoCampeonatoEscolhida
+                    id = id, 
+                    nomeExibicao = nomeCampeonatoEscolhido, 
+                    nome = nomeCampeonatoEscolhido,
+                    ownerId = currentUser?.uid ?: "", 
+                    modelo = modeloCampeonatoEscolhido,
+                    equipes = equipesNoCampeonato.toList(), 
+                    partidas = listaPartidasCampeonato.toList(), // Crucial: toList() cria uma cópia dos dados atuais
+                    configs = configs, 
+                    gruposConfig = configuracaoFinalGrupos, 
+                    fotoUri = fotoCampeonatoEscolhida
                 )
                 repository.salvarCampeonato(campAtualizado)
             },
