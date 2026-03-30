@@ -196,7 +196,9 @@ fun ScoreBoardNavigation(
         "telespectador" -> TelaInicialTelespectador(
             listaC = listaPublica,
             onAbrirCampeonato = { camp ->
-                isOrganizador = false
+                // Só ativa modo organizador se o usuário atual for o dono
+                isOrganizador = currentUser != null && camp.ownerId == currentUser.uid
+                
                 equipesNoCampeonato.clear(); equipesNoCampeonato.addAll(camp.equipes)
                 listaPartidasCampeonato.clear(); listaPartidasCampeonato.addAll(camp.partidas)
                 modeloCampeonatoEscolhido = camp.modelo; nomeCampeonatoEscolhido = camp.nomeExibicao 
@@ -212,7 +214,9 @@ fun ScoreBoardNavigation(
         "mural_exibicao" -> TelaCampeonatosTelespectadores(
             listaC = listaMural,
             onAbrir = { camp ->
-                isOrganizador = false
+                // No mural de exibição, o acesso é sempre como telespectador (leitura apenas)
+                isOrganizador = currentUser != null && camp.ownerId == currentUser.uid
+                
                 equipesNoCampeonato.clear(); equipesNoCampeonato.addAll(camp.equipes)
                 listaPartidasCampeonato.clear(); listaPartidasCampeonato.addAll(camp.partidas)
                 modeloCampeonatoEscolhido = camp.modelo; nomeCampeonatoEscolhido = camp.nomeExibicao 
@@ -226,7 +230,9 @@ fun ScoreBoardNavigation(
         "menu" -> TelaInicialMenu(
             listaC = listaC,
             onAbrirCamp = { camp ->
-                isOrganizador = true
+                // Aqui o usuário está na sua lista privada, mas a verificação de segurança é mantida
+                isOrganizador = currentUser != null && camp.ownerId == currentUser.uid
+                
                 equipesNoCampeonato.clear(); equipesNoCampeonato.addAll(camp.equipes)
                 listaPartidasCampeonato.clear(); listaPartidasCampeonato.addAll(camp.partidas)
                 modeloCampeonatoEscolhido = camp.modelo; nomeCampeonatoEscolhido = camp.nomeExibicao
@@ -243,7 +249,8 @@ fun ScoreBoardNavigation(
             lista = listaC,
             onVoltar = { telaAtual = "menu" },
             onAbrir = { camp ->
-                isOrganizador = true
+                isOrganizador = currentUser != null && camp.ownerId == currentUser.uid
+                
                 equipesNoCampeonato.clear(); equipesNoCampeonato.addAll(camp.equipes)
                 listaPartidasCampeonato.clear(); listaPartidasCampeonato.addAll(camp.partidas)
                 modeloCampeonatoEscolhido = camp.modelo; nomeCampeonatoEscolhido = camp.nomeExibicao
@@ -323,12 +330,15 @@ fun ScoreBoardNavigation(
             isOrganizador = isOrganizador && currentUser != null,
             repository = repository,
             onSalvarGeral = { id, configs -> 
+                // Proteção adicional na função de salvamento
+                if (currentUser == null) return@TelaPainelCampeonato
+                
                 val idEfetivo = if (id == -1) idCampeonatoAtual else id
                 val campAtualizado = CampeonatoSalvo(
                     id = idEfetivo, 
                     nomeExibicao = nomeCampeonatoEscolhido, 
                     nome = nomeCampeonatoEscolhido,
-                    ownerId = currentUser?.uid ?: "", 
+                    ownerId = currentUser.uid, // Sempre usa o UID do usuário logado como dono
                     modelo = modeloCampeonatoEscolhido,
                     equipes = equipesNoCampeonato.toList(), 
                     partidas = listaPartidasCampeonato.toList(),
