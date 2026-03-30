@@ -58,10 +58,7 @@ fun TelaPainelLibertadores(
     // Ordenação global para ser usada em todas as abas
     val partidasOrdenadas by remember {
         derivedStateOf {
-            partidas.sortedWith(
-                compareBy<Partida> { it.data.split("/").reversed().joinToString("") }
-                .thenBy { it.horario }
-            )
+            obterPartidasOrdenadas(partidas)
         }
     }
 
@@ -200,7 +197,7 @@ fun TelaPainelLibertadores(
                                             gruposConfig = listaGruposConfig
                                         )
                                         repo.salvarEmExibicao(campParaExibicao)
-                                        scope.launch { snackbarHostState.showSnackbar("Publicado no Mural de Telespectadores!") }
+                                        scope.launch { snackbarHostState.showSnackbar("Publicado no Mural!") }
                                     }
                                 }) {
                                     Icon(Icons.Default.CastConnected, contentDescription = "Publicar Mural", tint = MaterialTheme.colorScheme.primary)
@@ -289,13 +286,24 @@ fun TelaPainelLibertadores(
                                     ConteudoChaveamentoLibertadores(equipes, partidasMataMata, { p: Partida -> partidaParaVerPreJogo = p }, { p: Partida -> partidaParaVerDetalhes = p }, { e: EquipeExemplo -> equipeSelecionada = e })
                                 }
                                 "Equipes" -> AbaEquipesTelespectador(equipes, onEquipeClick = { e: EquipeExemplo -> equipeSelecionada = e })
-                                "Resultados" -> ResultadosTab(SnapshotStateList<Partida>().apply { addAll(partidasOrdenadas) }, equipes, onConfirmarResultado = { _: Partida -> 
-                                    houveAlteracaoGeral = true
-                                    onSalvarGeral(idCamp, configsIniciais) 
-                                })
-                                "Partidas" -> PartidasTab(SnapshotStateList<Partida>().apply { addAll(partidasOrdenadas) }, equipes, {p: Partida -> partidaParaVerPreJogo = p}, {p: Partida -> partidaParaVerDetalhes = p}, false, {e: EquipeExemplo -> equipeSelecionada = e})
+                                "Resultados" -> ResultadosTab(
+                                    partidas = partidas, 
+                                    equipes = equipes, 
+                                    onConfirmarResultado = { _: Partida -> 
+                                        houveAlteracaoGeral = true
+                                        onSalvarGeral(idCamp, configsIniciais) 
+                                    }
+                                )
+                                "Partidas" -> PartidasTab(
+                                    partidas = partidas, 
+                                    equipes = equipes, 
+                                    onPreJogoClick = {p: Partida -> partidaParaVerPreJogo = p}, 
+                                    onDetalhesClick = {p: Partida -> partidaParaVerDetalhes = p}, 
+                                    somenteMataMata = false, 
+                                    onEquipeClick = {e: EquipeExemplo -> equipeSelecionada = e}
+                                )
                                 "Súmula" -> SumulaTab(
-                                    partidas = SnapshotStateList<Partida>().apply { addAll(partidasOrdenadas) }, 
+                                    partidas = partidas, 
                                     equipes = equipes, 
                                     todosJogadores = listaGlobalJogadores,
                                     onEntrarEdicao = {id: Int -> editandoSumulaId = id}, 
@@ -308,7 +316,7 @@ fun TelaPainelLibertadores(
                                 )
                                 "Pré-Jogo" -> PreJogoTab(
                                     equipes = equipes, 
-                                    partidas = SnapshotStateList<Partida>().apply { addAll(partidasOrdenadas) },
+                                    partidas = partidas,
                                     listaGlobalJogadores = listaGlobalJogadores, 
                                     onEntrarEdicao = {id: Int -> editandoPreJogoId = id}, 
                                     onSairEdicao = {editandoPreJogoId = null},

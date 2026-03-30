@@ -1,30 +1,23 @@
 package com.studiosrios.scoreboardpro
 
-import android.net.Uri
 import android.widget.Toast
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ArrowBack
-import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.snapshots.SnapshotStateList
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
@@ -50,12 +43,16 @@ fun TelaSelecaoJogador(
     // Pegamos sempre a versão mais atual da equipe da lista global
     val equipeAtual = listaGlobalEquipes.find { it.id == equipeAlvo.id } ?: equipeAlvo
 
-    val listaDisponivel = remember(searchQuery, listaTotal, equipeAtual) {
+    val listaExibicao = remember(searchQuery, listaTotal, equipeAtual) {
         listaTotal.filter { jogador ->
-            val jaEstaNaEquipe = equipeAtual.jogadores.any { it.id == jogador.id }
+            // Filtra pela busca
             val matchesSearch = jogador.nome.contains(searchQuery, ignoreCase = true) || 
                                 jogador.apelido.contains(searchQuery, ignoreCase = true)
-            !jaEstaNaEquipe && matchesSearch
+            
+            // O jogador não deve estar JÁ nesta equipe sendo editada
+            val jaEstaNestaEquipe = equipeAtual.jogadores.any { it.id == jogador.id }
+            
+            !jaEstaNestaEquipe && matchesSearch
         }
     }
 
@@ -79,7 +76,7 @@ fun TelaSelecaoJogador(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(16.dp),
-                placeholder = { Text("Buscar jogador disponível...") },
+                placeholder = { Text("Buscar jogador...") },
                 leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
                 singleLine = true,
                 shape = RoundedCornerShape(12.dp)
@@ -93,12 +90,15 @@ fun TelaSelecaoJogador(
             )
 
             LazyColumn(modifier = Modifier.weight(1f).padding(horizontal = 16.dp)) {
-                items(listaDisponivel) { jogador ->
+                items(listaExibicao) { jogador ->
+                    val jaTemEquipe = jogador.equipeId != -1
+                    
                     Card(
                         modifier = Modifier
                             .fillMaxWidth()
                             .padding(vertical = 4.dp)
-                            .clickable {
+                            .alpha(if (jaTemEquipe) 0.5f else 1f) // Efeito visual de bloqueado
+                            .clickable(enabled = !jaTemEquipe) { // Bloqueia o clique se já tiver equipe
                                 val eqIdx = listaGlobalEquipes.indexOfFirst { it.id == equipeAtual.id }
                                 if (eqIdx != -1) {
                                     val equipeSendoEditada = listaGlobalEquipes[eqIdx]
@@ -128,8 +128,10 @@ fun TelaSelecaoJogador(
                                     }
                                 }
                             },
-                        colors = CardDefaults.cardColors(containerColor = Color.White),
-                        elevation = CardDefaults.cardElevation(1.dp)
+                        colors = CardDefaults.cardColors(
+                            containerColor = if (jaTemEquipe) Color(0xFFF5F5F5) else Color.White
+                        ),
+                        elevation = CardDefaults.cardElevation(if (jaTemEquipe) 0.dp else 1.dp)
                     ) {
                         Row(
                             modifier = Modifier.padding(12.dp),
@@ -145,13 +147,16 @@ fun TelaSelecaoJogador(
                             Column(Modifier.weight(1f)) {
                                 Text(
                                     text = if (jogador.apelido.isNotBlank()) "${jogador.nome} (${jogador.apelido})" else jogador.nome,
-                                    fontWeight = FontWeight.Bold
+                                    fontWeight = FontWeight.Bold,
+                                    color = if (jaTemEquipe) Color.Gray else Color.Black
                                 )
                                 Text(jogador.posicao, fontSize = 12.sp, color = Color.Gray)
                             }
                             
-                            if (jogador.equipeId != -1 && jogador.equipeId != equipeAtual.id) {
-                                Text("Já tem time", fontSize = 10.sp, color = Color.Red.copy(alpha = 0.6f))
+                            if (jaTemEquipe) {
+                                // Tenta achar o nome da equipe atual para mostrar no aviso
+                                val nomeEquipeDono = listaGlobalEquipes.find { it.id == jogador.equipeId }?.nome ?: "outro time"
+                                Text("Ocupado: $nomeEquipeDono", fontSize = 10.sp, color = Color.Red, fontWeight = FontWeight.Bold)
                             } else {
                                 Icon(Icons.Default.Add, contentDescription = null, tint = Color(0xFF2E7D32))
                             }
@@ -159,10 +164,10 @@ fun TelaSelecaoJogador(
                     }
                 }
 
-                if (listaDisponivel.isEmpty()) {
+                if (listaExibicao.isEmpty()) {
                     item {
                         Box(Modifier.fillMaxWidth().padding(32.dp), contentAlignment = Alignment.Center) {
-                            Text("Nenhum jogador disponível para adicionar.", color = Color.Gray)
+                            Text("Nenhum jogador encontrado.", color = Color.Gray)
                         }
                     }
                 }

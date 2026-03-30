@@ -1,8 +1,6 @@
 package com.studiosrios.scoreboardpro
 
-import android.content.Context
 import android.os.Bundle
-import android.util.Log
 import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
@@ -27,7 +25,6 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 
 class MainActivity : ComponentActivity() {
-    private val TAG = "ScoreBoardDebug"
     private val listaPublicaCampeonatos = mutableStateListOf<CampeonatoSalvo>()
     private val listaMuralExibicao = mutableStateListOf<CampeonatoSalvo>()
     private val listaMeusJogadores = mutableStateListOf<JogadorExemplo>()
@@ -172,15 +169,15 @@ fun ScoreBoardNavigation(
     val equipesNoCampeonato = remember { mutableStateListOf<EquipeExemplo>() }
     var configsCampeonatoAtual by remember { mutableStateOf(ConfiguracoesCampeonato()) }
 
-    // Corrigido: O BackHandler agora está habilitado no Menu para permitir voltar à tela pública
+    // Corrigido: Padronização dos nomes das telas para evitar crashes e loops
     BackHandler(enabled = telaAtual != "telespectador") {
         telaAtual = when (telaAtual) {
-            "menu" -> "telespectador" // Volta para a tela inicial pública
+            "menu" -> "telespectador" 
             "mural_exibicao" -> "telespectador"
             "gerenciar_campeonato" -> "menu"
             "cadastrar_campeonato" -> "menu"
-            "selecao_groups" -> "cadastrar_campeonato"
-            "config_chaveamento" -> "selecao_groups"
+            "selecao_grupos" -> "cadastrar_campeonato"
+            "config_chaveamento" -> "selecao_grupos"
             "selecao_equipes_campeonato" -> if (modeloCampeonatoEscolhido.contains("Libertadores", ignoreCase = true)) "config_chaveamento" else "cadastrar_campeonato"
             "distribuicao_grupos" -> "selecao_equipes_campeonato"
             "painel_campeonato" -> if (isOrganizador) "menu" else "telespectador"
@@ -260,12 +257,14 @@ fun ScoreBoardNavigation(
             onVoltar = { telaAtual = "menu" },
             onSelecionar = { nome, foto, modelo ->
                 modeloCampeonatoEscolhido = modelo; nomeCampeonatoEscolhido = nome; fotoCampeonatoEscolhida = foto
-                isOrganizador = true; idCampeonatoAtual = -1; configsCampeonatoAtual = ConfiguracoesCampeonato()
+                isOrganizador = true
+                idCampeonatoAtual = (System.currentTimeMillis() / 1000).toInt()
+                configsCampeonatoAtual = ConfiguracoesCampeonato()
                 confrontosDefinidos = emptyList(); configuracaoFinalGrupos = emptyList()
-                telaAtual = if (modelo.contains("Libertadores", ignoreCase = true)) "selecao_groups" else "selecao_equipes_campeonato"
+                telaAtual = if (modelo.contains("Libertadores", ignoreCase = true)) "selecao_grupos" else "selecao_equipes_campeonato"
             }
         )
-        "selecao_groups" -> TelaSelecaoGrupos(
+        "selecao_grupos" -> TelaSelecaoGrupos(
             onVoltar = { telaAtual = "cadastrar_campeonato" },
             onConfirmar = { lista, idaEVolta ->
                 configuracaoFinalGrupos = lista; configsCampeonatoAtual = configsCampeonatoAtual.copy(modoReturno = idaEVolta)
@@ -274,7 +273,7 @@ fun ScoreBoardNavigation(
         )
         "config_chaveamento" -> TelaConfiguracaoChaveamento(
             listaGrupos = configuracaoFinalGrupos,
-            onVoltar = { telaAtual = "selecao_groups" },
+            onVoltar = { telaAtual = "selecao_grupos" },
             onConfirmar = { idaEVolta, finalIdaEVolta, confrontos ->
                 confrontosDefinidos = confrontos
                 configsCampeonatoAtual = configsCampeonatoAtual.copy(modoIdaEVoltaMataMata = idaEVolta, modoIdaEVoltaFinal = finalIdaEVolta)
@@ -312,25 +311,27 @@ fun ScoreBoardNavigation(
             }
         )
         "painel_campeonato" -> TelaPainelCampeonato(
-            idCamp = idCampeonatoAtual, nomeCamp = nomeCampeonatoEscolhido, fotoCamp = fotoCampeonatoEscolhida,
-            equipes = equipesNoCampeonato.toList(), // Passa como cópia estável
+            idCamp = idCampeonatoAtual, 
+            nomeCamp = nomeCampeonatoEscolhido, 
+            fotoCamp = fotoCampeonatoEscolhida,
+            equipes = equipesNoCampeonato.toList(), 
             partidas = listaPartidasCampeonato, 
             modelo = modeloCampeonatoEscolhido,
             listaGlobalJogadores = listaJ, 
             configsIniciais = configsCampeonatoAtual, 
             listaGruposConfig = configuracaoFinalGrupos,
             isOrganizador = isOrganizador && currentUser != null,
-            repository = repository, // Passando o repository para permitir persistência direta
+            repository = repository,
             onSalvarGeral = { id, configs -> 
-                // Garantir que estamos pegando a lista de partidas mais atualizada do SnapshotStateList
+                val idEfetivo = if (id == -1) idCampeonatoAtual else id
                 val campAtualizado = CampeonatoSalvo(
-                    id = id, 
+                    id = idEfetivo, 
                     nomeExibicao = nomeCampeonatoEscolhido, 
                     nome = nomeCampeonatoEscolhido,
                     ownerId = currentUser?.uid ?: "", 
                     modelo = modeloCampeonatoEscolhido,
                     equipes = equipesNoCampeonato.toList(), 
-                    partidas = listaPartidasCampeonato.toList(), // Crucial: toList() cria uma cópia dos dados atuais
+                    partidas = listaPartidasCampeonato.toList(),
                     configs = configs, 
                     gruposConfig = configuracaoFinalGrupos, 
                     fotoUri = fotoCampeonatoEscolhida

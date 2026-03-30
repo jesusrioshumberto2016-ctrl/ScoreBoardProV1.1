@@ -43,10 +43,7 @@ fun TelaPainelMataMata(
     // Ordenação global para o Mata-Mata
     val partidasOrdenadas by remember {
         derivedStateOf {
-            partidas.sortedWith(
-                compareBy<Partida> { it.data.split("/").reversed().joinToString("") }
-                .thenBy { it.horario }
-            )
+            obterPartidasOrdenadas(partidas)
         }
     }
 
@@ -158,7 +155,7 @@ fun TelaPainelMataMata(
                         }
                         1 -> {
                             PartidasTab(
-                                partidas = SnapshotStateList<Partida>().apply { addAll(partidasOrdenadas) },
+                                partidas = partidas, // Passando a lista original
                                 equipes = equipes,
                                 onPreJogoClick = { p -> partidaParaVerPreJogo = p },
                                 onDetalhesClick = { p -> partidaParaVerDetalhes = p },

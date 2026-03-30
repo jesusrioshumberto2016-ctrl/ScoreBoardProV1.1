@@ -1,6 +1,7 @@
 package com.studiosrios.scoreboardpro
 
 import android.net.Uri
+import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
@@ -28,6 +29,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -145,6 +147,7 @@ fun TelaGerenciarEquipeAdmin(
     onVoltar: () -> Unit
 ) {
     val equipeAtual = listaGlobalEquipes.find { it.id == equipe.id } ?: equipe
+    val ctx = LocalContext.current
     
     var escudoUri by remember { mutableStateOf(equipeAtual.escudoUri) }
     var showDialogPatrocinador by remember { mutableStateOf(false) }
@@ -153,6 +156,9 @@ fun TelaGerenciarEquipeAdmin(
 
     var showConfirmDeleteEquipe by remember { mutableStateOf(false) }
     var patrocinadorParaExcluir by remember { mutableStateOf<Patrocinador?>(null) }
+    
+    // Novo estado para remoção de jogador
+    var jogadorParaRemover by remember { mutableStateOf<JogadorExemplo?>(null) }
 
     val launcherEscudo = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri: Uri? ->
         uri?.let {
@@ -193,6 +199,41 @@ fun TelaGerenciarEquipeAdmin(
             },
             dismissButton = {
                 TextButton(onClick = { showConfirmDeleteEquipe = false }) { Text("CANCELAR") }
+            }
+        )
+    }
+
+    // Diálogo Confirmar Remoção de Jogador do Elenco
+    jogadorParaRemover?.let { jogador ->
+        AlertDialog(
+            onDismissRequest = { jogadorParaRemover = null },
+            title = { Text("Remover do Elenco") },
+            text = { Text("Tem certeza que deseja remover '${jogador.apelido.ifBlank { jogador.nome }}' do elenco?") },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        val eqIdx = listaGlobalEquipes.indexOfFirst { it.id == equipeAtual.id }
+                        if (eqIdx != -1) {
+                            val novoElenco = equipeAtual.jogadores.filter { it.id != jogador.id }
+                            val updatedEq = listaGlobalEquipes[eqIdx].copy(jogadores = novoElenco)
+                            listaGlobalEquipes[eqIdx] = updatedEq
+                            repository.salvarEquipe(updatedEq)
+                            
+                            val jogIdx = listaGlobalJogadores.indexOfFirst { it.id == jogador.id }
+                            if (jogIdx != -1) {
+                                val updatedJog = listaGlobalJogadores[jogIdx].copy(equipeId = -1)
+                                listaGlobalJogadores[jogIdx] = updatedJog
+                                repository.salvarJogador(updatedJog)
+                            }
+                            Toast.makeText(ctx, "Jogador removido com sucesso.", Toast.LENGTH_SHORT).show()
+                        }
+                        jogadorParaRemover = null
+                    },
+                    colors = ButtonDefaults.textButtonColors(contentColor = Color.Red)
+                ) { Text("REMOVER") }
+            },
+            dismissButton = {
+                TextButton(onClick = { jogadorParaRemover = null }) { Text("CANCELAR") }
             }
         )
     }
@@ -423,20 +464,9 @@ fun TelaGerenciarEquipeAdmin(
                             Text("${jogador.posicao} | ID: ${jogador.id}", fontSize = 12.sp, color = Color.Gray)
                         }
                         IconButton(onClick = {
-                            val eqIdx = listaGlobalEquipes.indexOfFirst { it.id == equipeAtual.id }
-                            if (eqIdx != -1) {
-                                val novoElenco = equipeAtual.jogadores.filter { it.id != jogador.id }
-                                val updatedEq = listaGlobalEquipes[eqIdx].copy(jogadores = novoElenco)
-                                listaGlobalEquipes[eqIdx] = updatedEq
-                                repository.salvarEquipe(updatedEq)
-                                
-                                val jogIdx = listaGlobalJogadores.indexOfFirst { it.id == jogador.id }
-                                if (jogIdx != -1) {
-                                    val updatedJog = listaGlobalJogadores[jogIdx].copy(equipeId = -1)
-                                    listaGlobalJogadores[jogIdx] = updatedJog
-                                    repository.salvarJogador(updatedJog)
-                                }
-                            }
+                            // Ao clicar na lixeira, apenas define o jogador para remoção
+                            // O diálogo de confirmação cuidará do resto
+                            jogadorParaRemover = jogador
                         }) {
                             Icon(Icons.Default.Delete, "Remover", tint = Color.Red.copy(alpha = 0.6f))
                         }
