@@ -189,9 +189,15 @@ fun CardCampeonatoInterativo(
 @Composable
 fun TelaInicialMenu(
     listaC: List<CampeonatoSalvo>,
+    currentUserId: String, // Adicionado para filtrar
     onAbrirCamp: (CampeonatoSalvo) -> Unit,
     onNavegar: (String) -> Unit
 ) {
+    // Filtra a lista para mostrar apenas os campeonatos que o usuário criou
+    val meusCampeonatos = remember(listaC, currentUserId) {
+        listaC.filter { it.ownerId == currentUserId }
+    }
+
     Scaffold(
         topBar = {
             TopAppBar(title = { Text("Menu do Organizador", fontWeight = FontWeight.Bold) })
@@ -216,7 +222,10 @@ fun TelaInicialMenu(
             Text("GERENCIAMENTO", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = Color.Gray)
             Spacer(Modifier.height(16.dp))
 
-            CardGerenciamento("Meus Campeonatos", "Ver e editar torneios salvos", Icons.Default.EmojiEvents) { onNavegar("gerenciar_campeonato") }
+            // Passamos a lista filtrada para a tela de gerenciamento quando navegada
+            CardGerenciamento("Meus Campeonatos", "Ver e editar torneios salvos (${meusCampeonatos.size})", Icons.Default.EmojiEvents) { 
+                onNavegar("gerenciar_campeonato") 
+            }
             CardGerenciamento("Banco de Jogadores", "Gerenciar todos os atletas", Icons.Default.PersonAdd) { onNavegar("gerenciar_jogador") }
             CardGerenciamento("Gestão de Equipes", "Editar elencos e informações", Icons.Default.Groups) { onNavegar("gerenciar_equipe") }
         }

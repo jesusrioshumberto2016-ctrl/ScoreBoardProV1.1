@@ -25,6 +25,8 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 
 class MainActivity : ComponentActivity() {
+    private val adminUidConst = "bgCBBsC24gMrDwOFKB4fpzAzjvS2"
+
     private val listaPublicaCampeonatos = mutableStateListOf<CampeonatoSalvo>()
     private val listaMuralExibicao = mutableStateListOf<CampeonatoSalvo>()
     private val listaMeusJogadores = mutableStateListOf<JogadorExemplo>()
@@ -42,7 +44,6 @@ class MainActivity : ComponentActivity() {
             MaterialTheme {
                 val auth = FirebaseAuth.getInstance()
                 var user by remember { mutableStateOf(auth.currentUser) }
-                // Inicia como true para sempre mostrar a tela de escolha ao abrir o app sem estar logado
                 var showLogin by remember { mutableStateOf(user == null) } 
                 val context = LocalContext.current
 
@@ -61,21 +62,14 @@ class MainActivity : ComponentActivity() {
                     }
                 }
 
-                LaunchedEffect(Unit) {
-                    db.jogadorDao().getAll().collect { list ->
-                        listaMeusJogadores.clear(); listaMeusJogadores.addAll(list)
-                    }
-                }
-                LaunchedEffect(Unit) {
-                    db.equipeDao().getAll().collect { list ->
-                        listaMinhasEquipes.clear(); listaMinhasEquipes.addAll(list)
-                    }
-                }
-
                 LaunchedEffect(user) {
-                    user?.let { 
+                    if (user != null) {
                         showLogin = false
-                        repository.startSync()
+                        repository.startSync(
+                            onJogadoresUpdate = { list -> listaMeusJogadores.clear(); listaMeusJogadores.addAll(list) },
+                            onEquipesUpdate = { list -> listaMinhasEquipes.clear(); listaMinhasEquipes.addAll(list) },
+                            onCampeonatosUpdate = { list -> listaMeusCampeonatos.clear(); listaMeusCampeonatos.addAll(list) }
+                        )
                     }
                 }
 
@@ -111,11 +105,12 @@ class MainActivity : ComponentActivity() {
                         )
                     } else {
                         ScoreBoardNavigation(
+                            adminUid = adminUidConst,
                             listaPublica = listaPublicaCampeonatos,
                             listaMural = listaMuralExibicao,
                             listaJ = listaMeusJogadores,
                             listaE = listaMinhasEquipes,
-                            listaC = listaPublicaCampeonatos,
+                            listaMeusC = listaMeusCampeonatos,
                             repository = repository,
                             onShowLogin = { showLogin = true },
                             onLogout = {
@@ -130,7 +125,7 @@ class MainActivity : ComponentActivity() {
                                         db.campeonatoDao().deleteAll()
                                     }
                                     user = null
-                                    showLogin = true // Após logout, volta para a tela de escolha
+                                    showLogin = true
                                 }
                             }
                         )
@@ -143,11 +138,12 @@ class MainActivity : ComponentActivity() {
 
 @Composable
 fun ScoreBoardNavigation(
+    adminUid: String,
     listaPublica: SnapshotStateList<CampeonatoSalvo>,
     listaMural: SnapshotStateList<CampeonatoSalvo>,
     listaJ: SnapshotStateList<JogadorExemplo>,
     listaE: SnapshotStateList<EquipeExemplo>,
-    listaC: SnapshotStateList<CampeonatoSalvo>,
+    listaMeusC: SnapshotStateList<CampeonatoSalvo>,
     repository: DataRepository,
     onShowLogin: () -> Unit,
     onLogout: () -> Unit
@@ -169,7 +165,6 @@ fun ScoreBoardNavigation(
     val equipesNoCampeonato = remember { mutableStateListOf<EquipeExemplo>() }
     var configsCampeonatoAtual by remember { mutableStateOf(ConfiguracoesCampeonato()) }
 
-    // Corrigido: Padronização dos nomes das telas para evitar crashes e loops
     BackHandler(enabled = telaAtual != "telespectador") {
         telaAtual = when (telaAtual) {
             "menu" -> "telespectador" 
@@ -196,8 +191,9 @@ fun ScoreBoardNavigation(
         "telespectador" -> TelaInicialTelespectador(
             listaC = listaPublica,
             onAbrirCampeonato = { camp ->
-                // Só ativa modo organizador se o usuário atual for o dono
-                isOrganizador = currentUser != null && camp.ownerId == currentUser.uid
+                // REGRA DE OURO: Só organiza se for o DONO ou o ADMIN
+                val podeGerenciar = currentUser != null && (camp.ownerId == currentUser.uid || currentUser.uid == adminUid)
+                isOrganizador = podeGerenciar
                 
                 equipesNoCampeonato.clear(); equipesNoCampeonato.addAll(camp.equipes)
                 listaPartidasCampeonato.clear(); listaPartidasCampeonato.addAll(camp.partidas)
@@ -214,8 +210,8 @@ fun ScoreBoardNavigation(
         "mural_exibicao" -> TelaCampeonatosTelespectadores(
             listaC = listaMural,
             onAbrir = { camp ->
-                // No mural de exibição, o acesso é sempre como telespectador (leitura apenas)
-                isOrganizador = currentUser != null && camp.ownerId == currentUser.uid
+                val podeGerenciar = currentUser != null && (camp.ownerId == currentUser.uid || currentUser.uid == adminUid)
+                isOrganizador = podeGerenciar
                 
                 equipesNoCampeonato.clear(); equipesNoCampeonato.addAll(camp.equipes)
                 listaPartidasCampeonato.clear(); listaPartidasCampeonato.addAll(camp.partidas)
@@ -228,10 +224,12 @@ fun ScoreBoardNavigation(
         )
 
         "menu" -> TelaInicialMenu(
-            listaC = listaC,
+            listaC = if (currentUser?.uid == adminUid) listaPublica else listaMeusC, 
+            currentUserId = currentUser?.uid ?: "",
             onAbrirCamp = { camp ->
-                // Aqui o usuário está na sua lista privada, mas a verificação de segurança é mantida
-                isOrganizador = currentUser != null && camp.ownerId == currentUser.uid
+                // No menu, os campeonatos listados já devem ser os dele (ou todos se for admin)
+                val podeGerenciar = currentUser != null && (camp.ownerId == currentUser.uid || currentUser.uid == adminUid)
+                isOrganizador = podeGerenciar
                 
                 equipesNoCampeonato.clear(); equipesNoCampeonato.addAll(camp.equipes)
                 listaPartidasCampeonato.clear(); listaPartidasCampeonato.addAll(camp.partidas)
@@ -246,11 +244,14 @@ fun ScoreBoardNavigation(
         )
 
         "gerenciar_campeonato" -> TelaListaCampeonatos(
-            lista = listaC,
+            lista = if (currentUser?.uid == adminUid) listaPublica else listaMeusC, 
+            isAdmin = currentUser?.uid == adminUid, // Passa a permissão visual de Admin
+            repository = repository,
             onVoltar = { telaAtual = "menu" },
             onAbrir = { camp ->
-                isOrganizador = currentUser != null && camp.ownerId == currentUser.uid
-                
+                val podeGerenciar = currentUser != null && (camp.ownerId == currentUser.uid || currentUser.uid == adminUid)
+                isOrganizador = podeGerenciar
+
                 equipesNoCampeonato.clear(); equipesNoCampeonato.addAll(camp.equipes)
                 listaPartidasCampeonato.clear(); listaPartidasCampeonato.addAll(camp.partidas)
                 modeloCampeonatoEscolhido = camp.modelo; nomeCampeonatoEscolhido = camp.nomeExibicao
@@ -330,15 +331,19 @@ fun ScoreBoardNavigation(
             isOrganizador = isOrganizador && currentUser != null,
             repository = repository,
             onSalvarGeral = { id, configs -> 
-                // Proteção adicional na função de salvamento
                 if (currentUser == null) return@TelaPainelCampeonato
                 
-                val idEfetivo = if (id == -1) idCampeonatoAtual else id
+                var idEfetivo = if (id <= 0) idCampeonatoAtual else id
+                if (idEfetivo <= 0) {
+                    idEfetivo = (System.currentTimeMillis() / 1000).toInt()
+                    idCampeonatoAtual = idEfetivo
+                }
+
                 val campAtualizado = CampeonatoSalvo(
                     id = idEfetivo, 
                     nomeExibicao = nomeCampeonatoEscolhido, 
                     nome = nomeCampeonatoEscolhido,
-                    ownerId = currentUser.uid, // Sempre usa o UID do usuário logado como dono
+                    ownerId = if (currentUser.uid == adminUid) (listaPublica.find { it.id == idEfetivo }?.ownerId ?: currentUser.uid) else currentUser.uid,
                     modelo = modeloCampeonatoEscolhido,
                     equipes = equipesNoCampeonato.toList(), 
                     partidas = listaPartidasCampeonato.toList(),
@@ -351,10 +356,10 @@ fun ScoreBoardNavigation(
             onVoltar = { telaAtual = if (isOrganizador) "menu" else "telespectador" }
         )
         "cadastrar_jogador" -> TelaCadastroJogador(listaGlobalJogadores = listaJ, repository = repository, onVoltar = { telaAtual = "menu" })
-        "gerenciar_jogador" -> TelaListaJogadoresGerenciar(listaJ = listaJ, onVoltar = { telaAtual = "menu" }, onGerenciar = { jogadorSelecionado = it; telaAtual = "detalhes_jogador" })
+        "gerenciar_jogador" -> TelaListaJogadoresGerenciar(listaJ = listaJ, onVoltar = { telaAtual = "menu" }, onGerenciar = { jog -> jogadorSelecionado = jog; telaAtual = "detalhes_jogador" })
         "detalhes_jogador" -> jogadorSelecionado?.let { TelaGerenciarJogadorAdmin(it, listaJ, repository, onVoltar = { telaAtual = "gerenciar_jogador" }) }
         "cadastrar_equipe" -> TelaCadastroEquipe(listaGlobalEquipes = listaE, repository = repository, onVoltar = { telaAtual = "menu" })
-        "gerenciar_equipe" -> TelaListaEquipesGerenciar(listaE = listaE, onVoltar = { telaAtual = "menu" }, onGerenciar = { equipeSelecionada = it; telaAtual = "detalhes_equipe" })
+        "gerenciar_equipe" -> TelaListaEquipesGerenciar(listaE = listaE, onVoltar = { telaAtual = "menu" }, onGerenciar = { eq -> equipeSelecionada = eq; telaAtual = "detalhes_equipe" })
         "detalhes_equipe" -> equipeSelecionada?.let { TelaGerenciarEquipeAdmin(it, listaE, listaJ, repository, onAdicionarJogador = { telaAtual = "selecionar_jogador_para_equipe" }, onVoltar = { telaAtual = "gerenciar_equipe" }) }
         "selecionar_jogador_para_equipe" -> equipeSelecionada?.let { TelaSelecaoJogador(it, listaJ, listaE, repository, onFinalizar = { telaAtual = "detalhes_equipe" }) }
     }

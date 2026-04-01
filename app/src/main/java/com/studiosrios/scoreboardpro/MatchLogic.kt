@@ -75,8 +75,8 @@ fun calcularPontuacaoJogador(
             mvp++
         }
 
-        // Saldo de Gols (SG) para Defensores e Goleiros
-        val ehDefensor = jogador.posicao in listOf("GOL", "ZAG", "LAT", "VOL")
+        // Saldo de Gols (SG) para Defensores e Goleiros (Volante removido conforme solicitado)
+        val ehDefensor = jogador.posicao in listOf("GOL", "ZAG", "LAT")
         if (ehDefensor) {
             val sofridos = if (p.mandanteId == jogador.equipeId) (p.golsVisitante ?: 0) else (p.golsMandante ?: 0)
             if (sofridos == 0) sg++
