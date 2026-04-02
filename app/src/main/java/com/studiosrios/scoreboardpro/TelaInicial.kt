@@ -10,6 +10,7 @@ import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.Logout
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.EmojiEvents
 import androidx.compose.material.icons.filled.Groups
@@ -189,18 +190,24 @@ fun CardCampeonatoInterativo(
 @Composable
 fun TelaInicialMenu(
     listaC: List<CampeonatoSalvo>,
-    currentUserId: String, // Adicionado para filtrar
+    currentUserId: String, 
     onAbrirCamp: (CampeonatoSalvo) -> Unit,
     onNavegar: (String) -> Unit
 ) {
-    // Filtra a lista para mostrar apenas os campeonatos que o usuário criou
     val meusCampeonatos = remember(listaC, currentUserId) {
         listaC.filter { it.ownerId == currentUserId }
     }
 
     Scaffold(
         topBar = {
-            TopAppBar(title = { Text("Menu do Organizador", fontWeight = FontWeight.Bold) })
+            TopAppBar(
+                title = { Text("Menu do Organizador", fontWeight = FontWeight.Bold) },
+                actions = {
+                    IconButton(onClick = { onNavegar("logout") }) {
+                        Icon(Icons.AutoMirrored.Filled.Logout, contentDescription = "Sair", tint = Color.Red)
+                    }
+                }
+            )
         }
     ) { padding ->
         Column(
@@ -222,7 +229,6 @@ fun TelaInicialMenu(
             Text("GERENCIAMENTO", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = Color.Gray)
             Spacer(Modifier.height(16.dp))
 
-            // Passamos a lista filtrada para a tela de gerenciamento quando navegada
             CardGerenciamento("Meus Campeonatos", "Ver e editar torneios salvos (${meusCampeonatos.size})", Icons.Default.EmojiEvents) { 
                 onNavegar("gerenciar_campeonato") 
             }

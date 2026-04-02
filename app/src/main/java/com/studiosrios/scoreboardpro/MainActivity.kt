@@ -7,12 +7,27 @@ import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.Group
+import androidx.compose.material.icons.filled.Person
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.snapshots.SnapshotStateList
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.lifecycle.lifecycleScope
 import com.google.android.gms.auth.api.signin.GoogleSignIn
 import com.google.android.gms.auth.api.signin.GoogleSignInOptions
@@ -63,9 +78,11 @@ class MainActivity : ComponentActivity() {
                 }
 
                 LaunchedEffect(user) {
-                    if (user != null) {
+                    user?.let { 
                         showLogin = false
+                        // Sincroniza inicialmente com a própria conta
                         repository.startSync(
+                            userId = it.uid,
                             onJogadoresUpdate = { list -> listaMeusJogadores.clear(); listaMeusJogadores.addAll(list) },
                             onEquipesUpdate = { list -> listaMinhasEquipes.clear(); listaMinhasEquipes.addAll(list) },
                             onCampeonatosUpdate = { list -> listaMeusCampeonatos.clear(); listaMeusCampeonatos.addAll(list) }
@@ -151,7 +168,12 @@ fun ScoreBoardNavigation(
     var telaAtual by remember { mutableStateOf("telespectador") }
     var isOrganizador by remember { mutableStateOf(false) }
     val currentUser = FirebaseAuth.getInstance().currentUser
+    val ctx = LocalContext.current
     
+    // Estados para controle de Admin e Identidade assumida
+    var userIdAssumido by remember { mutableStateOf<String?>(null) }
+    var listaUsuariosAdmin = remember { mutableStateListOf<String>() }
+
     var jogadorSelecionado by remember { mutableStateOf<JogadorExemplo?>(null) }
     var equipeSelecionada by remember { mutableStateOf<EquipeExemplo?>(null) }
     var modeloCampeonatoEscolhido by remember { mutableStateOf("") }
@@ -167,7 +189,8 @@ fun ScoreBoardNavigation(
 
     BackHandler(enabled = telaAtual != "telespectador") {
         telaAtual = when (telaAtual) {
-            "menu" -> "telespectador" 
+            "menu" -> if (userIdAssumido != null) "admin_usuarios" else "telespectador"
+            "admin_usuarios" -> "telespectador"
             "mural_exibicao" -> "telespectador"
             "gerenciar_campeonato" -> "menu"
             "cadastrar_campeonato" -> "menu"
@@ -191,10 +214,7 @@ fun ScoreBoardNavigation(
         "telespectador" -> TelaInicialTelespectador(
             listaC = listaPublica,
             onAbrirCampeonato = { camp ->
-                // REGRA DE OURO: Só organiza se for o DONO ou o ADMIN
-                val podeGerenciar = currentUser != null && (camp.ownerId == currentUser.uid || currentUser.uid == adminUid)
-                isOrganizador = podeGerenciar
-                
+                isOrganizador = currentUser != null && (camp.ownerId == currentUser.uid || currentUser.uid == adminUid)
                 equipesNoCampeonato.clear(); equipesNoCampeonato.addAll(camp.equipes)
                 listaPartidasCampeonato.clear(); listaPartidasCampeonato.addAll(camp.partidas)
                 modeloCampeonatoEscolhido = camp.modelo; nomeCampeonatoEscolhido = camp.nomeExibicao 
@@ -203,16 +223,38 @@ fun ScoreBoardNavigation(
                 telaAtual = "painel_campeonato"
             },
             onEntrarComoOrganizador = { 
-                if (currentUser != null) telaAtual = "menu" else onShowLogin()
+                if (currentUser != null) {
+                    if (currentUser.uid == adminUid) {
+                        repository.listAllUserIds { list -> 
+                            listaUsuariosAdmin.clear(); listaUsuariosAdmin.addAll(list)
+                            telaAtual = "admin_usuarios"
+                        }
+                    } else {
+                        telaAtual = "menu" 
+                    }
+                } else onShowLogin()
             }
+        )
+
+        "admin_usuarios" -> TelaGerenciamentoUsuariosAdmin(
+            uids = listaUsuariosAdmin,
+            onSelecionarUsuario = { uid ->
+                userIdAssumido = uid
+                repository.startSync(
+                    userId = uid,
+                    onJogadoresUpdate = { list -> listaJ.clear(); listaJ.addAll(list) },
+                    onEquipesUpdate = { list -> listaE.clear(); listaE.addAll(list) },
+                    onCampeonatosUpdate = { list -> listaMeusC.clear(); listaMeusC.addAll(list) }
+                )
+                telaAtual = "menu"
+            },
+            onVoltar = { telaAtual = "telespectador" }
         )
 
         "mural_exibicao" -> TelaCampeonatosTelespectadores(
             listaC = listaMural,
             onAbrir = { camp ->
-                val podeGerenciar = currentUser != null && (camp.ownerId == currentUser.uid || currentUser.uid == adminUid)
-                isOrganizador = podeGerenciar
-                
+                isOrganizador = currentUser != null && (camp.ownerId == currentUser.uid || currentUser.uid == adminUid)
                 equipesNoCampeonato.clear(); equipesNoCampeonato.addAll(camp.equipes)
                 listaPartidasCampeonato.clear(); listaPartidasCampeonato.addAll(camp.partidas)
                 modeloCampeonatoEscolhido = camp.modelo; nomeCampeonatoEscolhido = camp.nomeExibicao 
@@ -225,12 +267,9 @@ fun ScoreBoardNavigation(
 
         "menu" -> TelaInicialMenu(
             listaC = if (currentUser?.uid == adminUid) listaPublica else listaMeusC, 
-            currentUserId = currentUser?.uid ?: "",
+            currentUserId = userIdAssumido ?: currentUser?.uid ?: "",
             onAbrirCamp = { camp ->
-                // No menu, os campeonatos listados já devem ser os dele (ou todos se for admin)
-                val podeGerenciar = currentUser != null && (camp.ownerId == currentUser.uid || currentUser.uid == adminUid)
-                isOrganizador = podeGerenciar
-                
+                isOrganizador = true
                 equipesNoCampeonato.clear(); equipesNoCampeonato.addAll(camp.equipes)
                 listaPartidasCampeonato.clear(); listaPartidasCampeonato.addAll(camp.partidas)
                 modeloCampeonatoEscolhido = camp.modelo; nomeCampeonatoEscolhido = camp.nomeExibicao
@@ -244,14 +283,12 @@ fun ScoreBoardNavigation(
         )
 
         "gerenciar_campeonato" -> TelaListaCampeonatos(
-            lista = if (currentUser?.uid == adminUid) listaPublica else listaMeusC, 
-            isAdmin = currentUser?.uid == adminUid, // Passa a permissão visual de Admin
+            lista = if (userIdAssumido != null) listaMeusC else (if (currentUser?.uid == adminUid) listaPublica else listaMeusC), 
+            isAdmin = currentUser?.uid == adminUid,
             repository = repository,
             onVoltar = { telaAtual = "menu" },
             onAbrir = { camp ->
-                val podeGerenciar = currentUser != null && (camp.ownerId == currentUser.uid || currentUser.uid == adminUid)
-                isOrganizador = podeGerenciar
-
+                isOrganizador = true
                 equipesNoCampeonato.clear(); equipesNoCampeonato.addAll(camp.equipes)
                 listaPartidasCampeonato.clear(); listaPartidasCampeonato.addAll(camp.partidas)
                 modeloCampeonatoEscolhido = camp.modelo; nomeCampeonatoEscolhido = camp.nomeExibicao
@@ -264,7 +301,7 @@ fun ScoreBoardNavigation(
         "cadastrar_campeonato" -> TelaModeloCampeonato(
             onVoltar = { telaAtual = "menu" },
             onSelecionar = { nome, foto, modelo ->
-                modeloCampeonatoEscolhido = modelo; nomeCampeonatoEscolhido = nome; fotoCampeonatoEscolhida = foto
+                modeloCampeonatoEscolhido = nome; nomeCampeonatoEscolhido = nome; fotoCampeonatoEscolhida = foto
                 isOrganizador = true
                 idCampeonatoAtual = (System.currentTimeMillis() / 1000).toInt()
                 configsCampeonatoAtual = ConfiguracoesCampeonato()
@@ -333,17 +370,15 @@ fun ScoreBoardNavigation(
             onSalvarGeral = { id, configs -> 
                 if (currentUser == null) return@TelaPainelCampeonato
                 
-                var idEfetivo = if (id <= 0) idCampeonatoAtual else id
-                if (idEfetivo <= 0) {
-                    idEfetivo = (System.currentTimeMillis() / 1000).toInt()
-                    idCampeonatoAtual = idEfetivo
-                }
+                val idEfetivo = if (id <= 0) idCampeonatoAtual else id
+                val campOriginal = listaPublica.find { it.id == idEfetivo }
+                val ownerOriginal = campOriginal?.ownerId ?: userIdAssumido ?: currentUser.uid
 
                 val campAtualizado = CampeonatoSalvo(
                     id = idEfetivo, 
                     nomeExibicao = nomeCampeonatoEscolhido, 
                     nome = nomeCampeonatoEscolhido,
-                    ownerId = if (currentUser.uid == adminUid) (listaPublica.find { it.id == idEfetivo }?.ownerId ?: currentUser.uid) else currentUser.uid,
+                    ownerId = ownerOriginal,
                     modelo = modeloCampeonatoEscolhido,
                     equipes = equipesNoCampeonato.toList(), 
                     partidas = listaPartidasCampeonato.toList(),
@@ -362,5 +397,53 @@ fun ScoreBoardNavigation(
         "gerenciar_equipe" -> TelaListaEquipesGerenciar(listaE = listaE, onVoltar = { telaAtual = "menu" }, onGerenciar = { eq -> equipeSelecionada = eq; telaAtual = "detalhes_equipe" })
         "detalhes_equipe" -> equipeSelecionada?.let { TelaGerenciarEquipeAdmin(it, listaE, listaJ, repository, onAdicionarJogador = { telaAtual = "selecionar_jogador_para_equipe" }, onVoltar = { telaAtual = "gerenciar_equipe" }) }
         "selecionar_jogador_para_equipe" -> equipeSelecionada?.let { TelaSelecaoJogador(it, listaJ, listaE, repository, onFinalizar = { telaAtual = "detalhes_equipe" }) }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun TelaGerenciamentoUsuariosAdmin(
+    uids: List<String>,
+    onSelecionarUsuario: (String) -> Unit,
+    onVoltar: () -> Unit
+) {
+    Scaffold(
+        topBar = {
+            CenterAlignedTopAppBar(
+                title = { Text("Painel Administrativo", fontWeight = FontWeight.Bold) },
+                navigationIcon = {
+                    IconButton(onClick = onVoltar) {
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Voltar")
+                    }
+                }
+            )
+        }
+    ) { padding ->
+        Column(modifier = Modifier.padding(padding).padding(16.dp)) {
+            Text("SELECIONE UM USUÁRIO PARA GERENCIAR", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = Color.Gray)
+            Spacer(Modifier.height(16.dp))
+            
+            LazyColumn {
+                items(uids) { uid ->
+                    Card(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 4.dp)
+                            .clickable { onSelecionarUsuario(uid) },
+                        elevation = CardDefaults.cardElevation(2.dp),
+                        colors = CardDefaults.cardColors(containerColor = Color.White)
+                    ) {
+                        Row(modifier = Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
+                            Icon(Icons.Default.Person, null, tint = MaterialTheme.colorScheme.primary)
+                            Spacer(Modifier.width(16.dp))
+                            Column {
+                                Text("ID Usuário:", fontSize = 10.sp, color = Color.Gray)
+                                Text(uid, fontWeight = FontWeight.Medium, fontSize = 14.sp)
+                            }
+                        }
+                    }
+                }
+            }
+        }
     }
 }
