@@ -102,9 +102,6 @@ class DataRepository(private val db: AppDatabase, private val context: Context) 
         })
     }
 
-    /**
-     * Função exclusiva para o Admin: Lista todos os IDs de usuários que possuem dados no app.
-     */
     fun listAllUserIds(onResult: (List<String>) -> Unit) {
         val usersRef = firebase.getReference("users")
         usersRef.addListenerForSingleValueEvent(object : ValueEventListener {
@@ -116,10 +113,10 @@ class DataRepository(private val db: AppDatabase, private val context: Context) 
         })
     }
 
-    // --- SINCRONIZAÇÃO PRIVADA (ORGANIZADOR OU ADMIN ASSUMINDO CONTA) ---
+    // --- SINCRONIZAÇÃO PRIVADA ---
 
     fun startSync(
-        userId: String, // Passando o ID explicitamente para permitir assumir contas
+        userId: String,
         onJogadoresUpdate: (List<JogadorExemplo>) -> Unit,
         onEquipesUpdate: (List<EquipeExemplo>) -> Unit,
         onCampeonatosUpdate: (List<CampeonatoSalvo>) -> Unit
@@ -203,7 +200,10 @@ class DataRepository(private val db: AppDatabase, private val context: Context) 
             if (targetUserId.isNotBlank()) {
                 firebase.getReference("users/$targetUserId/campeonatos").child(campeonato.id.toString()).setValue(campNuvem)
             }
+            // Salva no nó público global
             firebase.getReference("campeonatos").child(campeonato.id.toString()).setValue(campNuvem)
+            // NOVIDADE: Salva automaticamente no Mural de Exibição para o público
+            firebase.getReference("campeonatostelespectadores").child(campeonato.id.toString()).setValue(campNuvem)
         }
     }
 
