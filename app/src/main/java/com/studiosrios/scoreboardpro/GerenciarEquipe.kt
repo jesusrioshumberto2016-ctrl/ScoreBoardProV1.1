@@ -149,6 +149,11 @@ fun TelaGerenciarEquipeAdmin(
     val equipeAtual = listaGlobalEquipes.find { it.id == equipe.id } ?: equipe
     val ctx = LocalContext.current
     
+    // Elenco derivado da lista global para garantir que os dados apareçam
+    val elenco = remember(equipeAtual, listaGlobalJogadores.size) {
+        listaGlobalJogadores.filter { it.equipeId == equipeAtual.id }
+    }
+
     var escudoUri by remember { mutableStateOf(equipeAtual.escudoUri) }
     var showDialogPatrocinador by remember { mutableStateOf(false) }
     var nomePatrocinador by remember { mutableStateOf("") }
@@ -157,7 +162,6 @@ fun TelaGerenciarEquipeAdmin(
     var showConfirmDeleteEquipe by remember { mutableStateOf(false) }
     var patrocinadorParaExcluir by remember { mutableStateOf<Patrocinador?>(null) }
     
-    // Novo estado para remoção de jogador
     var jogadorParaRemover by remember { mutableStateOf<JogadorExemplo?>(null) }
 
     val launcherEscudo = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri: Uri? ->
@@ -177,7 +181,6 @@ fun TelaGerenciarEquipeAdmin(
         uri?.let { fotoPatrocinadorUri = it.toString() }
     }
 
-    // Diálogo Excluir Equipe
     if (showConfirmDeleteEquipe) {
         AlertDialog(
             onDismissRequest = { showConfirmDeleteEquipe = false },
@@ -203,7 +206,6 @@ fun TelaGerenciarEquipeAdmin(
         )
     }
 
-    // Diálogo Confirmar Remoção de Jogador do Elenco
     jogadorParaRemover?.let { jogador ->
         AlertDialog(
             onDismissRequest = { jogadorParaRemover = null },
@@ -212,19 +214,21 @@ fun TelaGerenciarEquipeAdmin(
             confirmButton = {
                 TextButton(
                     onClick = {
-                        val eqIdx = listaGlobalEquipes.indexOfFirst { it.id == equipeAtual.id }
-                        if (eqIdx != -1) {
-                            val novoElenco = equipeAtual.jogadores.filter { it.id != jogador.id }
-                            val updatedEq = listaGlobalEquipes[eqIdx].copy(jogadores = novoElenco)
-                            listaGlobalEquipes[eqIdx] = updatedEq
-                            repository.salvarEquipe(updatedEq)
+                        val jogIdx = listaGlobalJogadores.indexOfFirst { it.id == jogador.id }
+                        if (jogIdx != -1) {
+                            val updatedJog = listaGlobalJogadores[jogIdx].copy(equipeId = -1)
+                            listaGlobalJogadores[jogIdx] = updatedJog
+                            repository.salvarJogador(updatedJog)
                             
-                            val jogIdx = listaGlobalJogadores.indexOfFirst { it.id == jogador.id }
-                            if (jogIdx != -1) {
-                                val updatedJog = listaGlobalJogadores[jogIdx].copy(equipeId = -1)
-                                listaGlobalJogadores[jogIdx] = updatedJog
-                                repository.salvarJogador(updatedJog)
+                            // Atualiza também o objeto Equipe na memória (embora agora usemos o filtro global)
+                            val eqIdx = listaGlobalEquipes.indexOfFirst { it.id == equipeAtual.id }
+                            if (eqIdx != -1) {
+                                val novoElencoInterno = equipeAtual.jogadores.filter { it.id != jogador.id }
+                                val updatedEq = listaGlobalEquipes[eqIdx].copy(jogadores = novoElencoInterno)
+                                listaGlobalEquipes[eqIdx] = updatedEq
+                                repository.salvarEquipe(updatedEq)
                             }
+                            
                             Toast.makeText(ctx, "Jogador removido com sucesso.", Toast.LENGTH_SHORT).show()
                         }
                         jogadorParaRemover = null
@@ -238,7 +242,6 @@ fun TelaGerenciarEquipeAdmin(
         )
     }
 
-    // Diálogo Excluir Patrocinador
     patrocinadorParaExcluir?.let { pat ->
         AlertDialog(
             onDismissRequest = { patrocinadorParaExcluir = null },
@@ -320,7 +323,7 @@ fun TelaGerenciarEquipeAdmin(
             )
         },
         floatingActionButton = {
-            if (listaGlobalJogadores.any { it.equipeId == -1 }) { // Só mostra se houver jogadores sem time
+            if (listaGlobalJogadores.any { it.equipeId == -1 }) {
                 FloatingActionButton(onClick = onAdicionarJogador, containerColor = Color(0xFF2E7D32), contentColor = Color.White) {
                     Icon(Icons.Default.Add, "Adicionar Jogador")
                 }
@@ -436,16 +439,16 @@ fun TelaGerenciarEquipeAdmin(
             Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                 Text("ELENCO ATUAL", fontWeight = FontWeight.Bold, fontSize = 18.sp)
                 Spacer(Modifier.weight(1f))
-                Text("${equipeAtual.jogadores.size} Jogadores", fontSize = 12.sp, color = Color.Gray)
+                Text("${elenco.size} Jogadores", fontSize = 12.sp, color = Color.Gray)
             }
             
             HorizontalDivider(Modifier.padding(vertical = 8.dp))
 
-            if (equipeAtual.jogadores.isEmpty()) {
+            if (elenco.isEmpty()) {
                 Text("Nenhum jogador cadastrado neste time.", modifier = Modifier.padding(24.dp), color = Color.Gray, fontSize = 14.sp)
             }
 
-            equipeAtual.jogadores.forEach { jogador ->
+            elenco.forEach { jogador ->
                 Card(
                     modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
                     colors = CardDefaults.cardColors(containerColor = Color.White),
@@ -464,8 +467,6 @@ fun TelaGerenciarEquipeAdmin(
                             Text("${jogador.posicao} | ID: ${jogador.id}", fontSize = 12.sp, color = Color.Gray)
                         }
                         IconButton(onClick = {
-                            // Ao clicar na lixeira, apenas define o jogador para remoção
-                            // O diálogo de confirmação cuidará do resto
                             jogadorParaRemover = jogador
                         }) {
                             Icon(Icons.Default.Delete, "Remover", tint = Color.Red.copy(alpha = 0.6f))

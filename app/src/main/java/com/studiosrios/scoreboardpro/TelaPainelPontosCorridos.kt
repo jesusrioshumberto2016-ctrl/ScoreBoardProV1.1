@@ -39,6 +39,9 @@ fun TelaPainelPontosCorridos(
     val snackbarHostState = remember { SnackbarHostState() }
     var houveAlteracaoGeral by remember { mutableStateOf(false) }
 
+    // Estado local para as configurações para permitir edição em tempo real antes de salvar no DB
+    var configsEditaveis by remember(configsIniciais) { mutableStateOf(configsIniciais) }
+
     // Ordenação das partidas para pontos corridos
     val partidasOrdenadas by remember {
         derivedStateOf {
@@ -71,7 +74,7 @@ fun TelaPainelPontosCorridos(
                         actions = {
                             if (isOrganizador) {
                                 IconButton(onClick = {
-                                    onSalvarGeral(idCamp, configsIniciais)
+                                    onSalvarGeral(idCamp, configsEditaveis)
                                     houveAlteracaoGeral = false
                                     scope.launch { snackbarHostState.showSnackbar("Dados salvos!") }
                                 }) { 
@@ -107,7 +110,7 @@ fun TelaPainelPontosCorridos(
                     0 -> TelaTabelaRanking(
                         equipes = equipes, 
                         partidas = partidas, 
-                        configs = configsIniciais,
+                        configs = configsEditaveis,
                         onEquipeClick = { e -> equipeSelecionada = e }
                     )
                     1 -> PartidasTab(
@@ -124,10 +127,18 @@ fun TelaPainelPontosCorridos(
                         onEquipeClick = { e -> equipeSelecionada = e }
                     )
                     3 -> {
-                        TelaConfiguracoesCampeonato(
-                            configs = configsIniciais,
-                            onSalvar = { novasConfigs ->
-                                onSalvarGeral(idCamp, novasConfigs)
+                        ConfigTab(
+                            idCamp = idCamp,
+                            equipes = equipes,
+                            partidas = partidas,
+                            configsAtuais = configsEditaveis,
+                            onConfigsChanged = { novas -> 
+                                configsEditaveis = novas
+                                houveAlteracaoGeral = true 
+                            },
+                            onSalvarGeral = { id, finalConfigs ->
+                                onSalvarGeral(id, finalConfigs)
+                                houveAlteracaoGeral = false
                                 scope.launch { snackbarHostState.showSnackbar("Configurações salvas!") }
                             }
                         )

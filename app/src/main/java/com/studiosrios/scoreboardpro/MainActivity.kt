@@ -7,16 +7,12 @@ import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.ArrowBack
-import androidx.compose.material.icons.filled.Group
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -60,16 +56,17 @@ class MainActivity : ComponentActivity() {
                 val auth = FirebaseAuth.getInstance()
                 var user by remember { mutableStateOf(auth.currentUser) }
                 var showLogin by remember { mutableStateOf(user == null) } 
-                val context = LocalContext.current
 
+                // Sincronização Inicial
                 LaunchedEffect(Unit) {
-                    repository.startPublicSync()
                     repository.startExhibitonSync { list ->
                         listaMuralExibicao.clear()
                         listaMuralExibicao.addAll(list)
                     }
+                    repository.startPublicSync()
                 }
 
+                // Room Sync
                 LaunchedEffect(Unit) {
                     db.campeonatoDao().getAll().collect { list ->
                         listaPublicaCampeonatos.clear()
@@ -80,7 +77,6 @@ class MainActivity : ComponentActivity() {
                 LaunchedEffect(user) {
                     user?.let { 
                         showLogin = false
-                        // Sincroniza inicialmente com a própria conta
                         repository.startSync(
                             userId = it.uid,
                             onJogadoresUpdate = { list -> listaMeusJogadores.clear(); listaMeusJogadores.addAll(list) },
@@ -91,12 +87,12 @@ class MainActivity : ComponentActivity() {
                 }
 
                 val gso = remember {
-                    val resourceId = context.resources.getIdentifier("default_web_client_id", "string", context.packageName)
+                    val resourceId = resources.getIdentifier("default_web_client_id", "string", packageName)
                     val builder = GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN).requestEmail()
-                    if (resourceId != 0) builder.requestIdToken(context.getString(resourceId))
+                    if (resourceId != 0) builder.requestIdToken(getString(resourceId))
                     builder.build()
                 }
-                val googleSignInClient = remember { GoogleSignIn.getClient(this, gso) }
+                val googleSignInClient = remember { GoogleSignIn.getClient(this@MainActivity, gso) }
 
                 val launcher = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
                     val task = GoogleSignIn.getSignedInAccountFromIntent(result.data)
@@ -110,7 +106,7 @@ class MainActivity : ComponentActivity() {
                             }
                         }
                     } catch (e: ApiException) {
-                        Toast.makeText(context, "Erro Google: ${e.message}", Toast.LENGTH_SHORT).show()
+                        Toast.makeText(this@MainActivity, "Erro Google: ${e.message}", Toast.LENGTH_SHORT).show()
                     }
                 }
 
@@ -168,9 +164,7 @@ fun ScoreBoardNavigation(
     var telaAtual by remember { mutableStateOf("telespectador") }
     var isOrganizador by remember { mutableStateOf(false) }
     val currentUser = FirebaseAuth.getInstance().currentUser
-    val ctx = LocalContext.current
     
-    // Estados para controle de Admin e Identidade assumida
     var userIdAssumido by remember { mutableStateOf<String?>(null) }
     var listaUsuariosAdmin = remember { mutableStateListOf<String>() }
 
@@ -212,7 +206,7 @@ fun ScoreBoardNavigation(
 
     when (telaAtual) {
         "telespectador" -> TelaInicialTelespectador(
-            listaC = listaPublica,
+            listaC = listaMural,
             onAbrirCampeonato = { camp ->
                 isOrganizador = currentUser != null && (camp.ownerId == currentUser.uid || currentUser.uid == adminUid)
                 equipesNoCampeonato.clear(); equipesNoCampeonato.addAll(camp.equipes)
@@ -266,10 +260,12 @@ fun ScoreBoardNavigation(
         )
 
         "menu" -> TelaInicialMenu(
-            listaC = if (currentUser?.uid == adminUid) listaPublica else listaMeusC, 
+            listaC = if (currentUser?.uid == adminUid && userIdAssumido == null) listaPublica else listaMeusC, 
             currentUserId = userIdAssumido ?: currentUser?.uid ?: "",
             onAbrirCamp = { camp ->
-                isOrganizador = true
+                val podeGerenciar = currentUser != null && (camp.ownerId == currentUser.uid || currentUser.uid == adminUid)
+                isOrganizador = podeGerenciar
+                
                 equipesNoCampeonato.clear(); equipesNoCampeonato.addAll(camp.equipes)
                 listaPartidasCampeonato.clear(); listaPartidasCampeonato.addAll(camp.partidas)
                 modeloCampeonatoEscolhido = camp.modelo; nomeCampeonatoEscolhido = camp.nomeExibicao
@@ -288,7 +284,9 @@ fun ScoreBoardNavigation(
             repository = repository,
             onVoltar = { telaAtual = "menu" },
             onAbrir = { camp ->
-                isOrganizador = true
+                val podeGerenciar = currentUser != null && (camp.ownerId == currentUser.uid || currentUser.uid == adminUid)
+                isOrganizador = podeGerenciar
+
                 equipesNoCampeonato.clear(); equipesNoCampeonato.addAll(camp.equipes)
                 listaPartidasCampeonato.clear(); listaPartidasCampeonato.addAll(camp.partidas)
                 modeloCampeonatoEscolhido = camp.modelo; nomeCampeonatoEscolhido = camp.nomeExibicao
@@ -301,7 +299,7 @@ fun ScoreBoardNavigation(
         "cadastrar_campeonato" -> TelaModeloCampeonato(
             onVoltar = { telaAtual = "menu" },
             onSelecionar = { nome, foto, modelo ->
-                modeloCampeonatoEscolhido = nome; nomeCampeonatoEscolhido = nome; fotoCampeonatoEscolhida = foto
+                modeloCampeonatoEscolhido = modelo; nomeCampeonatoEscolhido = nome; fotoCampeonatoEscolhida = foto
                 isOrganizador = true
                 idCampeonatoAtual = (System.currentTimeMillis() / 1000).toInt()
                 configsCampeonatoAtual = ConfiguracoesCampeonato()
@@ -370,6 +368,9 @@ fun ScoreBoardNavigation(
             onSalvarGeral = { id, configs -> 
                 if (currentUser == null) return@TelaPainelCampeonato
                 
+                // ATUALIZAÇÃO IMEDIATA NA UI
+                configsCampeonatoAtual = configs
+
                 val idEfetivo = if (id <= 0) idCampeonatoAtual else id
                 val campOriginal = listaPublica.find { it.id == idEfetivo }
                 val ownerOriginal = campOriginal?.ownerId ?: userIdAssumido ?: currentUser.uid
